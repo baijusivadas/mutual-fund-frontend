@@ -381,7 +381,7 @@ const Index = () => {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-80 space-y-6">
+        <div className="w-80 space-y-6 min-h-[1328px]">
           <Card>
             <CardHeader>
               <CardTitle>Recent Transactions</CardTitle>

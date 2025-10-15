@@ -16,17 +16,17 @@ const Transactions = () => {
   const displayedTransactions = useMemo(() => {
     return filteredTransactions
       .filter((t) => {
-        // Search filter
+        // Search filter - safely handle null/undefined values
+        const searchLower = searchQuery.toLowerCase().trim();
         const matchesSearch = searchQuery === "" || 
-          t.schemeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.investorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.folioNumber.toLowerCase().includes(searchQuery.toLowerCase());
+          (t.schemeName?.toLowerCase() || "").includes(searchLower) ||
+          (t.investorName?.toLowerCase() || "").includes(searchLower) ||
+          (t.folioNumber?.toLowerCase() || "").includes(searchLower);
         
         // Type filter
-        const isPurchase = t.transactionType.toLowerCase().includes('purchase') || 
-                          t.transactionType.toLowerCase().includes('systematic');
-        const isRedemption = t.transactionType.toLowerCase().includes('redeem') || 
-                            t.transactionType.toLowerCase().includes('switchout');
+        const txType = (t.transactionType || "").toLowerCase();
+        const isPurchase = txType.includes('purchase') || txType.includes('systematic');
+        const isRedemption = txType.includes('redeem') || txType.includes('switchout') || txType.includes('switch');
         
         const matchesType = typeFilter === "all" ||
           (typeFilter === "purchase" && isPurchase) ||
@@ -51,45 +51,58 @@ const Transactions = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
+        <div className="flex flex-col gap-2">
           <h2 className="text-3xl font-bold tracking-tight">Daily Sauda Report</h2>
-          <p className="text-muted-foreground">Complete transaction history</p>
+          <p className="text-muted-foreground">Complete transaction history from all investors</p>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              Showing {displayedTransactions.length} of {filteredTransactions.length} transactions
-            </p>
-          </div>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <CardTitle>All Transactions</CardTitle>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        {/* Enhanced Search and Filter Section */}
+        <Card className="border-2">
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by scheme, investor, or folio..."
-                    className="w-full pl-8 sm:w-[300px]"
+                    placeholder="Search by scheme, investor name, or folio number..."
+                    className="w-full pl-10 h-11"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[200px] h-11">
                     <SelectValue placeholder="Filter by type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="purchase">Purchase Only</SelectItem>
-                    <SelectItem value="redemption">Redemption Only</SelectItem>
+                    <SelectItem value="all">All Transactions</SelectItem>
+                    <SelectItem value="purchase">Purchases & SIP</SelectItem>
+                    <SelectItem value="redemption">Redemptions & Switchout</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center justify-between text-sm">
+                <p className="text-muted-foreground">
+                  Showing <span className="font-semibold text-foreground">{displayedTransactions.length}</span> of{" "}
+                  <span className="font-semibold text-foreground">{filteredTransactions.length}</span> transactions
+                </p>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-primary hover:underline"
+                  >
+                    Clear search
+                  </button>
+                )}
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Transactions List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Transaction History</CardTitle>
           </CardHeader>
           <CardContent>
             {displayedTransactions.length === 0 ? (

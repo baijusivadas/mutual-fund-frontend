@@ -13,7 +13,6 @@ import PnL from "./pages/PnL";
 import CapitalGains from "./pages/CapitalGains";
 import StockReports from "./pages/StockReports";
 import TransactionReports from "./pages/TransactionReports";
-
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

@@ -1,5 +1,4 @@
 import { TransactionData } from "./parseTransactions";
-import { normalizeInvestorName } from "./nameNormalization";
 
 export interface UserSummary {
   investorName: string;
@@ -32,10 +31,10 @@ export function categorizeUsers(transactions: TransactionData[]): UserSummary[] 
   const userMap = new Map<string, UserSummary>();
 
   transactions.forEach((t) => {
-    const normalizedName = normalizeInvestorName(t.investorName);
-    if (!normalizedName) return;
+    const userName = t.investorName?.trim();
+    if (!userName) return;
 
-    const existing = userMap.get(normalizedName);
+    const existing = userMap.get(userName);
     const isRedeem = t.transactionType.toLowerCase().includes('redeem') || 
                      t.transactionType.toLowerCase().includes('switchout') ||
                      t.units < 0;
@@ -49,8 +48,8 @@ export function categorizeUsers(transactions: TransactionData[]): UserSummary[] 
       existing.netInvestment = existing.totalInvestment - existing.totalRedemption;
       existing.transactionCount++;
     } else {
-      userMap.set(normalizedName, {
-        investorName: normalizedName,
+      userMap.set(userName, {
+        investorName: userName,
         totalInvestment: investment,
         totalRedemption: redemption,
         netInvestment: investment - redemption,
@@ -64,7 +63,7 @@ export function categorizeUsers(transactions: TransactionData[]): UserSummary[] 
   userMap.forEach((user) => {
     const userSchemes = new Set(
       transactions
-        .filter((t) => normalizeInvestorName(t.investorName) === user.investorName)
+        .filter((t) => t.investorName?.trim() === user.investorName)
         .map((t) => t.schemeName)
     );
     user.schemesInvested = userSchemes.size;
@@ -154,7 +153,7 @@ export function categorizeMutualFunds(transactions: TransactionData[]): MutualFu
     const fundInvestors = new Set(
       transactions
         .filter((t) => t.schemeName?.trim() === fund.schemeName)
-        .map((t) => normalizeInvestorName(t.investorName))
+        .map((t) => t.investorName?.trim())
         .filter(Boolean)
     );
     fund.totalInvestors = fundInvestors.size;

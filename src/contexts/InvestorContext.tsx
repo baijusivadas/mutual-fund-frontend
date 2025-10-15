@@ -1,8 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { parseExcelFile, TransactionData } from "@/utils/parseTransactions";
-import { normalizeInvestorName } from "@/utils/nameNormalization";
-import transaction2Path from "@/data/Transaction_2.xls";
-import transaction3Path from "@/data/Transaction_3.xls";
+import transaction2Path from "@/data/Transaction2.xlsx";
+import transaction3Path from "@/data/Transaction3.xlsx";
 
 interface InvestorContextType {
   selectedInvestor: string;
@@ -30,11 +29,9 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
       setTransactions(allTransactions);
 
       // Get unique investors (remove duplicates and filter out empty names)
-      const normalizedNames = allTransactions
-        .map((t) => normalizeInvestorName(t.investorName))
-        .filter(Boolean) as string[];
-      
-      const uniqueInvestors = Array.from(new Set(normalizedNames));
+      const uniqueInvestors = Array.from(
+        new Set(allTransactions.map((t) => t.investorName?.trim()).filter(Boolean))
+      );
       setInvestors(uniqueInvestors.sort());
     };
 
@@ -42,9 +39,9 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Filter transactions by investor
-  const filteredTransactions = selectedInvestor === "all"
-    ? transactions
-    : transactions.filter((t) => normalizeInvestorName(t.investorName) === selectedInvestor);
+  const filteredTransactions = selectedInvestor === "all" 
+    ? transactions 
+    : transactions.filter((t) => t.investorName === selectedInvestor);
 
   return (
     <InvestorContext.Provider

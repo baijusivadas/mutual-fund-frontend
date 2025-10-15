@@ -18,14 +18,14 @@ export const InvestorSelector = () => {
         <SelectTrigger className="w-[280px]">
           <SelectValue placeholder="Select investor" />
         </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">All Investors</SelectItem>
-        {investors.map((investor) => (
-          <SelectItem key={investor} value={investor}>
-            {investor}
-          </SelectItem>
-        ))}
-      </SelectContent>
+        <SelectContent>
+          <SelectItem value="all">All Investors</SelectItem>
+          {investors.map((investor) => (
+            <SelectItem key={investor} value={investor}>
+              {investor}
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
     </div>
   );
