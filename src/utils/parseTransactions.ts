@@ -9,6 +9,7 @@ export interface TransactionData {
   nav: number;
   value: number;
   folioNumber: string;
+  isSell: boolean; // true for sell transactions (negative units/values)
 }
 
 export async function parseExcelFile(filePath: string): Promise<TransactionData[]> {
@@ -59,6 +60,7 @@ export async function parseExcelFile(filePath: string): Promise<TransactionData[
         }
         
         try {
+          const transactionType = String(row[0] || '').trim().toLowerCase();
           const units = parseFloat(String(row[4] || '0'));
           const nav = parseFloat(String(row[5] || '0'));
           const value = parseFloat(String(row[6] || '0'));
@@ -68,15 +70,25 @@ export async function parseExcelFile(filePath: string): Promise<TransactionData[
             continue;
           }
           
+          // Determine if this is a sell transaction based on:
+          // 1. TransactionType containing "redemption" or "switchout"
+          // 2. Negative values in units or value columns
+          const isSell = 
+            transactionType.includes('redemption') || 
+            transactionType.includes('switchout') ||
+            units < 0 || 
+            value < 0;
+          
           transactions.push({
             transactionType: String(row[0] || '').trim(),
             investorName: String(row[1] || '').trim(),
             investmentDate: String(row[2] || '').trim(),
             schemeName: String(row[3] || '').trim(),
-            units: units,
+            units: Math.abs(units), // Store absolute value
             nav: nav,
-            value: Math.abs(value), // Use absolute value
+            value: Math.abs(value), // Store absolute value
             folioNumber: String(row[7] || '').trim(),
+            isSell: isSell, // Flag to differentiate purchase/sell
           });
         } catch (err) {
           // Skip rows that can't be parsed

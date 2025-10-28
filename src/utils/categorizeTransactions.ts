@@ -35,12 +35,9 @@ export function categorizeUsers(transactions: TransactionData[]): UserSummary[] 
     if (!userName) return;
 
     const existing = userMap.get(userName);
-    const isRedeem = t.transactionType.toLowerCase().includes('redeem') || 
-                     t.transactionType.toLowerCase().includes('switchout') ||
-                     t.units < 0;
     
-    const investment = isRedeem ? 0 : Math.abs(t.value);
-    const redemption = isRedeem ? Math.abs(t.value) : 0;
+    const investment = t.isSell ? 0 : t.value;
+    const redemption = t.isSell ? t.value : 0;
 
     if (existing) {
       existing.totalInvestment += investment;
@@ -76,15 +73,7 @@ export function categorizeUsers(transactions: TransactionData[]): UserSummary[] 
 
 export function categorizePurchases(transactions: TransactionData[]): PurchaseTransaction[] {
   return transactions
-    .filter((t) => {
-      const type = t.transactionType.toLowerCase();
-      return (
-        (type.includes('purchase') || type.includes('systematic')) &&
-        !type.includes('redeem') &&
-        !type.includes('switchout') &&
-        t.units > 0
-      );
-    })
+    .filter((t) => !t.isSell)
     .map((t) => ({
       ...t,
       category: (t.transactionType.toLowerCase().includes('systematic') 
@@ -96,14 +85,7 @@ export function categorizePurchases(transactions: TransactionData[]): PurchaseTr
 
 export function categorizeRedemptions(transactions: TransactionData[]): RedeemTransaction[] {
   return transactions
-    .filter((t) => {
-      const type = t.transactionType.toLowerCase();
-      return (
-        type.includes('redeem') ||
-        type.includes('switchout') ||
-        t.units < 0
-      );
-    })
+    .filter((t) => t.isSell)
     .map((t) => ({
       ...t,
       category: (t.transactionType.toLowerCase().includes('switchout') 
@@ -121,13 +103,10 @@ export function categorizeMutualFunds(transactions: TransactionData[]): MutualFu
     if (!schemeName) return;
 
     const existing = fundMap.get(schemeName);
-    const isRedeem = t.transactionType.toLowerCase().includes('redeem') || 
-                     t.transactionType.toLowerCase().includes('switchout') ||
-                     t.units < 0;
     
-    const investment = isRedeem ? 0 : Math.abs(t.value);
-    const redemption = isRedeem ? Math.abs(t.value) : 0;
-    const units = isRedeem ? -Math.abs(t.units) : Math.abs(t.units);
+    const investment = t.isSell ? 0 : t.value;
+    const redemption = t.isSell ? t.value : 0;
+    const units = t.isSell ? -t.units : t.units;
 
     if (existing) {
       existing.totalUnits += units;

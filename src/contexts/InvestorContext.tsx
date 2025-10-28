@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { parseExcelFile, TransactionData } from "@/utils/parseTransactions";
-import transaction2Path from "@/data/Transaction2.xlsx";
-import transaction3Path from "@/data/Transaction3.xlsx";
+import transactionsPath from "@/data/combined_transactions_1.xlsx";
 
 interface InvestorContextType {
   selectedInvestor: string;
@@ -14,18 +13,13 @@ interface InvestorContextType {
 const InvestorContext = createContext<InvestorContextType | undefined>(undefined);
 
 export const InvestorProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedInvestor, setSelectedInvestor] = useState<string>("all");
+  const [selectedInvestor, setSelectedInvestor] = useState<string>("All");
   const [transactions, setTransactions] = useState<TransactionData[]>([]);
   const [investors, setInvestors] = useState<string[]>([]);
 
   useEffect(() => {
     const loadTransactions = async () => {
-      const [trans2, trans3] = await Promise.all([
-        parseExcelFile(transaction2Path),
-        parseExcelFile(transaction3Path),
-      ]);
-      
-      const allTransactions = [...trans2, ...trans3];
+      const allTransactions = await parseExcelFile(transactionsPath);
       setTransactions(allTransactions);
 
       // Get unique investors (remove duplicates and filter out empty names)
@@ -39,7 +33,7 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Filter transactions by investor
-  const filteredTransactions = selectedInvestor === "all" 
+  const filteredTransactions = selectedInvestor === "All" 
     ? transactions 
     : transactions.filter((t) => t.investorName === selectedInvestor);
 
