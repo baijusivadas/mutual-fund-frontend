@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { userQueryConfig } from "../hooks/useQueryConfig";
+import { PaginationControls } from "../components/PaginationControls";
 
 interface UserWithRole {
   id: string;
@@ -20,61 +23,52 @@ interface UserWithRole {
 }
 
 const UserManagement = () => {
-  const [users, setUsers] = useState<UserWithRole[]>([]);
-  const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const fetchUsers = async (): Promise<UserWithRole[]> => {
+    // Fetch all profiles with their roles
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch all profiles with their roles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+    if (profilesError) throw profilesError;
 
-      if (profilesError) throw profilesError;
+    // Fetch roles for each user
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('*');
 
-      // Fetch roles for each user
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
+    if (rolesError) throw rolesError;
 
-      if (rolesError) throw rolesError;
+    // Combine data
+    const usersWithRoles: UserWithRole[] = (profiles || []).map(profile => {
+      const userRole = roles?.find(r => r.user_id === profile.id);
+      return {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name,
+        role: userRole?.role || 'user',
+        created_at: profile.created_at || '',
+      };
+    });
 
-      // Combine data
-      const usersWithRoles: UserWithRole[] = profiles.map(profile => {
-        const userRole = roles.find(r => r.user_id === profile.id);
-        return {
-          id: profile.id,
-          email: profile.email,
-          full_name: profile.full_name,
-          role: userRole?.role || 'user',
-          created_at: profile.created_at || '',
-        };
-      });
-
-      setUsers(usersWithRoles);
-    } catch (error: any) {
-      toast({
-        title: "Error fetching users",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    return usersWithRoles;
   };
+
+  const { data: users = [], isLoading: loading } = useQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+    ...userQueryConfig,
+  });
 
   const logAuditAction = async (targetUserId: string, action: string, oldValue?: string, newValue?: string) => {
     try {
@@ -90,10 +84,8 @@ const UserManagement = () => {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: 'superAdmin' | 'user') => {
-    try {
-      setUpdating(userId);
-      
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'superAdmin' | 'user' }) => {
       const oldRole = users.find(u => u.id === userId)?.role;
       
       const { error } = await supabase
@@ -103,57 +95,59 @@ const UserManagement = () => {
 
       if (error) throw error;
 
-      // Log the role change
       await logAuditAction(userId, 'role_change', oldRole, newRole);
-
+      return { userId, newRole };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
       toast({
         title: "Role updated",
         description: "User role has been successfully updated.",
       });
-
-      // Update local state
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, role: newRole } : user
-      ));
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       toast({
         title: "Error updating role",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setUpdating(null);
-    }
+    },
+    onSettled: () => setUpdating(null),
+  });
+
+  const handleRoleChange = (userId: string, newRole: 'superAdmin' | 'user') => {
+    setUpdating(userId);
+    updateRoleMutation.mutate({ userId, newRole });
   };
 
-  const handleDeleteUser = async (userId: string, userEmail: string) => {
-    try {
-      setDeleting(userId);
-
-      // Delete user from auth.users (cascade will handle related records)
+  const deleteUserMutation = useMutation({
+    mutationFn: async ({ userId, userEmail }: { userId: string; userEmail: string }) => {
       const { error } = await supabase.rpc('delete_user' as any, { _user_id: userId });
-
       if (error) throw error;
-
-      // Log the deletion
+      
       await logAuditAction(userId, 'user_deleted', userEmail, null);
-
+      return userId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
       toast({
         title: "User deleted",
         description: "User has been successfully deleted.",
       });
-
-      // Update local state
-      setUsers(users.filter(user => user.id !== userId));
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       toast({
         title: "Error deleting user",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setDeleting(null);
-    }
+    },
+    onSettled: () => setDeleting(null),
+  });
+
+  const handleDeleteUser = (userId: string, userEmail: string) => {
+    setDeleting(userId);
+    deleteUserMutation.mutate({ userId, userEmail });
   };
 
   const filteredUsers = useMemo(() => {
@@ -164,6 +158,19 @@ const UserManagement = () => {
       return matchesSearch && matchesRole;
     });
   }, [users, searchQuery, roleFilter]);
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   if (loading) {
     return (
@@ -216,14 +223,14 @@ const UserManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.length === 0 ? (
+                {paginatedUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       {searchQuery || roleFilter !== "all" ? "No users match your filters" : "No users found"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => (
+                  paginatedUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
@@ -300,6 +307,17 @@ const UserManagement = () => {
               </TableBody>
             </Table>
           </div>
+
+          {filteredUsers.length > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={filteredUsers.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
           
           <div className="mt-6 p-4 bg-muted rounded-lg">
             <p className="text-sm text-muted-foreground">

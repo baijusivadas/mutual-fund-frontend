@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { propertyQueryConfig } from "../hooks/useQueryConfig";
+import { PaginationControls } from "../components/PaginationControls";
 
 interface Gold {
   id: string;
@@ -26,14 +29,15 @@ interface Gold {
 }
 
 const Gold = () => {
-  const [goldItems, setGoldItems] = useState<Gold[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Gold | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
     item_name: "",
@@ -45,90 +49,94 @@ const Gold = () => {
     description: "",
   });
 
-  useEffect(() => {
-    fetchGoldItems();
-  }, []);
+  const fetchGoldItems = async (): Promise<Gold[]> => {
+    const { data, error } = await supabase
+      .from('gold')
+      .select('*')
+      .order('purchase_date', { ascending: false });
 
-  const fetchGoldItems = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('gold')
-        .select('*')
-        .order('purchase_date', { ascending: false });
-
-      if (error) throw error;
-      setGoldItems(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error fetching gold items",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    if (error) throw error;
+    return data || [];
   };
 
-  const handleSubmit = async () => {
-    try {
-      const payload = {
-        item_name: formData.item_name,
-        weight: parseFloat(formData.weight),
-        purity: formData.purity,
-        price: parseFloat(formData.price),
-        purchase_date: formData.purchase_date,
-        status: formData.status,
-        description: formData.description || null,
-      };
+  const { data: goldItems = [], isLoading: loading } = useQuery({
+    queryKey: ['gold'],
+    queryFn: fetchGoldItems,
+    ...propertyQueryConfig,
+  });
 
+  const mutation = useMutation({
+    mutationFn: async (payload: any) => {
       if (editingItem) {
         const { error } = await supabase
           .from('gold')
           .update(payload)
           .eq('id', editingItem.id);
         if (error) throw error;
-        toast({ title: "Gold item updated successfully" });
+        return 'updated';
       } else {
         const { error } = await supabase
           .from('gold')
           .insert([payload]);
         if (error) throw error;
-        toast({ title: "Gold item created successfully" });
+        return 'created';
       }
-
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['gold'] });
+      toast({ 
+        title: result === 'updated' ? "Gold item updated successfully" : "Gold item created successfully" 
+      });
       setDialogOpen(false);
       resetForm();
-      fetchGoldItems();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       toast({
         title: "Error saving gold item",
         description: error.message,
         variant: "destructive",
       });
-    }
+    },
+  });
+
+  const handleSubmit = () => {
+    const payload = {
+      item_name: formData.item_name,
+      weight: parseFloat(formData.weight),
+      purity: formData.purity,
+      price: parseFloat(formData.price),
+      purchase_date: formData.purchase_date,
+      status: formData.status,
+      description: formData.description || null,
+    };
+    mutation.mutate(payload);
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      setDeleting(id);
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('gold')
         .delete()
         .eq('id', id);
-
       if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gold'] });
       toast({ title: "Gold item deleted successfully" });
-      fetchGoldItems();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       toast({
         title: "Error deleting gold item",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setDeleting(null);
-    }
+    },
+    onSettled: () => setDeleting(null),
+  });
+
+  const handleDelete = (id: string) => {
+    setDeleting(id);
+    deleteMutation.mutate(id);
   };
 
   const resetForm = () => {
@@ -165,6 +173,19 @@ const Gold = () => {
       return matchesSearch && matchesStatus;
     });
   }, [goldItems, searchQuery, statusFilter]);
+
+  const paginatedGoldItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredGoldItems.slice(startIndex, endIndex);
+  }, [filteredGoldItems, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredGoldItems.length / pageSize);
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   if (loading) {
     return (
@@ -335,14 +356,14 @@ const Gold = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredGoldItems.length === 0 ? (
+                {paginatedGoldItems.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground">
                       {searchQuery || statusFilter !== "all" ? "No items match your filters" : "No gold items found. Add your first item!"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredGoldItems.map((item) => (
+                  paginatedGoldItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.item_name}</TableCell>
                       <TableCell>{item.weight}g</TableCell>
@@ -406,6 +427,17 @@ const Gold = () => {
               </TableBody>
             </Table>
           </div>
+
+          {filteredGoldItems.length > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={filteredGoldItems.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

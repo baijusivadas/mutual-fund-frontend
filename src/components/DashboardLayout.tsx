@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, memo } from "react";
 import { Sidebar } from "./Sidebar";
 import { InvestorSelector } from "./InvestorSelector";
 import { Button } from "./ui/button";
@@ -19,7 +19,7 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
   const { theme, setTheme } = useTheme();
   const { user, role, signOut, isSuperAdmin } = useAuth();
   
@@ -74,3 +74,5 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     </div>
   );
 };
+
+export const DashboardLayout = memo(DashboardLayoutComponent);

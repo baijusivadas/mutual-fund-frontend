@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { SuperAdminCredentials } from "../components/SuperAdminCredentials";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -6,6 +7,7 @@ import { useInvestor } from "@/contexts/InvestorContext";
 import { useMemo } from "react";
 import { TransactionData } from "@/utils/parseTransactions";
 import { calculateXIRR } from "@/lib/xirr";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SchemeData {
   schemeName: string;
@@ -20,6 +22,7 @@ interface SchemeData {
 
 const Index = () => {
   const { filteredTransactions, selectedInvestor } = useInvestor();
+  const { isSuperAdmin } = useAuth();
 
   // Group by scheme and calculate totals
   const schemeData: SchemeData[] = useMemo(() => {
@@ -154,6 +157,11 @@ const Index = () => {
 
   return (
     <DashboardLayout>
+      {isSuperAdmin && (
+        <div className="mb-6">
+          <SuperAdminCredentials />
+        </div>
+      )}
       <div className="flex gap-6">
         {/* Main Content */}
         <div className="flex-1 space-y-6">

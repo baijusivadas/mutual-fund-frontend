@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from "react";
 import { parseExcelFile, TransactionData } from "@/utils/parseTransactions";
 import transactionsPath from "@/data/combined_transactions_1.xlsx";
 
@@ -13,7 +13,7 @@ interface InvestorContextType {
 const InvestorContext = createContext<InvestorContextType | undefined>(undefined);
 
 export const InvestorProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedInvestor, setSelectedInvestor] = useState<string>("All");
+  const [selectedInvestor, setSelectedInvestor] = useState<string>("all");
   const [transactions, setTransactions] = useState<TransactionData[]>([]);
   const [investors, setInvestors] = useState<string[]>([]);
 
@@ -32,10 +32,13 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
     loadTransactions();
   }, []);
 
-  // Filter transactions by investor
-  const filteredTransactions = selectedInvestor === "All" 
-    ? transactions 
-    : transactions.filter((t) => t.investorName === selectedInvestor);
+  // Filter transactions by investor - memoized for performance
+  const filteredTransactions = useMemo(() => 
+    selectedInvestor === "all" 
+      ? transactions 
+      : transactions.filter((t) => t.investorName === selectedInvestor),
+    [selectedInvestor, transactions]
+  );
 
   return (
     <InvestorContext.Provider

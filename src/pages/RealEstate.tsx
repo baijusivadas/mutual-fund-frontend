@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { propertyQueryConfig } from "../hooks/useQueryConfig";
+import { PaginationControls } from "../components/PaginationControls";
 
 interface RealEstate {
   id: string;
@@ -26,14 +29,15 @@ interface RealEstate {
 }
 
 const RealEstate = () => {
-  const [properties, setProperties] = useState<RealEstate[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<RealEstate | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
     property_name: "",
@@ -45,30 +49,21 @@ const RealEstate = () => {
     description: "",
   });
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
+  const fetchProperties = async (): Promise<RealEstate[]> => {
+    const { data, error } = await supabase
+      .from('real_estate')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  const fetchProperties = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('real_estate')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setProperties(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error fetching properties",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    if (error) throw error;
+    return data || [];
   };
+
+  const { data: properties = [], isLoading: loading } = useQuery({
+    queryKey: ['real_estate'],
+    queryFn: fetchProperties,
+    ...propertyQueryConfig,
+  });
 
   const handleSubmit = async () => {
     try {
@@ -166,6 +161,19 @@ const RealEstate = () => {
       return matchesSearch && matchesStatus;
     });
   }, [properties, searchQuery, statusFilter]);
+
+  const paginatedProperties = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredProperties.slice(startIndex, endIndex);
+  }, [filteredProperties, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredProperties.length / pageSize);
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   if (loading) {
     return (
@@ -406,6 +414,17 @@ const RealEstate = () => {
               </TableBody>
             </Table>
           </div>
+
+          {filteredProperties.length > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={filteredProperties.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </CardContent>
       </Card>
     </div>
