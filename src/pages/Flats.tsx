@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DashboardLayout } from "@/components/DashboardLayout";
 
 interface Flat {
   id: string;
@@ -186,6 +187,7 @@ const Flats = () => {
   }
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
@@ -437,6 +439,7 @@ const Flats = () => {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 };
 

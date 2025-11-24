@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { propertyQueryConfig } from "../hooks/useQueryConfig";
 import { PaginationControls } from "../components/PaginationControls";
+import { DashboardLayout } from "@/components/DashboardLayout";
 
 interface RealEstate {
   id: string;
@@ -37,7 +38,6 @@ const RealEstate = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
     property_name: "",
@@ -184,6 +184,7 @@ const RealEstate = () => {
   }
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
@@ -428,6 +429,7 @@ const RealEstate = () => {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 };
 
