@@ -3,7 +3,7 @@ export const queryConfig = {
   // Cache data for 5 minutes before considering it stale
   staleTime: 5 * 60 * 1000,
   // Keep unused data in cache for 10 minutes
-  cacheTime: 10 * 60 * 1000,
+  gcTime: 10 * 60 * 1000,
   // Retry failed requests 2 times
   retry: 2,
   // Refetch on window focus for fresh data
@@ -24,5 +24,5 @@ export const propertyQueryConfig = {
 export const transactionQueryConfig = {
   ...queryConfig,
   staleTime: 2 * 60 * 1000, // 2 minutes for transaction data
-  cacheTime: 15 * 60 * 1000, // Keep longer in cache
+  gcTime: 15 * 60 * 1000, // Keep longer in cache
 };

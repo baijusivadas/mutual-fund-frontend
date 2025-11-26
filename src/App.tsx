@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "./components/ProtectedRoute";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Portfolio from "./pages/Portfolio";
@@ -22,6 +22,7 @@ import RealEstate from "./pages/RealEstate";
 import Gold from "./pages/Gold";
 import Flats from "./pages/Flats";
 import RentalProperties from "./pages/RentalProperties";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -112,7 +113,7 @@ const App = () => (
               <Route
                 path="/admin/users"
                 element={
-                  <ProtectedRoute requireSuperAdmin={true}>
+                  <ProtectedRoute >
                     <UserManagement />
                   </ProtectedRoute>
                 }
@@ -120,7 +121,7 @@ const App = () => (
               <Route
                 path="/admin/real-estate"
                 element={
-                  <ProtectedRoute requireSuperAdmin={true}>
+                  <ProtectedRoute>
                     <RealEstate />
                   </ProtectedRoute>
                 }
@@ -128,7 +129,7 @@ const App = () => (
               <Route
                 path="/admin/gold"
                 element={
-                  <ProtectedRoute requireSuperAdmin={true}>
+                  <ProtectedRoute>
                     <Gold />
                   </ProtectedRoute>
                 }
@@ -136,7 +137,7 @@ const App = () => (
               <Route
                 path="/admin/flats"
                 element={
-                  <ProtectedRoute requireSuperAdmin={true}>
+                  <ProtectedRoute >
                     <Flats />
                   </ProtectedRoute>
                 }
@@ -144,8 +145,16 @@ const App = () => (
               <Route
                 path="/admin/rental-properties"
                 element={
-                  <ProtectedRoute requireSuperAdmin={true}>
+                  <ProtectedRoute>
                     <RentalProperties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/analytics"
+                element={
+                  <ProtectedRoute>
+                    <Analytics />
                   </ProtectedRoute>
                 }
               />

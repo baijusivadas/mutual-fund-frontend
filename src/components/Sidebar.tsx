@@ -15,6 +15,7 @@ import {
   Home,
   KeyRound,
   ChevronDown,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,16 +39,15 @@ const navigation = [
   { name: "Stock Reports", href: "/stock-reports", icon: FileText },
 ];
 
+/* --------------------------- Super Admin Menu ----------------------------- */
+
 const adminMenu = [
   { label: "User Management", href: "/admin/users", icon: Users },
   { label: "Real Estate", href: "/admin/real-estate", icon: Building2 },
   { label: "Gold", href: "/admin/gold", icon: Coins },
   { label: "Flats", href: "/admin/flats", icon: Home },
-  {
-    label: "Rental Properties",
-    href: "/admin/rental-properties",
-    icon: KeyRound,
-  },
+  { label: "Rental Properties", href: "/admin/rental-properties", icon: KeyRound },
+  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 }, // <-- Added here
 ];
 
 const adminPaths = adminMenu.map((item) => item.href);
@@ -64,7 +64,6 @@ export const Sidebar = () => {
 
   const [openAdmin, setOpenAdmin] = useState(isAdminActive);
 
-  /* Sync collapse state whenever route changes */
   useEffect(() => {
     if (isAdminActive) setOpenAdmin(true);
   }, [location.pathname]);
@@ -79,7 +78,8 @@ export const Sidebar = () => {
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-card">
-      {/* Logo Section */}
+      
+      {/* Logo */}
       <div className="flex h-16 items-center border-b px-6">
         <h1 className="text-xl font-bold text-primary">FinSight</h1>
       </div>
@@ -98,12 +98,11 @@ export const Sidebar = () => {
           </NavLink>
         ))}
 
-        {/* ---------------- Super Admin Section ---------------- */}
-        {isSuperAdmin && (
+        {/* Super Admin */}
+        {/* {isSuperAdmin && ( */}
           <>
             <div className="my-2 border-t" />
 
-            {/* Toggle */}
             <button
               onClick={() => setOpenAdmin((prev) => !prev)}
               className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-muted-foreground"
@@ -117,7 +116,6 @@ export const Sidebar = () => {
               />
             </button>
 
-            {/* Collapsible Admin Menu */}
             <div
               className={cn(
                 "overflow-hidden transition-all duration-300 pl-4",
@@ -138,7 +136,7 @@ export const Sidebar = () => {
               </div>
             </div>
           </>
-        )}
+        {/* )} */}
       </nav>
 
       {/* Footer */}
@@ -146,7 +144,7 @@ export const Sidebar = () => {
         <div className="text-xs text-muted-foreground">
           <p className="font-medium">Market Status</p>
           <p className="mt-1 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+            <span className="h-2 w-2 rounded-full bg-success animate-pulse"></span>
             Market Open
           </p>
         </div>
