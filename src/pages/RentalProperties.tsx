@@ -1,10 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Search, Pencil, Trash2, KeyRound } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, KeyRound } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -12,34 +10,27 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { usePropertyData } from "../hooks/usePropertyData";
+import { AdvancedSearchFilters } from "../components/AdvancedSearchFilters";
+import { BulkActionBar } from "../components/BulkActionBar";
+import { PaginationControls } from "@/components/PaginationControls";
+import type { RentalProperty } from "@/types";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
-interface RentalProperty {
-  id: string;
-  property_name: string;
-  location: string;
-  monthly_rent: number;
-  deposit: number;
-  bedrooms: number;
-  bathrooms: number;
-  area: number;
-  status: string;
-  tenant_name: string | null;
-  lease_start_date: string | null;
-  lease_end_date: string | null;
-  description: string | null;
-  created_at: string;
-}
-
 const RentalProperties = () => {
-  const [properties, setProperties] = useState<RentalProperty[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [minPrice, setMinPrice] = useState<number>();
+  const [maxPrice, setMaxPrice] = useState<number>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<RentalProperty | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const { toast } = useToast();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  const { data: properties, isLoading, deleteItem, bulkDelete, bulkStatusUpdate, createItem, updateItem } = 
+    usePropertyData<RentalProperty>("rental_properties", "rental_properties");
 
   const [formData, setFormData] = useState({
     property_name: "",
@@ -56,95 +47,49 @@ const RentalProperties = () => {
     description: "",
   });
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
+  const filteredProperties = useMemo(() => {
+    return properties.filter(property => {
+      const matchesSearch = property.property_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           property.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           (property.tenant_name && property.tenant_name.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesStatus = statusFilter === "all" || property.status === statusFilter;
+      const matchesMinPrice = minPrice === undefined || property.monthly_rent >= minPrice;
+      const matchesMaxPrice = maxPrice === undefined || property.monthly_rent <= maxPrice;
+      return matchesSearch && matchesStatus && matchesMinPrice && matchesMaxPrice;
+    });
+  }, [properties, searchQuery, statusFilter, minPrice, maxPrice]);
 
-  const fetchProperties = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('rental_properties')
-        .select('*')
-        .order('created_at', { ascending: false });
+  const paginatedProperties = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredProperties.slice(startIndex, startIndex + pageSize);
+  }, [filteredProperties, currentPage, pageSize]);
 
-      if (error) throw error;
-      setProperties(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error fetching rental properties",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const totalPages = Math.ceil(filteredProperties.length / pageSize);
+
+  const handleSubmit = () => {
+    const payload = {
+      property_name: formData.property_name,
+      location: formData.location,
+      monthly_rent: parseFloat(formData.monthly_rent),
+      deposit: parseFloat(formData.deposit),
+      bedrooms: parseInt(formData.bedrooms),
+      bathrooms: parseInt(formData.bathrooms),
+      area: parseFloat(formData.area),
+      status: formData.status,
+      tenant_name: formData.tenant_name || null,
+      lease_start_date: formData.lease_start_date || null,
+      lease_end_date: formData.lease_end_date || null,
+      description: formData.description || null,
+    };
+
+    if (editingProperty) {
+      updateItem({ id: editingProperty.id, payload });
+    } else {
+      createItem(payload);
     }
-  };
 
-  const handleSubmit = async () => {
-    try {
-      const payload = {
-        property_name: formData.property_name,
-        location: formData.location,
-        monthly_rent: parseFloat(formData.monthly_rent),
-        deposit: parseFloat(formData.deposit),
-        bedrooms: parseInt(formData.bedrooms),
-        bathrooms: parseInt(formData.bathrooms),
-        area: parseFloat(formData.area),
-        status: formData.status,
-        tenant_name: formData.tenant_name || null,
-        lease_start_date: formData.lease_start_date || null,
-        lease_end_date: formData.lease_end_date || null,
-        description: formData.description || null,
-      };
-
-      if (editingProperty) {
-        const { error } = await supabase
-          .from('rental_properties')
-          .update(payload)
-          .eq('id', editingProperty.id);
-        if (error) throw error;
-        toast({ title: "Rental property updated successfully" });
-      } else {
-        const { error } = await supabase
-          .from('rental_properties')
-          .insert([payload]);
-        if (error) throw error;
-        toast({ title: "Rental property created successfully" });
-      }
-
-      setDialogOpen(false);
-      resetForm();
-      fetchProperties();
-    } catch (error: any) {
-      toast({
-        title: "Error saving rental property",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      setDeleting(id);
-      const { error } = await supabase
-        .from('rental_properties')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      toast({ title: "Rental property deleted successfully" });
-      fetchProperties();
-    } catch (error: any) {
-      toast({
-        title: "Error deleting rental property",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setDeleting(null);
-    }
+    setDialogOpen(false);
+    resetForm();
   };
 
   const resetForm = () => {
@@ -184,17 +129,27 @@ const RentalProperties = () => {
     setDialogOpen(true);
   };
 
-  const filteredProperties = useMemo(() => {
-    return properties.filter(property => {
-      const matchesSearch = property.property_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           property.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (property.tenant_name && property.tenant_name.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesStatus = statusFilter === "all" || property.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [properties, searchQuery, statusFilter]);
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? paginatedProperties.map(p => p.id) : []);
+  };
 
-  if (loading) {
+  const handleSelectItem = (id: string, checked: boolean) => {
+    setSelectedIds(prev => 
+      checked ? [...prev, id] : prev.filter(itemId => itemId !== id)
+    );
+  };
+
+  const handleBulkDelete = () => {
+    bulkDelete(selectedIds);
+    setSelectedIds([]);
+  };
+
+  const handleBulkStatusUpdate = (status: string) => {
+    bulkStatusUpdate({ ids: selectedIds, status });
+    setSelectedIds([]);
+  };
+
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -202,8 +157,15 @@ const RentalProperties = () => {
     );
   }
 
+  const statusOptions = [
+    { value: "all", label: "All Status" },
+    { value: "available", label: "Available" },
+    { value: "rented", label: "Rented" },
+    { value: "maintenance", label: "Maintenance" },
+  ];
+
   return (
-     <DashboardLayout>
+    <DashboardLayout>
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
@@ -371,33 +333,39 @@ const RentalProperties = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by property, location or tenant..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="rented">Rented</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <AdvancedSearchFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            statusOptions={statusOptions}
+            showPriceFilter
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            onPriceChange={(min, max) => {
+              setMinPrice(min);
+              setMaxPrice(max);
+            }}
+          />
+
+          <BulkActionBar
+            selectedCount={selectedIds.length}
+            onBulkDelete={handleBulkDelete}
+            onBulkStatusUpdate={handleBulkStatusUpdate}
+            statusOptions={statusOptions.filter(opt => opt.value !== "all")}
+            onClearSelection={() => setSelectedIds([])}
+          />
 
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedIds.length === paginatedProperties.length && paginatedProperties.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>Property Name</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Config</TableHead>
@@ -408,15 +376,21 @@ const RentalProperties = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProperties.length === 0 ? (
+                {paginatedProperties.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       {searchQuery || statusFilter !== "all" ? "No properties match your filters" : "No rental properties found. Add your first property!"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProperties.map((property) => (
+                  paginatedProperties.map((property) => (
                     <TableRow key={property.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.includes(property.id)}
+                          onCheckedChange={(checked) => handleSelectItem(property.id, checked as boolean)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{property.property_name}</TableCell>
                       <TableCell>{property.location}</TableCell>
                       <TableCell>{property.bedrooms}BHK, {property.bathrooms} Bath</TableCell>
@@ -441,16 +415,8 @@ const RentalProperties = () => {
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                disabled={deleting === property.id}
-                              >
-                                {deleting === property.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
+                              <Button variant="destructive" size="icon">
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -463,7 +429,7 @@ const RentalProperties = () => {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleDelete(property.id)}
+                                  onClick={() => deleteItem(property.id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Delete
@@ -479,10 +445,22 @@ const RentalProperties = () => {
               </TableBody>
             </Table>
           </div>
+
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={filteredProperties.length}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+          />
         </CardContent>
       </Card>
     </div>
-    </DashboardLayout>
+      </DashboardLayout>
   );
 };
 
