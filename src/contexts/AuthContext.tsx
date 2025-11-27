@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 
 type UserRole = "superAdmin" | "user";
 
@@ -24,6 +25,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  // Auto sign out after 15 minutes of inactivity
+  useIdleTimeout({
+    onIdle: () => {
+      if (user) {
+        signOut();
+        toast({
+          title: "Session Expired",
+          description: "You have been signed out due to inactivity.",
+          variant: "destructive",
+        });
+      }
+    },
+    idleTime: 15 * 60 * 1000, // 15 minutes
+  });
 
   useEffect(() => {
     // Set up auth state listener

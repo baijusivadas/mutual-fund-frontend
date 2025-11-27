@@ -23,6 +23,7 @@ import Gold from "./pages/Gold";
 import Flats from "./pages/Flats";
 import RentalProperties from "./pages/RentalProperties";
 import Analytics from "./pages/Analytics";
+import NotificationHistory from "./pages/NotificationHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -113,7 +114,7 @@ const App = () => (
               <Route
                 path="/admin/users"
                 element={
-                  <ProtectedRoute >
+                  <ProtectedRoute requireSuperAdmin={true}>
                     <UserManagement />
                   </ProtectedRoute>
                 }
@@ -121,7 +122,7 @@ const App = () => (
               <Route
                 path="/admin/real-estate"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requireSuperAdmin={true}>
                     <RealEstate />
                   </ProtectedRoute>
                 }
@@ -129,7 +130,7 @@ const App = () => (
               <Route
                 path="/admin/gold"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requireSuperAdmin={true}>
                     <Gold />
                   </ProtectedRoute>
                 }
@@ -137,7 +138,7 @@ const App = () => (
               <Route
                 path="/admin/flats"
                 element={
-                  <ProtectedRoute >
+                  <ProtectedRoute requireSuperAdmin={true}>
                     <Flats />
                   </ProtectedRoute>
                 }
@@ -145,7 +146,7 @@ const App = () => (
               <Route
                 path="/admin/rental-properties"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requireSuperAdmin={true}>
                     <RentalProperties />
                   </ProtectedRoute>
                 }
@@ -153,8 +154,16 @@ const App = () => (
               <Route
                 path="/admin/analytics"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requireSuperAdmin={true}>
                     <Analytics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/notifications"
+                element={
+                  <ProtectedRoute requireSuperAdmin={true}>
+                    <NotificationHistory />
                   </ProtectedRoute>
                 }
               />

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,16 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Pencil, Trash2, Home } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Loader2, Plus, Home } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,35 +27,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { usePropertyData } from "@/hooks/usePropertyData";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { usePropertyData } from "../hooks/usePropertyData";
-import { AdvancedSearchFilters } from "../components/AdvancedSearchFilters";
-import { BulkActionBar } from "../components/BulkActionBar";
-import { PaginationControls } from "@/components/PaginationControls";
+  CommonTable,
+  ColumnConfig,
+  StatusBadge,
+} from "../components/CommonTable";
 import type { Flat } from "@/types";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
 const Flats = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [minPrice, setMinPrice] = useState<number>();
-  const [maxPrice, setMaxPrice] = useState<number>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingFlat, setEditingFlat] = useState<Flat | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
 
   const {
     data: flats,
@@ -87,28 +61,6 @@ const Flats = () => {
     status: "available",
     description: "",
   });
-
-  const filteredFlats = useMemo(() => {
-    return flats.filter((flat) => {
-      const matchesSearch =
-        flat.flat_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        flat.location.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || flat.status === statusFilter;
-      const matchesMinPrice = minPrice === undefined || flat.price >= minPrice;
-      const matchesMaxPrice = maxPrice === undefined || flat.price <= maxPrice;
-      return (
-        matchesSearch && matchesStatus && matchesMinPrice && matchesMaxPrice
-      );
-    });
-  }, [flats, searchQuery, statusFilter, minPrice, maxPrice]);
-
-  const paginatedFlats = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredFlats.slice(startIndex, startIndex + pageSize);
-  }, [filteredFlats, currentPage, pageSize]);
-
-  const totalPages = Math.ceil(filteredFlats.length / pageSize);
 
   const handleSubmit = () => {
     const payload = {
@@ -164,25 +116,45 @@ const Flats = () => {
     setDialogOpen(true);
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    setSelectedIds(checked ? paginatedFlats.map((f) => f.id) : []);
-  };
-
-  const handleSelectItem = (id: string, checked: boolean) => {
-    setSelectedIds((prev) =>
-      checked ? [...prev, id] : prev.filter((itemId) => itemId !== id)
-    );
-  };
-
-  const handleBulkDelete = () => {
-    bulkDelete(selectedIds);
-    setSelectedIds([]);
-  };
-
-  const handleBulkStatusUpdate = (status: string) => {
-    bulkStatusUpdate({ ids: selectedIds, status });
-    setSelectedIds([]);
-  };
+  const columns: ColumnConfig<Flat>[] = [
+    {
+      key: "flat_name",
+      label: "Flat Name",
+      sortable: true,
+      className: "font-medium",
+    },
+    { key: "location", label: "Location", sortable: true },
+    {
+      key: "bedrooms",
+      label: "Config",
+      sortable: false,
+      render: (item) => `${item.bedrooms}BHK, ${item.bathrooms} Bath`,
+    },
+    {
+      key: "area",
+      label: "Area",
+      sortable: true,
+      render: (item) => `${item.area.toLocaleString()} sq ft`,
+    },
+    {
+      key: "floor",
+      label: "Floor",
+      sortable: true,
+      render: (item) => (item.floor ? `${item.floor}th` : "N/A"),
+    },
+    {
+      key: "price",
+      label: "Price",
+      sortable: true,
+      render: (item) => `₹${item.price.toLocaleString("en-IN")}`,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (item) => <StatusBadge status={item.status} />,
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -191,13 +163,6 @@ const Flats = () => {
       </div>
     );
   }
-
-  const statusOptions = [
-    { value: "all", label: "All Status" },
-    { value: "available", label: "Available" },
-    { value: "sold", label: "Sold" },
-    { value: "reserved", label: "Reserved" },
-  ];
 
   return (
     <DashboardLayout>
@@ -384,161 +349,27 @@ const Flats = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <AdvancedSearchFilters
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              statusFilter={statusFilter}
-              onStatusChange={setStatusFilter}
-              statusOptions={statusOptions}
-              showPriceFilter
-              minPrice={minPrice}
-              maxPrice={maxPrice}
-              onPriceChange={(min, max) => {
-                setMinPrice(min);
-                setMaxPrice(max);
-              }}
-            />
-
-            <BulkActionBar
-              selectedCount={selectedIds.length}
-              onBulkDelete={handleBulkDelete}
-              onBulkStatusUpdate={handleBulkStatusUpdate}
-              statusOptions={statusOptions.filter((opt) => opt.value !== "all")}
-              onClearSelection={() => setSelectedIds([])}
-            />
-
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={
-                          selectedIds.length === paginatedFlats.length &&
-                          paginatedFlats.length > 0
-                        }
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Flat Name</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Config</TableHead>
-                    <TableHead>Area</TableHead>
-                    <TableHead>Floor</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedFlats.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={9}
-                        className="text-center text-muted-foreground"
-                      >
-                        {searchQuery || statusFilter !== "all"
-                          ? "No flats match your filters"
-                          : "No flats found. Add your first flat!"}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedFlats.map((flat) => (
-                      <TableRow key={flat.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedIds.includes(flat.id)}
-                            onCheckedChange={(checked) =>
-                              handleSelectItem(flat.id, checked as boolean)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {flat.flat_name}
-                        </TableCell>
-                        <TableCell>{flat.location}</TableCell>
-                        <TableCell>
-                          {flat.bedrooms}BHK, {flat.bathrooms} Bath
-                        </TableCell>
-                        <TableCell>
-                          {flat.area.toLocaleString()} sq ft
-                        </TableCell>
-                        <TableCell>
-                          {flat.floor ? `${flat.floor}th` : "N/A"}
-                        </TableCell>
-                        <TableCell>
-                          ₹{flat.price.toLocaleString("en-IN")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              flat.status === "available"
-                                ? "default"
-                                : flat.status === "sold"
-                                ? "secondary"
-                                : "outline"
-                            }
-                            className="capitalize"
-                          >
-                            {flat.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => openEditDialog(flat)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="icon">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Are you sure?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently delete{" "}
-                                    <strong>{flat.flat_name}</strong>. This
-                                    action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => deleteItem(flat.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            <PaginationControls
-              currentPage={currentPage}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              totalItems={filteredFlats.length}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(size) => {
-                setPageSize(size);
-                setCurrentPage(1);
-              }}
+            <CommonTable
+              data={flats}
+              columns={columns}
+              onEdit={openEditDialog}
+              onDelete={deleteItem}
+              onBulkDelete={bulkDelete}
+              onBulkStatusUpdate={(ids, status) =>
+                bulkStatusUpdate({ ids, status })
+              }
+              searchPlaceholder="Search by name or location..."
+              searchKeys={["flat_name", "location"]}
+              statusKey="status"
+              statusFilters={[
+                { value: "all", label: "All Status" },
+                { value: "available", label: "Available" },
+                { value: "sold", label: "Sold" },
+                { value: "reserved", label: "Reserved" },
+              ]}
+              emptyMessage="No flats found. Add your first flat!"
+              showBulkActions
+              showCheckboxes
             />
           </CardContent>
         </Card>

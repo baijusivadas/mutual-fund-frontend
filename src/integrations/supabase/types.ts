@@ -176,6 +176,45 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_history: {
+        Row: {
+          created_by: string | null
+          error_message: string | null
+          id: string
+          notification_type: string
+          property_name: string | null
+          recipient_email: string
+          sent_at: string
+          status: string
+          subject: string
+          tenant_name: string | null
+        }
+        Insert: {
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          notification_type: string
+          property_name?: string | null
+          recipient_email: string
+          sent_at?: string
+          status?: string
+          subject: string
+          tenant_name?: string | null
+        }
+        Update: {
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          notification_type?: string
+          property_name?: string | null
+          recipient_email?: string
+          sent_at?: string
+          status?: string
+          subject?: string
+          tenant_name?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
