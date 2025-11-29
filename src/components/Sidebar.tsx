@@ -16,6 +16,7 @@ import {
   KeyRound,
   ChevronDown,
   BarChart3,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,7 +48,8 @@ const adminMenu = [
   { label: "Gold", href: "/admin/gold", icon: Coins },
   { label: "Flats", href: "/admin/flats", icon: Home },
   { label: "Rental Properties", href: "/admin/rental-properties", icon: KeyRound },
-  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 }, // <-- Added here
+  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { label: "Notification History", href: "/admin/notifications", icon: Bell }, // <-- ADDED HERE
 ];
 
 const adminPaths = adminMenu.map((item) => item.href);
@@ -77,8 +79,8 @@ export const Sidebar = () => {
     );
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-card">
-      
+    <div className="flex h-screen w-64 flex-col border-r bg-card overflow-y-auto">
+
       {/* Logo */}
       <div className="flex h-16 items-center border-b px-6">
         <h1 className="text-xl font-bold text-primary">FinSight</h1>
@@ -99,7 +101,7 @@ export const Sidebar = () => {
         ))}
 
         {/* Super Admin */}
-        {/* {isSuperAdmin && ( */}
+        {isSuperAdmin && (
           <>
             <div className="my-2 border-t" />
 
@@ -136,7 +138,7 @@ export const Sidebar = () => {
               </div>
             </div>
           </>
-        {/* )} */}
+        )}
       </nav>
 
       {/* Footer */}
