@@ -4,14 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Building2 } from "lucide-react";
+import { Plus, Building2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { propertyQueryConfig } from "@/hooks/useQueryConfig";
-import { CommonTable, ColumnConfig, StatusBadge } from "../components/CommonTable";
+import { CommonTable, ColumnConfig, StatusBadge } from "@/components/CommonTable";
+import { LoadingSpinner } from "../components/LoadingSpinner";
+import { realEstateStatusFilters, propertyTypeFilters } from "../data/filterOptions";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
 interface RealEstate {
@@ -140,7 +142,7 @@ const RealEstate = () => {
   ];
 
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
@@ -191,9 +193,9 @@ const RealEstate = () => {
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="residential">Residential</SelectItem>
-                          <SelectItem value="commercial">Commercial</SelectItem>
-                          <SelectItem value="industrial">Industrial</SelectItem>
-                          <SelectItem value="land">Land</SelectItem>
+                          {propertyTypeFilters.filter(f => f.value !== 'all').map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -202,9 +204,9 @@ const RealEstate = () => {
                       <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="available">Available</SelectItem>
-                          <SelectItem value="sold">Sold</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
+                          {realEstateStatusFilters.filter(f => f.value !== 'all').map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -231,12 +233,7 @@ const RealEstate = () => {
             searchPlaceholder="Search by name or location..."
             searchKeys={["property_name", "location"]}
             statusKey="status"
-            statusFilters={[
-              { value: "all", label: "All Status" },
-              { value: "available", label: "Available" },
-              { value: "sold", label: "Sold" },
-              { value: "pending", label: "Pending" },
-            ]}
+            statusFilters={realEstateStatusFilters}
             emptyMessage="No properties found. Add your first property!"
             deletingId={deleting}
           />

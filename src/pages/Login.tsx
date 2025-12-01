@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
+import { LoadingSpinner } from "../components/LoadingSpinner";
+import { SuperAdminCredentials } from "@/components/SuperAdminCredentials";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -52,18 +54,16 @@ const Login = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-      <Card className="w-full max-w-md shadow-lg">
+      <div className="w-full max-w-md space-y-4">
+        {/* <SuperAdminCredentials /> */}
+        <Card className="shadow-lg">
         <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-3xl font-bold">TradePro</CardTitle>
+          <CardTitle className="text-3xl font-bold">FinSight</CardTitle>
           <CardDescription>Manage your investment portfolio</CardDescription>
         </CardHeader>
         <CardContent>
@@ -164,10 +164,11 @@ const Login = () => {
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2 text-center text-sm text-muted-foreground">
-          <p>By continuing, you agree to our Terms of Service and Privacy Policy</p>
-        </CardFooter>
-      </Card>
+          <CardFooter className="flex flex-col space-y-2 text-center text-sm text-muted-foreground">
+            <p>By continuing, you agree to our Terms of Service and Privacy Policy</p>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 };

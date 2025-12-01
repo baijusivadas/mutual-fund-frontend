@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Loader2,
   Shield,
   User as UserIcon,
   Trash2,
   Search,
+  Loader2,
 } from "lucide-react";
 import {
   Select,
@@ -46,8 +46,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { userQueryConfig } from "../hooks/useQueryConfig";
-import { PaginationControls } from "../components/PaginationControls";
+import { userQueryConfig } from "@/hooks/useQueryConfig";
+import { PaginationControls } from "@/components/PaginationControls";
+import { LoadingSpinner } from "../components/LoadingSpinner";
+import { userRoleFilters } from "../data/filterOptions";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
 interface UserWithRole {
@@ -70,7 +72,6 @@ const UserManagement = () => {
   const queryClient = useQueryClient();
 
   const fetchUsers = async (): Promise<UserWithRole[]> => {
-    // Fetch all profiles with their roles
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("*")
@@ -78,14 +79,12 @@ const UserManagement = () => {
 
     if (profilesError) throw profilesError;
 
-    // Fetch roles for each user
     const { data: roles, error: rolesError } = await supabase
       .from("user_roles")
       .select("*");
 
     if (rolesError) throw rolesError;
 
-    // Combine data
     const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
       const userRole = roles?.find((r) => r.user_id === profile.id);
       return {
@@ -229,11 +228,7 @@ const UserManagement = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
@@ -265,9 +260,11 @@ const UserManagement = () => {
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="superAdmin">SuperAdmin</SelectItem>
+                  {userRoleFilters.map((filter) => (
+                    <SelectItem key={filter.value} value={filter.value}>
+                      {filter.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
