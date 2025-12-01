@@ -9,10 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { usePropertyData } from "@/hooks/usePropertyData";
 import { CommonTable, ColumnConfig, StatusBadge } from "@/components/CommonTable";
-import { LoadingSpinner } from "../components/LoadingSpinner";
-import { flatStatusFilters } from "../data/filterOptions";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { flatStatusFilters } from "@/data/filterOptions";
 import type { Flat } from "@/types";
-import { DashboardLayout } from "@/components/DashboardLayout";
 
 const Flats = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -102,7 +101,6 @@ const Flats = () => {
   }
 
   return (
-    <DashboardLayout>
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
@@ -199,7 +197,6 @@ const Flats = () => {
         </CardContent>
       </Card>
     </div>
-    </DashboardLayout>
   );
 };
 

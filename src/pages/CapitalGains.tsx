@@ -2,9 +2,9 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { MetricCard } from "@/components/MetricCard";
 import { TrendingUp, Calendar, FileText, DollarSign } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { shortTermGains, longTermGains, TAX_RATES, calculateTotals } from "../data/capitalGainsData";
-import { TradeCard } from "../components/TradeCard";
-import { TotalSummaryCard } from "../components/TotalSummaryCard";
+import { shortTermGains, longTermGains, TAX_RATES, calculateTotals } from "@/data/capitalGainsData";
+import { TradeCard } from "@/components/TradeCard";
+import { TotalSummaryCard } from "@/components/TotalSummaryCard";
 
 const CapitalGains = () => {
   const totalShortTerm = calculateTotals(shortTermGains);

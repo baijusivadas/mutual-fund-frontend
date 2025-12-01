@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-// import { format } from "date-fns";
+import { format } from "date-fns";
 import { Mail, CheckCircle, XCircle, Clock } from "lucide-react";
 import {
   Table,
@@ -159,7 +159,7 @@ export default function NotificationHistory() {
                       <TableCell>{notification.property_name || "-"}</TableCell>
                       <TableCell>{notification.tenant_name || "-"}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {/* {format(new Date(notification.sent_at), "MMM dd, yyyy HH:mm")} */}
+                        {format(new Date(notification.sent_at), "MMM dd, yyyy HH:mm")}
                       </TableCell>
                     </TableRow>
                   ))}

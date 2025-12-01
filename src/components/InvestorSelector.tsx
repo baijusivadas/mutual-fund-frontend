@@ -19,7 +19,7 @@ export const InvestorSelector = () => {
           <SelectValue placeholder="Select investor" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="All">All Investors</SelectItem>
+          <SelectItem value="all">All Investors</SelectItem>
           {investors.map((investor) => (
             <SelectItem key={investor} value={investor}>
               {investor}

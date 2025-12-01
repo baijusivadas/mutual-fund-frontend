@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
-import { LoadingSpinner } from "../components/LoadingSpinner";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { SuperAdminCredentials } from "@/components/SuperAdminCredentials";
 
 const Login = () => {
@@ -63,7 +63,7 @@ const Login = () => {
         {/* <SuperAdminCredentials /> */}
         <Card className="shadow-lg">
         <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-3xl font-bold">FinSight</CardTitle>
+          <CardTitle className="text-3xl font-bold">TradePro</CardTitle>
           <CardDescription>Manage your investment portfolio</CardDescription>
         </CardHeader>
         <CardContent>

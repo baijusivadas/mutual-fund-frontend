@@ -2,10 +2,10 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { stockPriceData, stockDetails, StockPriceDataKey } from "../data/stockData";
-import { TOOLTIP_STYLE } from "../data/chartColors";
-import { StockDetailCard } from "../components/StockDetailCard";
-import { StockPnLCard } from "../components/StockPnLCard";
+import { stockPriceData, stockDetails, StockPriceDataKey } from "@/data/stockData";
+import { TOOLTIP_STYLE } from "@/data/chartColors";
+import { StockDetailCard } from "@/components/StockDetailCard";
+import { StockPnLCard } from "@/components/StockPnLCard";
 
 const StockReports = () => {
   return (

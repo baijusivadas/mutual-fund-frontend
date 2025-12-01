@@ -1,1 +1,7 @@
 project_id = "kfkwegvkdjzvgccachyy"
+
+[functions.send-notification-email]
+verify_jwt = false
+
+[functions.check-lease-renewals]
+verify_jwt = false

@@ -12,9 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { propertyQueryConfig } from "@/hooks/useQueryConfig";
 import { CommonTable, ColumnConfig, StatusBadge } from "@/components/CommonTable";
-import { LoadingSpinner } from "../components/LoadingSpinner";
-import { realEstateStatusFilters, propertyTypeFilters } from "../data/filterOptions";
-import { DashboardLayout } from "@/components/DashboardLayout";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { realEstateStatusFilters, propertyTypeFilters } from "@/data/filterOptions";
 
 interface RealEstate {
   id: string;
@@ -146,7 +145,6 @@ const RealEstate = () => {
   }
 
   return (
-    <DashboardLayout>
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
@@ -240,7 +238,6 @@ const RealEstate = () => {
         </CardContent>
       </Card>
     </div>
-    </DashboardLayout>
   );
 };
 

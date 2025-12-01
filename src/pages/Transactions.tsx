@@ -2,13 +2,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { useInvestor } from "@/contexts/InvestorContext";
 import { useState, useMemo } from "react";
@@ -24,60 +18,38 @@ const Transactions = () => {
       .filter((t) => {
         // Search filter - safely handle null/undefined values
         const searchLower = searchQuery.toLowerCase().trim();
-        const matchesSearch =
-          searchQuery === "" ||
+        const matchesSearch = searchQuery === "" || 
           (t.schemeName?.toLowerCase() || "").includes(searchLower) ||
           (t.investorName?.toLowerCase() || "").includes(searchLower) ||
           (t.folioNumber?.toLowerCase() || "").includes(searchLower);
-
+        
         // Type filter - use isSell flag for accurate categorization
-        const matchesType =
-          typeFilter === "all" ||
+        const matchesType = typeFilter === "all" ||
           (typeFilter === "purchase" && !t.isSell) ||
           (typeFilter === "redemption" && t.isSell);
-
+        
         return matchesSearch && matchesType;
       })
-      .sort(
-        (a, b) =>
-          new Date(b.investmentDate).getTime() -
-          new Date(a.investmentDate).getTime()
-      );
+      .sort((a, b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime());
   }, [filteredTransactions, searchQuery, typeFilter]);
 
   const getTransactionType = (type: string) => {
     const lowerType = type.toLowerCase();
-    if (lowerType.includes("purchase") || lowerType.includes("systematic")) {
-      return {
-        label: "PURCHASE",
-        variant: "default" as const,
-        icon: ArrowDownLeft,
-      };
+    if (lowerType.includes('purchase') || lowerType.includes('systematic')) {
+      return { label: 'PURCHASE', variant: 'default' as const, icon: ArrowDownLeft };
     }
-    if (lowerType.includes("redeem") || lowerType.includes("switchout")) {
-      return {
-        label: "REDEMPTION",
-        variant: "destructive" as const,
-        icon: ArrowUpRight,
-      };
+    if (lowerType.includes('redeem') || lowerType.includes('switchout')) {
+      return { label: 'REDEMPTION', variant: 'destructive' as const, icon: ArrowUpRight };
     }
-    return {
-      label: type.toUpperCase(),
-      variant: "secondary" as const,
-      icon: Search,
-    };
+    return { label: type.toUpperCase(), variant: 'secondary' as const, icon: Search };
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col gap-2">
-          <h2 className="text-3xl font-bold tracking-tight">
-            Daily Sauda Report
-          </h2>
-          <p className="text-muted-foreground">
-            Complete transaction history from all investors
-          </p>
+          <h2 className="text-3xl font-bold tracking-tight">Daily Sauda Report</h2>
+          <p className="text-muted-foreground">Complete transaction history from all investors</p>
         </div>
 
         {/* Enhanced Search and Filter Section */}
@@ -101,23 +73,14 @@ const Transactions = () => {
                   <SelectContent className="bg-background z-50">
                     <SelectItem value="all">All Transactions</SelectItem>
                     <SelectItem value="purchase">Purchases & SIP</SelectItem>
-                    <SelectItem value="redemption">
-                      Redemptions & Switchout
-                    </SelectItem>
+                    <SelectItem value="redemption">Redemptions & Switchout</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <p className="text-muted-foreground">
-                  Showing{" "}
-                  <span className="font-semibold text-foreground">
-                    {displayedTransactions.length}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-semibold text-foreground">
-                    {filteredTransactions.length}
-                  </span>{" "}
-                  transactions
+                  Showing <span className="font-semibold text-foreground">{displayedTransactions.length}</span> of{" "}
+                  <span className="font-semibold text-foreground">{filteredTransactions.length}</span> transactions
                 </p>
                 {searchQuery && (
                   <button
@@ -145,22 +108,17 @@ const Transactions = () => {
             ) : (
               <div className="space-y-3">
                 {displayedTransactions.map((transaction, index) => {
-                  const txType = getTransactionType(
-                    transaction.transactionType
-                  );
+                  const txType = getTransactionType(transaction.transactionType);
                   const Icon = txType.icon;
-
+                  
                   return (
-                    <Card
-                      key={`${transaction.folioNumber}-${index}`}
-                      className="border hover:border-primary/50 transition-all"
-                    >
+                    <Card key={`${transaction.folioNumber}-${index}`} className="border hover:border-primary/50 transition-all">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-4">
                           {/* Left Section */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-3">
-                              <Badge
+                              <Badge 
                                 variant={txType.variant}
                                 className="font-bold flex items-center gap-1"
                               >
@@ -178,49 +136,31 @@ const Transactions = () => {
                               {transaction.investorName}
                             </p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>
-                                {new Date(
-                                  transaction.investmentDate
-                                ).toLocaleDateString("en-IN")}
-                              </span>
+                              <span>{new Date(transaction.investmentDate).toLocaleDateString('en-IN')}</span>
                               <span>•</span>
-                              <span className="font-mono">
-                                {transaction.transactionType}
-                              </span>
+                              <span className="font-mono">{transaction.transactionType}</span>
                             </div>
                           </div>
 
                           {/* Right Section */}
                           <div className="text-right space-y-2">
                             <div>
-                              <p className="text-xs text-muted-foreground">
-                                Total Value
-                              </p>
+                              <p className="text-xs text-muted-foreground">Total Value</p>
                               <p className="text-xl font-bold">
-                                ₹
-                                {Math.abs(transaction.value).toLocaleString(
-                                  "en-IN",
-                                  { maximumFractionDigits: 0 }
-                                )}
+                                ₹{Math.abs(transaction.value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                               </p>
                             </div>
                             <div className="grid grid-cols-2 gap-3 text-xs">
                               <div>
                                 <p className="text-muted-foreground">Units</p>
                                 <p className="font-semibold">
-                                  {Math.abs(transaction.units).toLocaleString(
-                                    "en-IN",
-                                    { maximumFractionDigits: 3 }
-                                  )}
+                                  {Math.abs(transaction.units).toLocaleString('en-IN', { maximumFractionDigits: 3 })}
                                 </p>
                               </div>
                               <div>
                                 <p className="text-muted-foreground">NAV</p>
                                 <p className="font-semibold">
-                                  ₹
-                                  {transaction.nav.toLocaleString("en-IN", {
-                                    maximumFractionDigits: 2,
-                                  })}
+                                  ₹{transaction.nav.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                                 </p>
                               </div>
                             </div>
