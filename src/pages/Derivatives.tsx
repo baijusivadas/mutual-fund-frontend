@@ -1,5 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent} from "@/components/ui/card";
 import { MetricCard } from "@/components/MetricCard";
 import { TrendingUp, TrendingDown, Activity, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

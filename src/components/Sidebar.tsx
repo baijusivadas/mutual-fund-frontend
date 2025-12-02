@@ -47,7 +47,7 @@ const adminMenu = [
   { label: "Real Estate", href: "/admin/real-estate", icon: Building2 },
   { label: "Gold", href: "/admin/gold", icon: Coins },
   { label: "Flats", href: "/admin/flats", icon: Home },
-  { label: "Rental Properties", href: "/admin/rental-properties", icon: KeyRound },
+  { label: "Properties", href: "/admin/rental-properties", icon: KeyRound },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "Notification History", href: "/admin/notifications", icon: Bell }, // <-- ADDED HERE
 ];
@@ -101,7 +101,7 @@ export const Sidebar = () => {
         ))}
 
         {/* Super Admin */}
-        {isSuperAdmin && (
+        {/* {isSuperAdmin && ( */}
           <>
             <div className="my-2 border-t" />
 
@@ -138,7 +138,7 @@ export const Sidebar = () => {
               </div>
             </div>
           </>
-        )}
+        {/* )} */}
       </nav>
 
       {/* Footer */}
