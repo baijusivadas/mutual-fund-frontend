@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { SuperAdminCredentials } from "@/components/SuperAdminCredentials";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -60,7 +59,6 @@ const Login = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
       <div className="w-full max-w-md space-y-4">
-        {/* <SuperAdminCredentials /> */}
         <Card className="shadow-lg">
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-3xl font-bold">TradePro</CardTitle>
@@ -109,6 +107,14 @@ const Login = () => {
                     "Sign In"
                   )}
                 </Button>
+                <div className="text-center">
+                  <Link 
+                    to="/forgot-password" 
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
               </form>
             </TabsContent>
             

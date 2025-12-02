@@ -101,7 +101,7 @@ export const Sidebar = () => {
         ))}
 
         {/* Super Admin */}
-        {/* {isSuperAdmin && ( */}
+        {isSuperAdmin && (
           <>
             <div className="my-2 border-t" />
 
@@ -138,7 +138,7 @@ export const Sidebar = () => {
               </div>
             </div>
           </>
-        {/* )} */}
+        )}
       </nav>
 
       {/* Footer */}

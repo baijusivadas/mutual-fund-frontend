@@ -1,5 +1,4 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { SuperAdminCredentials } from "@/components/SuperAdminCredentials";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -7,7 +6,6 @@ import { useInvestor } from "@/contexts/InvestorContext";
 import { useMemo } from "react";
 import { TransactionData } from "@/utils/parseTransactions";
 import { calculateXIRR } from "@/lib/xirr";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface SchemeData {
   schemeName: string;
@@ -21,8 +19,7 @@ interface SchemeData {
 }
 
 const Index = () => {
-  const { filteredTransactions, selectedInvestor } = useInvestor();
-  const { isSuperAdmin } = useAuth();
+  const { filteredTransactions, selectedInvestor, isNewUser } = useInvestor();
 
   // Group by scheme and calculate totals
   const schemeData: SchemeData[] = useMemo(() => {
@@ -63,14 +60,15 @@ const Index = () => {
       .sort((a, b) => b.currentValue - a.currentValue);
   }, [filteredTransactions]);
 
-  const totalInvested = useMemo(() => schemeData.reduce((sum, s) => sum + s.totalInvested, 0), [schemeData]);
-  const currentValue = useMemo(() => schemeData.reduce((sum, s) => sum + s.currentValue, 0), [schemeData]);
-  const totalReturns = currentValue - totalInvested;
-  const roi = totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : "0.00";
+  // For new users, show zero PnL values
+  const totalInvested = useMemo(() => isNewUser ? 0 : schemeData.reduce((sum, s) => sum + s.totalInvested, 0), [schemeData, isNewUser]);
+  const currentValue = useMemo(() => isNewUser ? 0 : schemeData.reduce((sum, s) => sum + s.currentValue, 0), [schemeData, isNewUser]);
+  const totalReturns = isNewUser ? 0 : currentValue - totalInvested;
+  const roi = isNewUser ? "0.00" : (totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : "0.00");
 
-  // Calculate XIRR
+  // Calculate XIRR (zero for new users)
   const xirr = useMemo(() => {
-    if (filteredTransactions.length === 0) return null;
+    if (filteredTransactions.length === 0 || isNewUser) return isNewUser ? 0 : null;
 
     const xirrTransactions = filteredTransactions.map((t) => ({
       date: new Date(t.investmentDate),
@@ -85,7 +83,7 @@ const Index = () => {
     }
 
     return calculateXIRR(xirrTransactions);
-  }, [filteredTransactions, currentValue]);
+  }, [filteredTransactions, currentValue, isNewUser]);
 
   // Performance data over last 6 months
   const performanceData = useMemo(() => {
@@ -157,11 +155,6 @@ const Index = () => {
 
   return (
     <DashboardLayout>
-      {isSuperAdmin && (
-        <div className="mb-6">
-          <SuperAdminCredentials />
-        </div>
-      )}
       <div className="flex gap-6">
         {/* Main Content */}
         <div className="flex-1 space-y-6">

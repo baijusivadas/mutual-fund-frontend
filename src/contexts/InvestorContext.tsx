@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from "react";
 import { parseExcelFile, TransactionData } from "@/utils/parseTransactions";
 import transactionsPath from "@/data/combined_transactions_1.xlsx";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface InvestorContextType {
   selectedInvestor: string;
@@ -8,6 +9,7 @@ interface InvestorContextType {
   investors: string[];
   transactions: TransactionData[];
   filteredTransactions: TransactionData[];
+  isNewUser: boolean;
 }
 
 const InvestorContext = createContext<InvestorContextType | undefined>(undefined);
@@ -16,6 +18,7 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
   const [selectedInvestor, setSelectedInvestor] = useState<string>("all");
   const [transactions, setTransactions] = useState<TransactionData[]>([]);
   const [investors, setInvestors] = useState<string[]>([]);
+  const { isSuperAdmin, user } = useAuth();
 
   useEffect(() => {
     const loadTransactions = async () => {
@@ -32,13 +35,28 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
     loadTransactions();
   }, []);
 
+  // Check if user is new (non-SuperAdmin users are considered "new" for PnL purposes)
+  const isNewUser = !isSuperAdmin && !!user;
+
   // Filter transactions by investor - memoized for performance
-  const filteredTransactions = useMemo(() => 
-    selectedInvestor === "all" 
+  // SuperAdmin can see all investors, regular users see all transactions but with zeroed PnL
+  const filteredTransactions = useMemo(() => {
+    const baseTransactions = selectedInvestor === "all" 
       ? transactions 
-      : transactions.filter((t) => t.investorName === selectedInvestor),
-    [selectedInvestor, transactions]
-  );
+      : transactions.filter((t) => t.investorName === selectedInvestor);
+    
+    // For non-SuperAdmin users, return transactions with zeroed values for PnL calculation
+    // They can still see the stock names and structure, but PnL will show as 0
+    if (isNewUser) {
+      return baseTransactions.map(t => ({
+        ...t,
+        // Keep original data structure but flag for PnL zeroing
+        _isNewUserView: true,
+      }));
+    }
+    
+    return baseTransactions;
+  }, [selectedInvestor, transactions, isNewUser]);
 
   return (
     <InvestorContext.Provider
@@ -48,6 +66,7 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
         investors,
         transactions,
         filteredTransactions,
+        isNewUser,
       }}
     >
       {children}

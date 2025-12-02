@@ -10,11 +10,11 @@ import { calculateXIRR } from "@/lib/xirr";
 import { useInvestor } from "@/contexts/InvestorContext";
 
 const MutualFunds = () => {
-  const { filteredTransactions } = useInvestor();
+  const { filteredTransactions, isNewUser } = useInvestor();
 
-  // Calculate XIRR for the selected investor
+  // Calculate XIRR for the selected investor (zero for new users)
   const xirr = useMemo(() => {
-    if (filteredTransactions.length === 0) return null;
+    if (filteredTransactions.length === 0 || isNewUser) return isNewUser ? 0 : null;
 
     const xirrTransactions = filteredTransactions.map((t) => ({
       date: new Date(t.investmentDate),
@@ -36,7 +36,7 @@ const MutualFunds = () => {
     }
 
     return calculateXIRR(xirrTransactions);
-  }, [filteredTransactions]);
+  }, [filteredTransactions, isNewUser]);
 
   // Group by scheme and calculate totals
   const schemeData = useMemo(() => {
@@ -72,10 +72,11 @@ const MutualFunds = () => {
     return Array.from(schemes.values()).filter((s) => s.totalUnits > 0);
   }, [filteredTransactions]);
 
-  const totalInvested = schemeData.reduce((sum, s) => sum + s.totalInvested, 0);
-  const totalValue = schemeData.reduce((sum, s) => sum + (s.totalUnits * s.latestNav), 0);
-  const totalReturns = totalValue - totalInvested;
-  const overallReturn = totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : "0.00";
+  // For new users, show zero PnL values
+  const totalInvested = isNewUser ? 0 : schemeData.reduce((sum, s) => sum + s.totalInvested, 0);
+  const totalValue = isNewUser ? 0 : schemeData.reduce((sum, s) => sum + (s.totalUnits * s.latestNav), 0);
+  const totalReturns = isNewUser ? 0 : totalValue - totalInvested;
+  const overallReturn = isNewUser ? "0.00" : (totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : "0.00");
 
   // Performance data over time (last 12 months)
   const performanceData = useMemo(() => {
@@ -195,11 +196,11 @@ const MutualFunds = () => {
                 </thead>
                 <tbody>
                   {schemeData.map((scheme, index) => {
-                    const currentValue = scheme.totalUnits * scheme.latestNav;
-                    const returns = currentValue - scheme.totalInvested;
-                    const returnPercent = scheme.totalInvested > 0 
+                    const currentValue = isNewUser ? 0 : scheme.totalUnits * scheme.latestNav;
+                    const returns = isNewUser ? 0 : currentValue - scheme.totalInvested;
+                    const returnPercent = isNewUser ? 0 : (scheme.totalInvested > 0 
                       ? ((returns / scheme.totalInvested) * 100) 
-                      : 0;
+                      : 0);
 
                     return (
                       <tr key={index} className="border-b last:border-0">
