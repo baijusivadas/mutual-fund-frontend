@@ -40,7 +40,7 @@ const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
 
             <div className="flex items-center gap-4">
               {/* Investor Selector */}
-              <InvestorSelector />
+              {isSuperAdmin && <InvestorSelector />}
 
               {/* Theme Toggle Button */}
               <Button variant="outline" size="icon" onClick={handleThemeToggle}>
