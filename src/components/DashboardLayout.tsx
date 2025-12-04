@@ -1,5 +1,5 @@
 import { ReactNode, memo, useCallback } from "react";
-import { Sidebar } from "./Sidebar";
+import { DynamicSidebar  } from "./DynamicSidebar";
 import { InvestorSelector } from "./InvestorSelector";
 import { Button } from "./ui/button";
 import { Moon, Sun, LogOut, User } from "lucide-react";
@@ -30,7 +30,7 @@ const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      <Sidebar />
+      <DynamicSidebar />
 
       <main className="flex-1 overflow-y-auto">
         {/* Header */}

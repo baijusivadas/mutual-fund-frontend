@@ -461,6 +461,69 @@ export type Database = {
         }
         Relationships: []
       }
+      role_sidebar_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          role_id: string
+          sidebar_item_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role_id: string
+          sidebar_item_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role_id?: string
+          sidebar_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_sidebar_items_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_sidebar_items_sidebar_item_id_fkey"
+            columns: ["sidebar_item_id"]
+            isOneToOne: false
+            referencedRelation: "sidebar_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_system_role: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_system_role?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_system_role?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       scheme_summary: {
         Row: {
           current_units: number | null
@@ -499,6 +562,47 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      sidebar_items: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          href: string
+          icon: string
+          id: string
+          is_active: boolean | null
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          href: string
+          icon: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          href?: string
+          icon?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sidebar_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "sidebar_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

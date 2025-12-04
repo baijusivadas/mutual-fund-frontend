@@ -21,6 +21,7 @@ import CapitalGains from "./pages/CapitalGains";
 import StockReports from "./pages/StockReports";
 import TransactionReports from "./pages/TransactionReports";
 import UserManagement from "./pages/UserManagement";
+import RolesManagement from "./pages/RolesManagement";
 import RealEstate from "./pages/RealEstate";
 import Gold from "./pages/Gold";
 import Flats from "./pages/Flats";
@@ -122,6 +123,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireSuperAdmin={true}>
                     <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/roles"
+                element={
+                  <ProtectedRoute requireSuperAdmin={true}>
+                    <RolesManagement />
                   </ProtectedRoute>
                 }
               />
