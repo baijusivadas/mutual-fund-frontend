@@ -12,6 +12,7 @@ import { CommonTable, ColumnConfig, StatusBadge } from "@/components/CommonTable
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { rentalStatusFilters } from "@/data/filterOptions";
 import type { RentalProperty } from "@/types";
+import { DashboardLayout } from "@/components/DashboardLayout";
 
 const RentalProperties = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -112,6 +113,7 @@ const RentalProperties = () => {
   }
 
   return (
+   <DashboardLayout>
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
@@ -222,6 +224,7 @@ const RentalProperties = () => {
         </CardContent>
       </Card>
     </div>
+     </DashboardLayout>
   );
 };
 
