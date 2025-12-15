@@ -44,6 +44,57 @@ export type Database = {
         }
         Relationships: []
       }
+      cars: {
+        Row: {
+          brand: string
+          car_name: string
+          created_at: string
+          created_by: string | null
+          current_value: number
+          description: string | null
+          id: string
+          model: string
+          purchase_date: string
+          purchase_price: number
+          registration_number: string | null
+          status: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          brand: string
+          car_name: string
+          created_at?: string
+          created_by?: string | null
+          current_value: number
+          description?: string | null
+          id?: string
+          model: string
+          purchase_date: string
+          purchase_price: number
+          registration_number?: string | null
+          status?: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          brand?: string
+          car_name?: string
+          created_at?: string
+          created_by?: string | null
+          current_value?: number
+          description?: string | null
+          id?: string
+          model?: string
+          purchase_date?: string
+          purchase_price?: number
+          registration_number?: string | null
+          status?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       flats: {
         Row: {
           area: number
@@ -173,6 +224,60 @@ export type Database = {
           status?: string
           updated_at?: string
           weight?: number
+        }
+        Relationships: []
+      }
+      liabilities: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          interest_rate: number | null
+          lender: string | null
+          liability_name: string
+          liability_type: string
+          monthly_payment: number | null
+          outstanding_amount: number
+          principal_amount: number
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          interest_rate?: number | null
+          lender?: string | null
+          liability_name: string
+          liability_type: string
+          monthly_payment?: number | null
+          outstanding_amount: number
+          principal_amount: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          interest_rate?: number | null
+          lender?: string | null
+          liability_name?: string
+          liability_type?: string
+          monthly_payment?: number | null
+          outstanding_amount?: number
+          principal_amount?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -504,6 +609,7 @@ export type Database = {
           id: string
           is_system_role: boolean | null
           name: string
+          parent_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -512,6 +618,7 @@ export type Database = {
           id?: string
           is_system_role?: boolean | null
           name: string
+          parent_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -520,9 +627,18 @@ export type Database = {
           id?: string
           is_system_role?: boolean | null
           name?: string
+          parent_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "roles_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scheme_summary: {
         Row: {
@@ -630,7 +746,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_user_data: {
+        Args: { accessor_user_id: string; target_user_id: string }
+        Returns: boolean
+      }
       delete_user: { Args: { _user_id: string }; Returns: undefined }
+      get_role_descendants: {
+        Args: { root_role_id: string }
+        Returns: {
+          depth: number
+          role_id: string
+          role_name: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

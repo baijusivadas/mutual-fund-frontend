@@ -7,8 +7,14 @@ export interface Role {
   name: string;
   description: string | null;
   is_system_role: boolean;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface RoleWithChildren extends Role {
+  children: RoleWithChildren[];
+  depth: number;
 }
 
 export interface SidebarItemBasic {
@@ -19,6 +25,55 @@ export interface SidebarItemBasic {
   display_order: number;
   is_active: boolean;
 }
+
+// Build tree structure from flat roles
+export const buildRoleTree = (roles: Role[]): RoleWithChildren[] => {
+  const roleMap = new Map<string, RoleWithChildren>();
+  const rootRoles: RoleWithChildren[] = [];
+
+  // First pass: create all nodes
+  roles.forEach(role => {
+    roleMap.set(role.id, { ...role, children: [], depth: 0 });
+  });
+
+  // Second pass: build tree and calculate depths
+  const calculateDepth = (roleId: string, currentDepth: number): void => {
+    const role = roleMap.get(roleId);
+    if (role) {
+      role.depth = currentDepth;
+      role.children.forEach(child => calculateDepth(child.id, currentDepth + 1));
+    }
+  };
+
+  roles.forEach(role => {
+    const node = roleMap.get(role.id)!;
+    if (role.parent_id && roleMap.has(role.parent_id)) {
+      roleMap.get(role.parent_id)!.children.push(node);
+    } else {
+      rootRoles.push(node);
+    }
+  });
+
+  // Calculate depths for all nodes
+  rootRoles.forEach(role => calculateDepth(role.id, 0));
+
+  return rootRoles;
+};
+
+// Flatten tree for display while preserving hierarchy info
+export const flattenRoleTree = (tree: RoleWithChildren[]): RoleWithChildren[] => {
+  const result: RoleWithChildren[] = [];
+  const traverse = (nodes: RoleWithChildren[]) => {
+    nodes.forEach(node => {
+      result.push(node);
+      if (node.children.length > 0) {
+        traverse(node.children);
+      }
+    });
+  };
+  traverse(tree);
+  return result;
+};
 
 export const useRoles = () => {
   const { toast } = useToast();
@@ -34,6 +89,20 @@ export const useRoles = () => {
 
       if (error) throw error;
       return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const roleHierarchy = useQuery({
+    queryKey: ['role-hierarchy'],
+    queryFn: async (): Promise<RoleWithChildren[]> => {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      return buildRoleTree(data || []);
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -66,10 +135,10 @@ export const useRoles = () => {
   });
 
   const createRoleMutation = useMutation({
-    mutationFn: async ({ name, description }: { name: string; description?: string }) => {
+    mutationFn: async ({ name, description, parent_id }: { name: string; description?: string; parent_id?: string | null }) => {
       const { data, error } = await supabase
         .from('roles')
-        .insert({ name, description })
+        .insert({ name, description, parent_id: parent_id || null })
         .select()
         .single();
 
@@ -78,6 +147,7 @@ export const useRoles = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
+      queryClient.invalidateQueries({ queryKey: ['role-hierarchy'] });
       toast({ title: "Role created", description: "New role has been created successfully." });
     },
     onError: (error: any) => {
@@ -86,10 +156,10 @@ export const useRoles = () => {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ id, name, description }: { id: string; name: string; description?: string }) => {
+    mutationFn: async ({ id, name, description, parent_id }: { id: string; name: string; description?: string; parent_id?: string | null }) => {
       const { data, error } = await supabase
         .from('roles')
-        .update({ name, description })
+        .update({ name, description, parent_id })
         .eq('id', id)
         .select()
         .single();
@@ -99,6 +169,7 @@ export const useRoles = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
+      queryClient.invalidateQueries({ queryKey: ['role-hierarchy'] });
       toast({ title: "Role updated", description: "Role has been updated successfully." });
     },
     onError: (error: any) => {
@@ -117,6 +188,7 @@ export const useRoles = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
+      queryClient.invalidateQueries({ queryKey: ['role-hierarchy'] });
       toast({ title: "Role deleted", description: "Role has been deleted successfully." });
     },
     onError: (error: any) => {
@@ -160,6 +232,7 @@ export const useRoles = () => {
 
   return {
     roles: rolesQuery.data || [],
+    roleHierarchy: roleHierarchy.data || [],
     sidebarItems: sidebarItemsQuery.data || [],
     roleSidebarItems: roleSidebarItemsQuery.data || [],
     isLoading: rolesQuery.isLoading || sidebarItemsQuery.isLoading || roleSidebarItemsQuery.isLoading,

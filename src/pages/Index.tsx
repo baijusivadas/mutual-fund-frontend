@@ -5,9 +5,12 @@ import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tool
 import { useInvestor } from "@/contexts/InvestorContext";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { chartTooltipStyle } from "@/components/charts/ChartCard";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
+import { NetWorthCard } from "@/components/NetWorthCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
+  const { isSuperAdmin } = useAuth();
   const { filteredTransactions, selectedInvestor, isNewUser } = useInvestor();
   const {
     schemeData,
@@ -25,6 +28,9 @@ const Index = () => {
     <DashboardLayout>
       <div className="flex gap-6">
         <div className="flex-1 space-y-6">
+          {/* Net Worth Overview - SuperAdmin Only */}
+          {isSuperAdmin && <NetWorthCard />}
+
           {/* Top Metrics */}
           <div className="grid grid-cols-4 gap-4">
             <Card>

@@ -28,6 +28,7 @@ import Flats from "./pages/Flats";
 import RentalProperties from "./pages/RentalProperties";
 import Analytics from "./pages/Analytics";
 import NotificationHistory from "./pages/NotificationHistory";
+import DataUpload from "./pages/DataUpload";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -179,6 +180,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireSuperAdmin={true}>
                     <NotificationHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/data-upload"
+                element={
+                  <ProtectedRoute requireSuperAdmin={true}>
+                    <DataUpload />
                   </ProtectedRoute>
                 }
               />

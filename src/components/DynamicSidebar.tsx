@@ -1,8 +1,8 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useSidebarItems } from "@/hooks/useSidebarItems";
-import { Skeleton } from "@/components/ui/skeleton";
 import * as LucideIcons from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Icon mapping
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -25,14 +25,20 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Shield: LucideIcons.Shield,
   Settings: LucideIcons.Settings,
   Folder: LucideIcons.Folder,
+  FolderTree: LucideIcons.FolderTree,
+  Upload: LucideIcons.Upload,
 };
 
 export const DynamicSidebar = () => {
-  const { data: sidebarItems, isLoading } = useSidebarItems();
+  const { data: sidebarItems, isLoading, isFetching } = useSidebarItems();
+  const { role } = useAuth();
+
+  // Use placeholder data immediately - no loading skeleton needed
+  const items = sidebarItems || [];
 
   // Separate admin items (those with /admin/ in href)
-  const regularItems = sidebarItems?.filter(item => !item.href.includes('/admin/')) || [];
-  const adminItems = sidebarItems?.filter(item => item.href.includes('/admin/')) || [];
+  const regularItems = items.filter(item => !item.href.includes('/admin/'));
+  const adminItems = items.filter(item => item.href.includes('/admin/'));
 
   const renderNavItem = (item: { id: string; name: string; href: string; icon: string }) => {
     const IconComponent = iconMap[item.icon] || LucideIcons.Circle;
@@ -63,38 +69,29 @@ export const DynamicSidebar = () => {
         <h1 className="text-xl font-bold text-primary">TradePro</h1>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
-        {isLoading ? (
-          // Loading skeleton
-          Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 px-3 py-2">
-              <Skeleton className="h-5 w-5" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-          ))
-        ) : (
+        {/* Regular navigation items - render immediately */}
+        {regularItems.map(renderNavItem)}
+        
+        {/* Admin section */}
+        {adminItems.length > 0 && (
           <>
-            {/* Regular navigation items */}
-            {regularItems.map(renderNavItem)}
-            
-            {/* Admin section */}
-            {adminItems.length > 0 && (
-              <>
-                <div className="my-2 border-t" />
-                <div className="px-3 py-2">
-                  <p className="text-xs font-semibold text-muted-foreground">Administration</p>
-                </div>
-                {adminItems.map(renderNavItem)}
-              </>
-            )}
+            <div className="my-2 border-t" />
+            <div className="px-3 py-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Administration</p>
+            </div>
+            {adminItems.map(renderNavItem)}
           </>
         )}
       </nav>
       <div className="border-t p-4">
         <div className="text-xs text-muted-foreground">
-          <p className="font-medium">Market Status</p>
+          <p className="font-medium">Role: {role || 'Loading...'}</p>
           <p className="mt-1 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-success animate-pulse"></span>
-            Market Open
+            <span className={cn(
+              "h-2 w-2 rounded-full",
+              isFetching ? "bg-yellow-500" : "bg-success animate-pulse"
+            )}></span>
+            {isFetching ? "Syncing..." : "Market Open"}
           </p>
         </div>
       </div>
