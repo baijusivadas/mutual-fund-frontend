@@ -29,6 +29,7 @@ import RentalProperties from "./pages/RentalProperties";
 import Analytics from "./pages/Analytics";
 import NotificationHistory from "./pages/NotificationHistory";
 import DataUpload from "./pages/DataUpload";
+import UserInvestmentMapping from "./pages/UserInvestmentMapping";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -188,6 +189,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireSuperAdmin={true}>
                     <DataUpload />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/user-investment-mapping"
+                element={
+                  <ProtectedRoute requireSuperAdmin={true}>
+                    <UserInvestmentMapping />
                   </ProtectedRoute>
                 }
               />
