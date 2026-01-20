@@ -720,6 +720,39 @@ export type Database = {
           },
         ]
       }
+      user_investment_mapping: {
+        Row: {
+          asset_id: string | null
+          asset_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          investor_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          asset_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          investor_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          asset_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          investor_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null

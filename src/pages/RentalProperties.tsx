@@ -109,12 +109,16 @@ const RentalProperties = () => {
   ];
 
   if (isLoading) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <DashboardLayout>
+        <LoadingSpinner fullScreen />
+      </DashboardLayout>
+    );
   }
 
   return (
-   <DashboardLayout>
-    <div className="container mx-auto py-8 px-4">
+    <DashboardLayout>
+      <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -223,8 +227,8 @@ const RentalProperties = () => {
           />
         </CardContent>
       </Card>
-    </div>
-     </DashboardLayout>
+      </div>
+    </DashboardLayout>
   );
 };
 

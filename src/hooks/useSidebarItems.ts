@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface SidebarItem {
   id: string;
@@ -33,6 +33,7 @@ const STATIC_SIDEBAR_ITEMS: Record<string, SidebarItem[]> = {
     { id: '16', name: 'Notifications', href: '/notifications', icon: 'Bell', display_order: 16, parent_id: null, is_active: true },
     { id: '17', name: 'Roles Management', href: '/admin/roles', icon: 'Shield', display_order: 17, parent_id: null, is_active: true },
     { id: '18', name: 'Data Upload', href: '/admin/data-upload', icon: 'Upload', display_order: 18, parent_id: null, is_active: true },
+    { id: '19', name: 'User Investment Mapping', href: '/admin/user-investment-mapping', icon: 'Link2', display_order: 19, parent_id: null, is_active: true },
   ],
   user: [
     { id: '1', name: 'Dashboard', href: '/', icon: 'LayoutDashboard', display_order: 1, parent_id: null, is_active: true },

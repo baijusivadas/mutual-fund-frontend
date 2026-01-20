@@ -27,6 +27,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Folder: LucideIcons.Folder,
   FolderTree: LucideIcons.FolderTree,
   Upload: LucideIcons.Upload,
+  Link2: LucideIcons.Link2,
 };
 
 export const DynamicSidebar = () => {

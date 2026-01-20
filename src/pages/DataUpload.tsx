@@ -5,12 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, Info } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2, CheckCircle, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import * as XLSX from "xlsx";
 
 interface ParsedTransaction {
@@ -31,13 +38,39 @@ interface UploadResult {
   errors: string[];
 }
 
+const ASSET_TYPES = [
+  { value: "mutual_funds", label: "Mutual Funds" },
+  { value: "stocks", label: "Stocks" },
+  { value: "gold", label: "Gold" },
+  { value: "real_estate", label: "Real Estate" },
+  { value: "flats", label: "Flats" },
+  { value: "rental_properties", label: "Rental Properties" },
+  { value: "cars", label: "Cars" },
+  { value: "liabilities", label: "Liabilities" },
+];
+
 const DataUpload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [parsedData, setParsedData] = useState<ParsedTransaction[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedAssetType, setSelectedAssetType] = useState<string>("mutual_funds");
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch users for mapping
+  const { data: users = [] } = useQuery({
+    queryKey: ["users-for-upload"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, full_name")
+        .order("full_name");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const parseExcel = useCallback(async (file: File): Promise<ParsedTransaction[]> => {
     return new Promise((resolve, reject) => {
@@ -164,6 +197,7 @@ const DataUpload = () => {
     mutationFn: async (): Promise<UploadResult> => {
       const result: UploadResult = { total: 0, purchases: 0, redemptions: 0, errors: [] };
       const batchSize = 100;
+      const { data: { user } } = await supabase.auth.getUser();
 
       for (let i = 0; i < parsedData.length; i += batchSize) {
         const batch = parsedData.slice(i, i + batchSize);
@@ -202,6 +236,29 @@ const DataUpload = () => {
         }
       }
 
+      // Auto-map investments to selected users if any selected
+      if (selectedUsers.length > 0 && selectedAssetType === "mutual_funds") {
+        const uniqueInvestors = [...new Set(parsedData.map((t) => t.investorName))];
+        
+        for (const userId of selectedUsers) {
+          for (const investorName of uniqueInvestors) {
+            try {
+              await supabase.from("user_investment_mapping").upsert({
+                user_id: userId,
+                asset_type: selectedAssetType,
+                investor_name: investorName,
+                created_by: user?.id,
+              }, {
+                onConflict: "user_id,asset_type,asset_id",
+                ignoreDuplicates: true,
+              });
+            } catch (err) {
+              // Ignore duplicate mapping errors
+            }
+          }
+        }
+      }
+
       return result;
     },
     onSuccess: (result) => {
@@ -209,6 +266,7 @@ const DataUpload = () => {
       queryClient.invalidateQueries({ queryKey: ["redemptions"] });
       queryClient.invalidateQueries({ queryKey: ["raw_transactions"] });
       queryClient.invalidateQueries({ queryKey: ["net-worth"] });
+      queryClient.invalidateQueries({ queryKey: ["investment-mappings"] });
 
       toast({
         title: "Upload complete",
@@ -218,6 +276,7 @@ const DataUpload = () => {
       setFile(null);
       setParsedData([]);
       setUploadProgress(0);
+      setSelectedUsers([]);
     },
     onError: (err: any) => {
       toast({
@@ -234,6 +293,14 @@ const DataUpload = () => {
   }).length;
 
   const redemptionCount = parsedData.length - purchaseCount;
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  };
 
   return (
     <DashboardLayout>
@@ -264,6 +331,43 @@ const DataUpload = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Asset Type Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="asset-type">Asset Type</Label>
+              <Select value={selectedAssetType} onValueChange={setSelectedAssetType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select asset type" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  {ASSET_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* User Selection for Auto-Mapping */}
+            <div className="space-y-2">
+              <Label>Auto-Map to Users (Optional)</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select users to automatically assign uploaded investments to them
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {users.map((user) => (
+                  <Badge
+                    key={user.id}
+                    variant={selectedUsers.includes(user.id) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleUserSelection(user.id)}
+                  >
+                    {user.full_name || user.email}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="file">Select File</Label>
               <Input
