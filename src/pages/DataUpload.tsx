@@ -1,35 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, Loader2, CheckCircle, Info } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import * as XLSX from "xlsx";
-
-interface ParsedTransaction {
-  transactionType: string;
-  investorName: string;
-  date: string;
-  schemeName: string;
-  units: number;
-  nav: number;
-  amount: number;
-  folioNo: string;
-}
+import { parseExcel, ParsedTransaction } from "@/utils/excelParser";
+import { UploadForm } from "@/components/upload/UploadForm";
+import { UploadPreview } from "@/components/upload/UploadPreview";
 
 interface UploadResult {
   total: number;
@@ -37,17 +15,6 @@ interface UploadResult {
   redemptions: number;
   errors: string[];
 }
-
-const ASSET_TYPES = [
-  { value: "mutual_funds", label: "Mutual Funds" },
-  { value: "stocks", label: "Stocks" },
-  { value: "gold", label: "Gold" },
-  { value: "real_estate", label: "Real Estate" },
-  { value: "flats", label: "Flats" },
-  { value: "rental_properties", label: "Rental Properties" },
-  { value: "cars", label: "Cars" },
-  { value: "liabilities", label: "Liabilities" },
-];
 
 const DataUpload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -71,86 +38,6 @@ const DataUpload = () => {
       return data;
     },
   });
-
-  const parseExcel = useCallback(async (file: File): Promise<ParsedTransaction[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: "array" });
-          const transactions: ParsedTransaction[] = [];
-
-          for (const sheetName of workbook.SheetNames) {
-            const worksheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-
-            // Find header row
-            let headerRowIndex = -1;
-            for (let i = 0; i < Math.min(50, jsonData.length); i++) {
-              const row = jsonData[i];
-              if (row && row.length > 0) {
-                const firstCell = String(row[0] || "").toLowerCase();
-                if (
-                  firstCell.includes("transaction") ||
-                  firstCell.includes("investorname") ||
-                  (row.length >= 7 && String(row[1] || "").toLowerCase().includes("investor"))
-                ) {
-                  headerRowIndex = i;
-                  break;
-                }
-              }
-            }
-
-            if (headerRowIndex === -1) continue;
-
-            // Parse data rows
-            for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
-              const row = jsonData[i];
-              if (!row || row.length < 7 || !row[0] || !row[1]) continue;
-
-              const firstCell = String(row[0] || "").toLowerCase();
-              if (
-                firstCell.includes("sum of") ||
-                firstCell.includes("total") ||
-                firstCell.includes("grand total") ||
-                firstCell === ""
-              ) {
-                continue;
-              }
-
-              try {
-                const units = parseFloat(String(row[4] || "0"));
-                const nav = parseFloat(String(row[5] || "0"));
-                const amount = parseFloat(String(row[6] || "0"));
-
-                if (isNaN(units) || isNaN(nav) || isNaN(amount)) continue;
-
-                transactions.push({
-                  transactionType: String(row[0] || "").trim(),
-                  investorName: String(row[1] || "").trim(),
-                  date: String(row[2] || "").trim(),
-                  schemeName: String(row[3] || "").trim(),
-                  units: Math.abs(units),
-                  nav,
-                  amount: Math.abs(amount),
-                  folioNo: String(row[7] || "").trim(),
-                });
-              } catch {
-                continue;
-              }
-            }
-          }
-
-          resolve(transactions);
-        } catch (err) {
-          reject(err);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
-  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -239,7 +126,7 @@ const DataUpload = () => {
       // Auto-map investments to selected users if any selected
       if (selectedUsers.length > 0 && selectedAssetType === "mutual_funds") {
         const uniqueInvestors = [...new Set(parsedData.map((t) => t.investorName))];
-        
+
         for (const userId of selectedUsers) {
           for (const investorName of uniqueInvestors) {
             try {
@@ -320,155 +207,27 @@ const DataUpload = () => {
           </AlertDescription>
         </Alert>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5" />
-              Upload Transaction File
-            </CardTitle>
-            <CardDescription>
-              Supported formats: Excel (.xlsx, .xls) and CSV files
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Asset Type Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="asset-type">Asset Type</Label>
-              <Select value={selectedAssetType} onValueChange={setSelectedAssetType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select asset type" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
-                  {ASSET_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* User Selection for Auto-Mapping */}
-            <div className="space-y-2">
-              <Label>Auto-Map to Users (Optional)</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Select users to automatically assign uploaded investments to them
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {users.map((user) => (
-                  <Badge
-                    key={user.id}
-                    variant={selectedUsers.includes(user.id) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleUserSelection(user.id)}
-                  >
-                    {user.full_name || user.email}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="file">Select File</Label>
-              <Input
-                id="file"
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFileChange}
-                disabled={parsing || uploadMutation.isPending}
-              />
-            </div>
-
-            {parsing && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Parsing file...
-              </div>
-            )}
-
-            {file && parsedData.length > 0 && (
-              <Card className="bg-muted/50">
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-success" />
-                      <span className="font-medium">{file.name}</span>
-                    </div>
-                    <Badge variant="outline">{parsedData.length} transactions</Badge>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="p-3 rounded-lg bg-success/10">
-                      <p className="text-muted-foreground">Purchases</p>
-                      <p className="text-lg font-semibold text-success">{purchaseCount}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-destructive/10">
-                      <p className="text-muted-foreground">Redemptions</p>
-                      <p className="text-lg font-semibold text-destructive">{redemptionCount}</p>
-                    </div>
-                  </div>
-
-                  {/* Preview */}
-                  <div className="mt-4">
-                    <p className="text-sm text-muted-foreground mb-2">Preview (first 5 rows):</p>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left p-2">Type</th>
-                            <th className="text-left p-2">Investor</th>
-                            <th className="text-left p-2">Scheme</th>
-                            <th className="text-right p-2">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {parsedData.slice(0, 5).map((txn, i) => (
-                            <tr key={i} className="border-b border-dashed">
-                              <td className="p-2">{txn.transactionType}</td>
-                              <td className="p-2">{txn.investorName}</td>
-                              <td className="p-2 truncate max-w-[150px]">{txn.schemeName}</td>
-                              <td className="p-2 text-right">
-                                ₹{txn.amount.toLocaleString("en-IN")}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {uploadMutation.isPending && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Uploading...</span>
-                  <span>{uploadProgress}%</span>
-                </div>
-                <Progress value={uploadProgress} />
-              </div>
-            )}
-
-            <Button
-              onClick={() => uploadMutation.mutate()}
-              disabled={!parsedData.length || uploadMutation.isPending}
-              className="w-full"
-            >
-              {uploadMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload {parsedData.length} Transactions
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+        <UploadForm
+          parsing={parsing}
+          uploadProgress={uploadProgress}
+          handleFileChange={handleFileChange}
+          handleUpload={() => uploadMutation.mutate()}
+          isUploading={uploadMutation.isPending}
+          hasParsedData={parsedData.length > 0}
+          parsedDataLength={parsedData.length}
+          users={users}
+          selectedUsers={selectedUsers}
+          toggleUserSelection={toggleUserSelection}
+          selectedAssetType={selectedAssetType}
+          setSelectedAssetType={setSelectedAssetType}
+        >
+          <UploadPreview
+            file={file}
+            parsedData={parsedData}
+            purchaseCount={purchaseCount}
+            redemptionCount={redemptionCount}
+          />
+        </UploadForm>
       </div>
     </DashboardLayout>
   );
