@@ -1,16 +1,24 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { useInvestor } from "@/contexts/InvestorContext";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const Transactions = () => {
   const { filteredTransactions } = useInvestor();
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [visibleCount, setVisibleCount] = useState(50);
+  const ITEMS_PER_PAGE = 50;
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(ITEMS_PER_PAGE);
+  }, [searchQuery, typeFilter, filteredTransactions]);
 
   // Filter transactions based on search and type
   const displayedTransactions = useMemo(() => {
@@ -18,16 +26,16 @@ const Transactions = () => {
       .filter((t) => {
         // Search filter - safely handle null/undefined values
         const searchLower = searchQuery.toLowerCase().trim();
-        const matchesSearch = searchQuery === "" || 
+        const matchesSearch = searchQuery === "" ||
           (t.schemeName?.toLowerCase() || "").includes(searchLower) ||
           (t.investorName?.toLowerCase() || "").includes(searchLower) ||
           (t.folioNumber?.toLowerCase() || "").includes(searchLower);
-        
+
         // Type filter - use isSell flag for accurate categorization
         const matchesType = typeFilter === "all" ||
           (typeFilter === "purchase" && !t.isSell) ||
           (typeFilter === "redemption" && t.isSell);
-        
+
         return matchesSearch && matchesType;
       })
       .sort((a, b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime());
@@ -107,10 +115,10 @@ const Transactions = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {displayedTransactions.map((transaction, index) => {
+                {displayedTransactions.slice(0, visibleCount).map((transaction, index) => {
                   const txType = getTransactionType(transaction.transactionType);
                   const Icon = txType.icon;
-                  
+
                   return (
                     <Card key={`${transaction.folioNumber}-${index}`} className="border hover:border-primary/50 transition-all">
                       <CardContent className="p-4">
@@ -118,7 +126,7 @@ const Transactions = () => {
                           {/* Left Section */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-3">
-                              <Badge 
+                              <Badge
                                 variant={txType.variant}
                                 className="font-bold flex items-center gap-1"
                               >
@@ -170,6 +178,18 @@ const Transactions = () => {
                     </Card>
                   );
                 })}
+
+                {visibleCount < displayedTransactions.length && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}
+                      className="w-full sm:w-auto"
+                    >
+                      Load More Transactions
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

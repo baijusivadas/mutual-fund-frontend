@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyOTP from "./pages/VerifyOTP";
 import Portfolio from "./pages/Portfolio";
 import MutualFunds from "./pages/MutualFunds";
 import Derivatives from "./pages/Derivatives";
@@ -41,175 +42,176 @@ const App = () => (
         <AuthProvider>
           <InvestorProvider>
             <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/portfolio"
-                element={
-                  <ProtectedRoute>
-                    <Portfolio />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/mutual-funds"
-                element={
-                  <ProtectedRoute>
-                    <MutualFunds />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/derivatives"
-                element={
-                  <ProtectedRoute>
-                    <Derivatives />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/transactions"
-                element={
-                  <ProtectedRoute>
-                    <Transactions />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/transaction-reports"
-                element={
-                  <ProtectedRoute>
-                    <TransactionReports />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/pnl"
-                element={
-                  <ProtectedRoute>
-                    <PnL />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/capital-gains"
-                element={
-                  <ProtectedRoute>
-                    <CapitalGains />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/stock-reports"
-                element={
-                  <ProtectedRoute>
-                    <StockReports />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/users"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <UserManagement />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/roles"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <RolesManagement />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/real-estate"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <RealEstate />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/gold"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <Gold />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/flats"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <Flats />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/rental-properties"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <RentalProperties />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/analytics"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <Analytics />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/notifications"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <NotificationHistory />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/data-upload"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <DataUpload />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/user-investment-mapping"
-                element={
-                  <ProtectedRoute requireSuperAdmin={true}>
-                    <UserInvestmentMapping />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </InvestorProvider>
-    </AuthProvider>
-  </ThemeProvider>
-</QueryClientProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/verify-otp" element={<VerifyOTP />} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <Index />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/portfolio"
+                    element={
+                      <ProtectedRoute>
+                        <Portfolio />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/mutual-funds"
+                    element={
+                      <ProtectedRoute>
+                        <MutualFunds />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/derivatives"
+                    element={
+                      <ProtectedRoute>
+                        <Derivatives />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/transactions"
+                    element={
+                      <ProtectedRoute>
+                        <Transactions />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/transaction-reports"
+                    element={
+                      <ProtectedRoute>
+                        <TransactionReports />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/pnl"
+                    element={
+                      <ProtectedRoute>
+                        <PnL />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/capital-gains"
+                    element={
+                      <ProtectedRoute>
+                        <CapitalGains />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/stock-reports"
+                    element={
+                      <ProtectedRoute>
+                        <StockReports />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <UserManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/roles"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <RolesManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/real-estate"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <RealEstate />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/gold"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <Gold />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/flats"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <Flats />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/rental-properties"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <RentalProperties />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/analytics"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <Analytics />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/notifications"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <NotificationHistory />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/data-upload"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <DataUpload />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/user-investment-mapping"
+                    element={
+                      <ProtectedRoute requireSuperAdmin={true}>
+                        <UserInvestmentMapping />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </InvestorProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   </ErrorBoundary>
 );
 

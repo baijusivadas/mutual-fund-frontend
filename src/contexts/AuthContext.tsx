@@ -1,18 +1,22 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 
 type UserRole = "superAdmin" | "user";
 
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+}
+
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
+  token: string | null;
   role: UserRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
+  verifyOTP: (email: string, otp: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
@@ -21,100 +25,61 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Auto sign out after 15 minutes of inactivity
-  useIdleTimeout({
-    onIdle: () => {
-      if (user) {
-        signOut();
-        toast({
-          title: "Session Expired",
-          description: "You have been signed out due to inactivity.",
-          variant: "destructive",
-        });
-      }
-    },
-    idleTime: 15 * 60 * 1000, // 15 minutes
-  });
-
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Fetch user role when session changes
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
-        } else {
-          setRole(null);
-          setLoading(false);
-        }
-      }
-    );
+    const savedToken = localStorage.getItem("auth_token");
+    const savedUser = localStorage.getItem("auth_user");
+    const savedRole = localStorage.getItem("auth_role") as UserRole;
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching user role:", error);
-        setRole("user"); // Default to user role
-      } else {
-        setRole(data.role as UserRole);
-      }
-    } catch (error) {
-      console.error("Error fetching user role:", error);
-      setRole("user");
-    } finally {
-      setLoading(false);
+    if (savedToken && savedUser && savedRole) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
+      setRole(savedRole);
+      // In a real app, verify token validity with backend here
     }
-  };
+    setLoading(false);
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) {
+      const data = await response.json();
+
+      if (!response.ok) {
         toast({
           title: "Error",
-          description: error.message,
+          description: data.error || "Login failed",
           variant: "destructive",
         });
+        return { error: data.error };
       }
 
-      return { error };
+      setToken(data.token);
+      setUser(data.user);
+      setRole(data.role);
+      localStorage.setItem("auth_token", data.token);
+      localStorage.setItem("auth_user", JSON.stringify(data.user));
+      localStorage.setItem("auth_role", data.role);
+
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
+      });
+
+      return { error: null };
     } catch (error: any) {
       toast({
         title: "Error",
@@ -127,33 +92,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: fullName || "",
-          },
-        },
+      const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name: fullName }),
       });
 
-      if (error) {
+      const data = await response.json();
+
+      if (!response.ok) {
         toast({
           title: "Error",
-          description: error.message,
+          description: data.error || "Signup failed",
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Success",
-          description: "Account created successfully! You can now log in.",
-        });
+        return { error: data.error };
       }
 
+      toast({
+        title: "OTP Sent",
+        description: "Please check your email for the verification code.",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       return { error };
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: "Error",
+          description: data.error || "Verification failed",
+          variant: "destructive",
+        });
+        return { error: data.error };
+      }
+
+      toast({
+        title: "Success",
+        description: "Account verified! You can now log in.",
+      });
+
+      return { error: null };
     } catch (error: any) {
       toast({
         title: "Error",
@@ -165,81 +161,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({
-        title: "Success",
-        description: "Logged out successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    setToken(null);
+    setUser(null);
+    setRole(null);
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    localStorage.removeItem("auth_role");
+    toast({
+      title: "Success",
+      description: "Logged out successfully",
+    });
   };
 
   const resetPassword = async (email: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+      const response = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
 
-      if (error) {
+      const data = await response.json();
+
+      if (!response.ok) {
         toast({
           title: "Error",
-          description: error.message,
+          description: data.error || "Request failed",
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Password Reset Email Sent",
-          description: "Check your email for the password reset link.",
-        });
+        return { error: data.error };
       }
 
-      return { error };
-    } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+        title: "Instructions Sent",
+        description: "Check your email for reset instructions.",
       });
+
+      return { error: null };
+    } catch (error: any) {
       return { error };
     }
   };
 
   const updatePassword = async (newPassword: string) => {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Password updated successfully!",
-        });
-      }
-
-      return { error };
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-      return { error };
-    }
+    // Implement update password with backend
+    return { error: "Not implemented yet" };
   };
 
   const isSuperAdmin = role === "superAdmin";
@@ -248,11 +214,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        session,
+        token,
         role,
         loading,
         signIn,
         signUp,
+        verifyOTP,
         signOut,
         resetPassword,
         updatePassword,
