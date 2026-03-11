@@ -2,64 +2,40 @@ import { useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, DollarSign, Home, Users, Calendar } from "lucide-react";
-import { OptimizedMetricCard } from "@/components/OptimizedMetricCard";
+import { TrendingUp, DollarSign, Home, Users, Calendar, Loader2 } from "lucide-react";
+import { OptimizedMetricCard } from "@/components/dashboard/metrics/OptimizedMetricCard";
 import { ChartCard, chartTooltipStyle } from "@/components/charts/ChartCard";
 import { usePropertyMetrics } from "@/hooks/usePropertyMetrics";
-import { useRealtimePropertyChanges } from "@/hooks/useRealtimePropertyChanges";
-import type { RentalProperty, Flat, RealEstateProperty } from "@/types";
-import { propertyQueryConfig } from "@/hooks/useQueryConfig";
+import { useAuth } from "@/contexts/AuthContext";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))'];
 
 export default function Analytics() {
-  const { data: rentalProperties = [] } = useQuery({
-    queryKey: ["rental-properties"],
+  const { token } = useAuth();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["portfolio-metrics"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("rental_properties")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as RentalProperty[];
+      const response = await fetch(`${BACKEND_URL}/api/analytics/metrics`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error("Failed to fetch analytics metrics");
+      return response.json();
     },
-    ...propertyQueryConfig,
+    enabled: !!token,
   });
 
-  const { data: flats = [] } = useQuery({
-    queryKey: ["flats"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("flats")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Flat[];
-    },
-    ...propertyQueryConfig,
-  });
-
-  const { data: realEstate = [] } = useQuery({
-    queryKey: ["real-estate"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("real_estate")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as RealEstateProperty[];
-    },
-    ...propertyQueryConfig,
-  });
+  const rentalProperties = data?.details?.rentalProperties || [];
+  const flats = data?.details?.flats || [];
+  const realEstate = data?.details?.realEstate || [];
 
   const metrics = usePropertyMetrics(rentalProperties, flats, realEstate);
-
-  useRealtimePropertyChanges({
-    tables: ['rental_properties', 'flats', 'real_estate'],
-  });
 
   useEffect(() => {
     if (metrics.expiringLeases.length > 0) {
@@ -70,6 +46,16 @@ export default function Analytics() {
       });
     }
   }, [metrics.expiringLeases]);
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -160,7 +146,7 @@ export default function Analytics() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {metrics.expiringLeases.map((property) => (
+                {metrics.expiringLeases.map((property: any) => (
                   <div
                     key={property.id}
                     className="flex items-center justify-between border-l-4 border-warning bg-warning/10 p-3 rounded"
@@ -185,3 +171,4 @@ export default function Analytics() {
     </DashboardLayout>
   );
 }
+

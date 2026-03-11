@@ -31,6 +31,9 @@ import Analytics from "./pages/Analytics";
 import NotificationHistory from "./pages/NotificationHistory";
 import DataUpload from "./pages/DataUpload";
 import UserInvestmentMapping from "./pages/UserInvestmentMapping";
+import Liabilities from "./pages/Liabilities";
+import OtherAssets from "./pages/OtherAssets";
+import OtherInvestments from "./pages/OtherInvestments";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +82,30 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <Derivatives />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/liabilities"
+                    element={
+                      <ProtectedRoute>
+                        <Liabilities />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/other-assets"
+                    element={
+                      <ProtectedRoute>
+                        <OtherAssets />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/other-investments"
+                    element={
+                      <ProtectedRoute>
+                        <OtherInvestments />
                       </ProtectedRoute>
                     }
                   />

@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Users, Link2, Trash2, Loader2, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
   SelectContent,
@@ -34,6 +34,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
 const ASSET_TYPES = [
   { value: "mutual_funds", label: "Mutual Funds" },
   { value: "stocks", label: "Stocks" },
@@ -51,61 +53,63 @@ const UserInvestmentMapping = () => {
   const [investorName, setInvestorName] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { token } = useAuth();
   const queryClient = useQueryClient();
+
+  const fetchHeaders = {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  };
 
   // Fetch all users with profiles
   const { data: users = [], isLoading: loadingUsers } = useQuery({
     queryKey: ["all-users-for-mapping"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, email, full_name")
-        .order("full_name");
-      if (error) throw error;
-      return data;
+      const response = await fetch(`${BACKEND_URL}/api/auth/users`, { headers: fetchHeaders });
+      if (!response.ok) throw new Error("Failed to fetch users");
+      return response.json();
     },
+    enabled: !!token,
   });
 
   // Fetch existing mappings
   const { data: mappings = [], isLoading: loadingMappings } = useQuery({
     queryKey: ["investment-mappings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_investment_mapping")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const response = await fetch(`${BACKEND_URL}/api/user-mappings`, { headers: fetchHeaders });
+      if (!response.ok) throw new Error("Failed to fetch mappings");
+      return response.json();
     },
+    enabled: !!token,
   });
 
   // Fetch unique investor names from purchases
   const { data: investorNames = [] } = useQuery({
     queryKey: ["unique-investor-names"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("purchases")
-        .select("investor_name")
-        .order("investor_name");
-      if (error) throw error;
-      const uniqueNames = [...new Set(data.map((d) => d.investor_name))];
+      const response = await fetch(`${BACKEND_URL}/api/advanced/purchases`, { headers: fetchHeaders });
+      if (!response.ok) throw new Error("Failed to fetch purchases");
+      const data = await response.json();
+      const uniqueNames = [...new Set(data.map((d: any) => d.investor_name))].filter(Boolean) as string[];
       return uniqueNames;
     },
+    enabled: !!token,
   });
 
   // Create mapping mutation
   const createMappingMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await supabase.from("user_investment_mapping").insert({
-        user_id: selectedUser,
-        asset_type: selectedAssetType,
-        investor_name: investorName || null,
-        created_by: user?.id,
+      const response = await fetch(`${BACKEND_URL}/api/user-mappings`, {
+        method: "POST",
+        headers: fetchHeaders,
+        body: JSON.stringify({
+          user_id: selectedUser,
+          asset_type: selectedAssetType,
+          investor_name: investorName || null,
+        })
       });
-      
-      if (error) throw error;
+      if (!response.ok) throw new Error("Failed to create mapping");
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["investment-mappings"] });
@@ -130,11 +134,11 @@ const UserInvestmentMapping = () => {
   // Delete mapping mutation
   const deleteMappingMutation = useMutation({
     mutationFn: async (mappingId: string) => {
-      const { error } = await supabase
-        .from("user_investment_mapping")
-        .delete()
-        .eq("id", mappingId);
-      if (error) throw error;
+      const response = await fetch(`${BACKEND_URL}/api/user-mappings/${mappingId}`, {
+        method: "DELETE",
+        headers: fetchHeaders
+      });
+      if (!response.ok) throw new Error("Failed to delete mapping");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["investment-mappings"] });
@@ -153,7 +157,7 @@ const UserInvestmentMapping = () => {
   });
 
   const getUserName = (userId: string) => {
-    const user = users.find((u) => u.id === userId);
+    const user = users.find((u: any) => u.id === userId);
     return user?.full_name || user?.email || "Unknown User";
   };
 
@@ -204,7 +208,7 @@ const UserInvestmentMapping = () => {
                       <SelectValue placeholder="Select a user" />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg z-50">
-                      {users.map((user) => (
+                      {users.map((user: any) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.full_name || user.email}
                         </SelectItem>
@@ -237,7 +241,7 @@ const UserInvestmentMapping = () => {
                         <SelectValue placeholder="Select investor name" />
                       </SelectTrigger>
                       <SelectContent className="bg-background border shadow-lg z-50">
-                        {investorNames.map((name) => (
+                        {investorNames.map((name: string) => (
                           <SelectItem key={name} value={name}>
                             {name}
                           </SelectItem>
@@ -311,7 +315,7 @@ const UserInvestmentMapping = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Mapped Users</p>
                   <p className="text-2xl font-bold">
-                    {new Set(mappings.map((m) => m.user_id)).size}
+                    {new Set(mappings.map((m: any) => m.user_id)).size}
                   </p>
                 </div>
               </div>
@@ -345,7 +349,7 @@ const UserInvestmentMapping = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mappings.map((mapping) => (
+                    {mappings.map((mapping: any) => (
                       <TableRow key={mapping.id}>
                         <TableCell className="font-medium">
                           {getUserName(mapping.user_id)}
@@ -385,3 +389,4 @@ const UserInvestmentMapping = () => {
 };
 
 export default UserInvestmentMapping;
+

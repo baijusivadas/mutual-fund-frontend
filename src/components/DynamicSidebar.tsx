@@ -34,13 +34,6 @@ export const DynamicSidebar = () => {
   const { data: sidebarItems, isLoading, isFetching } = useSidebarItems();
   const { role } = useAuth();
 
-  // Use placeholder data immediately - no loading skeleton needed
-  const items = sidebarItems || [];
-
-  // Separate admin items (those with /admin/ in href)
-  const regularItems = items.filter(item => !item.href.includes('/admin/'));
-  const adminItems = items.filter(item => item.href.includes('/admin/'));
-
   const renderNavItem = (item: { id: string; name: string; href: string; icon: string }) => {
     const IconComponent = iconMap[item.icon] || LucideIcons.Circle;
 
@@ -64,26 +57,45 @@ export const DynamicSidebar = () => {
     );
   };
 
+  const renderSkeleton = () => (
+    <div className="space-y-2 px-3 py-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="flex items-center gap-3 px-3 py-2">
+          <div className="h-5 w-5 rounded bg-muted animate-pulse" />
+          <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
+
+  const items = sidebarItems || [];
+  const regularItems = items.filter(item => !item.href.includes('/admin/'));
+  const adminItems = items.filter(item => item.href.includes('/admin/'));
+
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-card">
       <div className="flex h-16 items-center border-b px-6">
         <h1 className="text-xl font-bold text-primary">TradePro</h1>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
-        {/* Regular navigation items - render immediately */}
-        {regularItems.map(renderNavItem)}
-        
-        {/* Admin section */}
-        {adminItems.length > 0 && (
-          <>
-            <div className="my-2 border-t" />
-            <div className="px-3 py-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Administration</p>
-            </div>
-            {adminItems.map(renderNavItem)}
-          </>
-        )}
-      </nav>
+      
+      {isLoading ? (
+        renderSkeleton()
+      ) : (
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
+          {regularItems.map(renderNavItem)}
+          
+          {adminItems.length > 0 && (
+            <>
+              <div className="my-2 border-t" />
+              <div className="px-3 py-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Administration</p>
+              </div>
+              {adminItems.map(renderNavItem)}
+            </>
+          )}
+        </nav>
+      )}
+      
       <div className="border-t p-4">
         <div className="text-xs text-muted-foreground">
           <p className="font-medium">Role: {role || 'Loading...'}</p>

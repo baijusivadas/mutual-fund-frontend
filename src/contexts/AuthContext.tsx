@@ -38,15 +38,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const savedToken = localStorage.getItem("auth_token");
     const savedUser = localStorage.getItem("auth_user");
     const savedRole = localStorage.getItem("auth_role") as UserRole;
+    const loginTime = localStorage.getItem("auth_login_time");
 
-    if (savedToken && savedUser && savedRole) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      setRole(savedRole);
-      // In a real app, verify token validity with backend here
+    if (savedToken && savedUser && savedRole && loginTime) {
+      const expirationTime = parseInt(loginTime) + 24 * 60 * 60 * 1000;
+      if (Date.now() > expirationTime) {
+        signOut();
+      } else {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+        setRole(savedRole);
+      }
     }
     setLoading(false);
   }, []);
+
+  // Periodic check for token expiration (every minute)
+  useEffect(() => {
+    if (!token) return;
+
+    const interval = setInterval(() => {
+      const loginTime = localStorage.getItem("auth_login_time");
+      if (loginTime) {
+        const expirationTime = parseInt(loginTime) + 24 * 60 * 60 * 1000;
+        if (Date.now() > expirationTime) {
+          signOut();
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [token]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -73,6 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem("auth_token", data.token);
       localStorage.setItem("auth_user", JSON.stringify(data.user));
       localStorage.setItem("auth_role", data.role);
+      localStorage.setItem("auth_login_time", Date.now().toString());
 
       toast({
         title: "Success",
@@ -167,6 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
     localStorage.removeItem("auth_role");
+    localStorage.removeItem("auth_login_time");
     toast({
       title: "Success",
       description: "Logged out successfully",
