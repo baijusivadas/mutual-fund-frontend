@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { TransactionData } from "@/utils/parseTransactions";
 import { calculateXIRR } from "@/lib/xirr";
 
@@ -17,6 +17,8 @@ export const usePortfolioData = (
   filteredTransactions: TransactionData[],
   isNewUser: boolean
 ) => {
+  const [timeFilter, setTimeFilter] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
+
   const schemeData: SchemeData[] = useMemo(() => {
     const schemes = new Map<string, SchemeData>();
 
@@ -87,32 +89,62 @@ export const usePortfolioData = (
   }, [filteredTransactions, currentValue, isNewUser]);
 
   const performanceData = useMemo(() => {
-    const monthlyData = new Map<string, number>();
+    const dataMap = new Map<string, number>();
     const now = new Date();
 
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthKey = date.toLocaleDateString("en-US", { month: "short" });
-      monthlyData.set(monthKey, 0);
+    let labels: string[] = [];
+
+    // Initialize labels based on time filter
+    if (timeFilter === "daily") { // Last 14 days
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+      }
+    } else if (timeFilter === "weekly") { // Last 12 weeks
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (i * 7));
+        labels.push(`Wk ${d.getDate()} ${d.toLocaleDateString("en-US", { month: "short" })}`);
+      }
+    } else if (timeFilter === "monthly") { // Last 6 months
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        labels.push(d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }));
+      }
+    } else if (timeFilter === "yearly") { // Last 5 years
+      for (let i = 4; i >= 0; i--) {
+        labels.push((now.getFullYear() - i).toString());
+      }
     }
+
+    labels.forEach(l => dataMap.set(l, 0));
 
     filteredTransactions.forEach((t) => {
       const date = new Date(t.investmentDate);
-      const monthKey = date.toLocaleDateString("en-US", { month: "short" });
+      let key = "";
 
-      if (monthlyData.has(monthKey)) {
-        const currentVal = monthlyData.get(monthKey) || 0;
+      if (timeFilter === "daily") {
+        key = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      } else if (timeFilter === "weekly") {
+        key = `Wk ${date.getDate()} ${date.toLocaleDateString("en-US", { month: "short" })}`;
+      } else if (timeFilter === "monthly") {
+        key = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+      } else if (timeFilter === "yearly") {
+        key = date.getFullYear().toString();
+      }
+
+      if (dataMap.has(key)) {
+        const currentVal = dataMap.get(key) || 0;
         const value = t.transactionType.toLowerCase().includes("redeem") ? -t.value : t.value;
-        monthlyData.set(monthKey, currentVal + value);
+        dataMap.set(key, currentVal + value);
       }
     });
 
     let cumulative = 0;
-    return Array.from(monthlyData.entries()).map(([month, value]) => {
+    return Array.from(dataMap.entries()).map(([label, value]) => {
       cumulative += value;
-      return { month, value: cumulative };
+      return { label, value: cumulative };
     });
-  }, [filteredTransactions]);
+  }, [filteredTransactions, timeFilter]);
 
   const portfolioComposition = useMemo(() => {
     const colors = [
@@ -163,5 +195,7 @@ export const usePortfolioData = (
     portfolioComposition,
     recentTransactions,
     topPerformingFunds,
+    timeFilter,
+    setTimeFilter,
   };
 };

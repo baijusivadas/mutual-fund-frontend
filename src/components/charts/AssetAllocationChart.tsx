@@ -1,11 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-interface PortfolioDistributionChartProps {
+interface AssetAllocationChartProps {
     portfolioComposition: any[]; // Ideally type this properly
 }
 
-export const PortfolioDistributionChart = ({ portfolioComposition }: PortfolioDistributionChartProps) => {
+export const AssetAllocationChart = ({ portfolioComposition }: AssetAllocationChartProps) => {
     return (
         <Card>
             <CardHeader>
@@ -43,3 +43,4 @@ export const PortfolioDistributionChart = ({ portfolioComposition }: PortfolioDi
         </Card>
     );
 };
+

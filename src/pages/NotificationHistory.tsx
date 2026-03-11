@@ -1,7 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Mail, CheckCircle, XCircle, Clock } from "lucide-react";
@@ -14,20 +13,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
+interface NotificationHistoryItem {
+  id: string;
+  status: string;
+  notification_type: string;
+  recipient_email: string;
+  subject: string;
+  property_name: string | null;
+  tenant_name: string | null;
+  sent_at: string;
+}
 
 export default function NotificationHistory() {
+  const { token } = useAuth();
+
   const { data: notifications, isLoading } = useQuery({
     queryKey: ["notification-history"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notification_history")
-        .select("*")
-        .order("sent_at", { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      return data;
+    queryFn: async (): Promise<NotificationHistoryItem[]> => {
+      const response = await fetch(`${BACKEND_URL}/api/notifications`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error("Failed to fetch notification history");
+      return response.json();
     },
+    enabled: !!token,
   });
 
   const getStatusIcon = (status: string) => {
@@ -159,7 +174,7 @@ export default function NotificationHistory() {
                       <TableCell>{notification.property_name || "-"}</TableCell>
                       <TableCell>{notification.tenant_name || "-"}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {format(new Date(notification.sent_at), "MMM dd, yyyy HH:mm")}
+                        {notification.sent_at ? format(new Date(notification.sent_at), "MMM dd, yyyy HH:mm") : "-"}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -179,3 +194,4 @@ export default function NotificationHistory() {
     </DashboardLayout>
   );
 }
+

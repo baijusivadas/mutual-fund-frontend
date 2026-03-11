@@ -12,7 +12,7 @@ const formatCurrency = (value: number) => {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 };
 
-export function NetWorthCard() {
+export function NetWorthChart() {
   const { data, isLoading } = useNetWorthData();
 
   if (isLoading) {
@@ -99,3 +99,4 @@ export function NetWorthCard() {
     </Card>
   );
 }
+

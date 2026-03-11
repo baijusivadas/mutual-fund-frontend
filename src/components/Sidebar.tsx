@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Briefcase, ArrowLeftRight, FileText, TrendingUp, PieChart, TrendingDown, Landmark, TableProperties, Users, Building2, Coins, Home, KeyRound, BarChart3, Bell } from "lucide-react";
+import { LayoutDashboard, Briefcase, ArrowLeftRight, FileText, TrendingUp, PieChart, TrendingDown, Landmark, TableProperties, Users, Building2, Coins, Home, KeyRound, BarChart3, Bell, Banknote, PiggyBank, Bitcoin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -8,6 +8,9 @@ const navigation = [
   { name: "Portfolio", href: "/portfolio", icon: Briefcase },
   { name: "Mutual Funds", href: "/mutual-funds", icon: Landmark },
   { name: "Derivatives", href: "/derivatives", icon: TrendingDown },
+  { name: "Other Investments", href: "/other-investments", icon: Bitcoin },
+  { name: "Other Assets", href: "/other-assets", icon: PiggyBank },
+  { name: "Liabilities & Loans", href: "/liabilities", icon: Banknote },
   { name: "Transactions", href: "/transactions", icon: ArrowLeftRight },
   { name: "Transaction Reports", href: "/transaction-reports", icon: TableProperties },
   { name: "P&L Report", href: "/pnl", icon: TrendingUp },
@@ -17,7 +20,7 @@ const navigation = [
 
 export const Sidebar = () => {
   const { isSuperAdmin } = useAuth();
-  
+
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-card">
       <div className="flex h-16 items-center border-b px-6">
@@ -42,7 +45,7 @@ export const Sidebar = () => {
             {item.name}
           </NavLink>
         ))}
-        
+
         {isSuperAdmin && (
           <>
             <div className="my-2 border-t" />

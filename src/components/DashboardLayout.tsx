@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Moon, Sun, LogOut, User } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
+import { NotificationBell } from "./shared/NotificationBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,7 @@ interface DashboardLayoutProps {
 const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
   const { theme, setTheme } = useTheme();
   const { user, role, signOut, isSuperAdmin } = useAuth();
-  
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       <DynamicSidebar />
@@ -43,7 +44,9 @@ const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
                   <Moon className="h-5 w-5" />
                 )}
               </Button>
-              
+
+              <NotificationBell />
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon">
