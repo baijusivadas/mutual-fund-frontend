@@ -98,7 +98,8 @@ export async function parseExcelFile(filePath: string): Promise<TransactionData[
       }
     }
     
-    console.log(`Successfully parsed ${transactions.length} transactions`);
+    // Remove console.log for production
+
     return transactions;
   } catch (error) {
     console.error('Error parsing Excel file:', error);

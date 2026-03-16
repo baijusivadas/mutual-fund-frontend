@@ -1,0 +1,92 @@
+﻿
+> vite_react_shadcn_ts@0.0.0 build
+> vite build
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+node.exe : Browserslist: 
+browsers data 
+(caniuse-lite) is 9 months 
+old. Please run:
+At C:\Program 
+Files\nodejs\npm.ps1:29 
+char:3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
+    + CategoryInfo         
+     : NotSpecified: (Bro  
+  wserslist: b...ld. Ple   
+ ase run::String) [], R    
+emoteException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+  npx update-browserslist-d
+b@latest
+  Why you should do it 
+regularly: https://github.c
+om/browserslist/update-db#r
+eadme
+[32mΓ£ô[39m 77 modules transformed.
+[31mx[39m Build failed 
+in 1.44s
+[31merror during build:
+[31m[vite]: Rollup failed 
+to resolve import 
+"date-fns" from "D:/Applica
+tion/react/mutual-fund-fron
+tend/src/pages/Notification
+History.tsx".
+This is most likely 
+unintended because it can 
+break your application at 
+runtime.
+If you do want to 
+externalize this module 
+explicitly add it to
+`build.rollupOptions.extern
+al`[31m
+    at viteWarn (file:///D:
+/Application/react/mutual-f
+und-frontend/node_modules/v
+ite/dist/node/chunks/dep-BK
+3b2jBa.js:65855:17)
+    at onwarn (file:///D:/A
+pplication/react/mutual-fun
+d-frontend/node_modules/@vi
+tejs/plugin-react-swc/index
+.js:90:7)
+    at onRollupWarning (fil
+e:///D:/Application/react/m
+utual-fund-frontend/node_mo
+dules/vite/dist/node/chunks
+/dep-BK3b2jBa.js:65885:5)
+    at onwarn (file:///D:/A
+pplication/react/mutual-fun
+d-frontend/node_modules/vit
+e/dist/node/chunks/dep-BK3b
+2jBa.js:65550:7)
+    at file:///D:/Applicati
+on/react/mutual-fund-fronte
+nd/node_modules/rollup/dist
+/es/shared/node-entry.js:19
+393:13
+    at Object.logger [as 
+onLog] (file:///D:/Applicat
+ion/react/mutual-fund-front
+end/node_modules/rollup/dis
+t/es/shared/node-entry.js:2
+1119:9)
+    at ModuleLoader.handleI
+nvalidResolvedId (file:///D
+:/Application/react/mutual-
+fund-frontend/node_modules/
+rollup/dist/es/shared/node-
+entry.js:20008:26)
+    at file:///D:/Applicati
+on/react/mutual-fund-fronte
+nd/node_modules/rollup/dist
+/es/shared/node-entry.js:19
+966:26[39m

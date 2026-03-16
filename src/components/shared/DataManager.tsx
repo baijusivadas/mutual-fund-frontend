@@ -27,6 +27,9 @@ interface DataManagerProps<T> {
     transformPayload?: (data: any) => any;
 }
 
+import { getAdvancedQueryKey } from "@/hooks/useAdvancedPortfolio";
+import { propertyQueryConfig } from "@/hooks/useQueryConfig";
+
 export function DataManager<T extends { id: string }>({
     entity,
     title,
@@ -57,7 +60,7 @@ export function DataManager<T extends { id: string }>({
     };
 
     const { data: items = [], isLoading } = useQuery({
-        queryKey: [entity],
+        queryKey: getAdvancedQueryKey(entity),
         queryFn: async () => {
             const response = await fetch(`${BACKEND_URL}/api/advanced/${entity}`, {
                 headers: fetchHeaders
@@ -66,6 +69,7 @@ export function DataManager<T extends { id: string }>({
             return response.json();
         },
         enabled: !!token,
+        ...propertyQueryConfig,
     });
 
     const mutation = useMutation({

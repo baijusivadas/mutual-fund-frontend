@@ -6,9 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Mail, ArrowLeft, CheckCircle } from "lucide-react";
-import { z } from "zod";
-
-const emailSchema = z.string().email("Please enter a valid email address");
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -21,13 +19,9 @@ const ForgotPassword = () => {
     e.preventDefault();
     setError("");
     
-    try {
-      emailSchema.parse(email);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        setError(err.errors[0].message);
-        return;
-      }
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address");
+      return;
     }
 
     setIsLoading(true);

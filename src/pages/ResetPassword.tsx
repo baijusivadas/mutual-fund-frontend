@@ -6,13 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, KeyRound, CheckCircle } from "lucide-react";
-import { z } from "zod";
 
-const passwordSchema = z.string()
-  .min(8, "Password must be at least 8 characters")
-  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-  .regex(/[0-9]/, "Password must contain at least one number");
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -31,16 +25,13 @@ const ResetPassword = () => {
   }, [user, loading, navigate]);
 
   const validatePassword = (value: string) => {
-    try {
-      passwordSchema.parse(value);
-      setErrors([]);
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        setErrors(error.errors.map(e => e.message));
-      }
-      return false;
-    }
+    const errs: string[] = [];
+    if (value.length < 8) errs.push("Password must be at least 8 characters");
+    if (!/[A-Z]/.test(value)) errs.push("Password must contain at least one uppercase letter");
+    if (!/[a-z]/.test(value)) errs.push("Password must contain at least one lowercase letter");
+    if (!/[0-9]/.test(value)) errs.push("Password must contain at least one number");
+    setErrors(errs);
+    return errs.length === 0;
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {

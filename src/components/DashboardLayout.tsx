@@ -1,6 +1,7 @@
 import { ReactNode, memo } from "react";
 import { DynamicSidebar } from "./DynamicSidebar";
 import { InvestorSelector } from "./InvestorSelector";
+import { Breadcrumbs } from "./Breadcrumbs";
 import { Button } from "./ui/button";
 import { Moon, Sun, LogOut, User } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -30,7 +31,7 @@ const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
       <main className="flex-1 overflow-y-auto">
         <div className="border-b bg-card">
           <div className="container mx-auto flex h-16 items-center justify-between px-6">
-            <h1 className="text-lg font-semibold">Investor Portfolio</h1>
+            <Breadcrumbs />
             <div className="flex items-center gap-4">
               {isSuperAdmin && <InvestorSelector />}
               <Button

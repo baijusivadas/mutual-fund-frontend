@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useAdvancedPortfolio } from "@/hooks/useAdvancedPortfolio";
+import { useAdvancedEntity } from "@/hooks/useAdvancedPortfolio";
 
-export function NotificationBell() {
-    const { liabilities } = useAdvancedPortfolio();
+const NotificationBellComponent = () => {
+    const { data: liabilities = [] } = useAdvancedEntity("liabilities");
     const [open, setOpen] = useState(false);
 
     const notifications = useMemo(() => {
@@ -88,4 +88,6 @@ export function NotificationBell() {
             </PopoverContent>
         </Popover>
     );
-}
+};
+
+export const NotificationBell = memo(NotificationBellComponent);
