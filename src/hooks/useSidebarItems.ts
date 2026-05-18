@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import api from "@/services/api";
 
 export interface SidebarItem {
   id: string;
@@ -11,8 +12,6 @@ export interface SidebarItem {
   is_active: boolean;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-
 export const useSidebarItems = () => {
   const { user, role, token } = useAuth();
 
@@ -22,17 +21,8 @@ export const useSidebarItems = () => {
       if (!user || !role || !token) return [];
 
       try {
-        const response = await fetch(`${BACKEND_URL}/api/sidebar`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch sidebar items');
-        }
-
-        return await response.json();
+        const response = await api.get("/sidebar");
+        return response.data;
       } catch (error) {
         console.error('Sidebar fetch error:', error);
         return [];
@@ -42,5 +32,3 @@ export const useSidebarItems = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes cache
   });
 };
-
-

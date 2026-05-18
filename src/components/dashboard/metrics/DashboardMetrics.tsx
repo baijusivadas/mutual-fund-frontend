@@ -1,4 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { MetricCard } from "@/components/shared/MetricCard";
+import { Wallet, TrendingUp, TrendingDown, Activity, DollarSign, PieChart } from "lucide-react";
 
 interface DashboardMetricsProps {
     selectedInvestor: string;
@@ -15,48 +16,39 @@ export const DashboardMetrics = ({
     roi,
     xirr,
 }: DashboardMetricsProps) => {
+    const isPositive = parseFloat(roi) >= 0;
+
     return (
-        <div className="grid grid-cols-4 gap-4">
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">
-                            {selectedInvestor === "All" ? "All Investors" : selectedInvestor}
-                        </p>
-                        <p className="text-sm font-medium text-muted-foreground">Portfolio Overview</p>
-                    </div>
-                </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+                title="Portfolio Source"
+                value={selectedInvestor === "all" ? "All Investors" : selectedInvestor}
+                change="Managed Portfolio"
+                icon={PieChart}
+            />
 
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">Your Investment</p>
-                        <p className="text-2xl font-bold">₹{totalInvested.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</p>
-                    </div>
-                </CardContent>
-            </Card>
+            <MetricCard
+                title="Invested Capital"
+                value={`₹${totalInvested.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+                change="Total Principal"
+                icon={Wallet}
+            />
 
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">Current Value</p>
-                        <p className="text-2xl font-bold">₹{currentValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</p>
-                    </div>
-                </CardContent>
-            </Card>
+            <MetricCard
+                title="Current Value"
+                value={`₹${currentValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+                change={currentValue > totalInvested ? "Gaining Value" : "Market Value"}
+                changeType={currentValue >= totalInvested ? "positive" : "negative"}
+                icon={Activity}
+            />
 
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">ROI</p>
-                        <p className={`text-2xl font-bold ${parseFloat(roi) >= 0 ? "text-success" : "text-destructive"}`}>
-                            {parseFloat(roi) >= 0 ? "+" : ""}{roi}%
-                        </p>
-                        {xirr !== null && <p className="text-xs text-muted-foreground">XIRR: {xirr.toFixed(2)}%</p>}
-                    </div>
-                </CardContent>
-            </Card>
+            <MetricCard
+                title="Total Returns (ROI)"
+                value={`${isPositive ? "+" : ""}${roi}%`}
+                change={xirr !== null ? `XIRR: ${xirr.toFixed(2)}%` : "Annualized Returns"}
+                changeType={isPositive ? "positive" : "negative"}
+                icon={isPositive ? TrendingUp : TrendingDown}
+            />
         </div>
     );
 };

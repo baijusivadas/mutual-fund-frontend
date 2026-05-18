@@ -1,81 +1,98 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { propertyQueryConfig } from './useQueryConfig';
+import { useMemo } from 'react';
+import api from '@/services/api';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+export interface AdvancedPortfolioData {
+    metrics: {
+        totalProperties: number;
+        totalPropertyValue: number;
+        totalMonthlyRevenue: number;
+        occupancyRate: number;
+        statusDistribution: { name: string; value: number }[];
+        revenueData: { month: string; revenue: number }[];
+    };
+    details: {
+        realEstate: any[];
+        flats: any[];
+        rentalProperties: any[];
+        bankAccounts: any[];
+        liabilities: any[];
+        customAssets: any[];
+        crypto: any[];
+        bonds: any[];
+        etfs: any[];
+        nps: any[];
+        mutualFunds: any[];
+    };
+}
 
-const fetchBackendList = async (entity: string, token: string) => {
-    const res = await fetch(`${BACKEND_URL}/api/advanced/${entity}`, {
-        headers: { "Authorization": `Bearer ${token}` }
+export const useAdvancedPortfolio = () => {
+    const { token } = useAuth();
+
+    const { data, isLoading, error } = useQuery<AdvancedPortfolioData>({
+        queryKey: ['consolidated-portfolio'],
+        queryFn: async () => {
+            const res = await api.get('/analytics/metrics');
+            return res.data;
+        },
+        enabled: !!token,
+        staleTime: 60 * 1000, // 1 minute stale time for portfolio data
+        gcTime: 5 * 60 * 1000, // 5 minutes cache time
     });
-    if (!res.ok) return [];
-    return res.json();
+
+    const calculatedMetrics = useMemo(() => {
+        if (!data?.details) return { totalLiabilities: 0, totalAssets: 0, totalInvestments: 0 };
+
+        const { details } = data;
+        
+        const totalLiabilities = (details.liabilities || [])
+            .reduce((sum, l) => sum + parseFloat(l.outstanding_amount || '0'), 0);
+
+        const totalAssets = [
+            ...(details.bankAccounts || []),
+            ...(details.customAssets || []),
+            ...(details.realEstate || []),
+            ...(details.flats || []),
+            ...(details.rentalProperties || [])
+        ].reduce((sum, a) => {
+            const val = parseFloat(a.current_balance || a.current_value || a.price || a.purchase_price || '0');
+            return sum + val;
+        }, 0);
+
+        const totalInvestments = [
+            ...(details.crypto || []).map(c => parseFloat(c.current_price || c.average_price || '0') * parseFloat(c.quantity || '0')),
+            ...(details.bonds || []).map(b => parseFloat(b.face_value || b.amount || '0') * parseFloat(b.quantity || '1')),
+            ...(details.etfs || []).map(e => parseFloat(e.current_nav || e.purchase_price || '0') * parseFloat(e.quantity || '0')),
+            ...(details.nps || []).map(n => parseFloat(n.current_value || n.amount_invested || '0'))
+        ].reduce((sum, val) => sum + val, 0);
+
+        return {
+            totalLiabilities,
+            totalAssets,
+            totalInvestments
+        };
+    }, [data]);
+
+    return {
+        raw: data?.details || {},
+        ...calculatedMetrics,
+        isLoading,
+        error
+    };
 };
-
-const ENTITIES = [
-    "crypto_investments", "bonds", "etfs", "nps_investments",
-    "bank_accounts", "provident_funds", "liabilities", "custom_assets"
-] as const;
-
-type EntityType = typeof ENTITIES[number];
 
 export const getAdvancedQueryKey = (entity: string) => ['advanced', entity];
 
-export const useAdvancedEntity = (entity: EntityType) => {
+export const useAdvancedEntity = (entity: string) => {
     const { token } = useAuth();
     return useQuery({
         queryKey: getAdvancedQueryKey(entity),
-        queryFn: () => fetchBackendList(entity, token!),
+        queryFn: async () => {
+            const res = await api.get(`/advanced/${entity}`);
+            return Array.isArray(res.data) ? res.data : (res.data.data || []);
+        },
         enabled: !!token,
-        ...propertyQueryConfig,
+        staleTime: 5 * 60 * 1000,
     });
-};
-
-export const useAdvancedPortfolio = () => {
-    const crypto = useAdvancedEntity("crypto_investments");
-    const bonds = useAdvancedEntity("bonds");
-    const etfs = useAdvancedEntity("etfs");
-    const nps = useAdvancedEntity("nps_investments");
-    const bank = useAdvancedEntity("bank_accounts");
-    const pf = useAdvancedEntity("provident_funds");
-    const liabilities = useAdvancedEntity("liabilities");
-    const custom = useAdvancedEntity("custom_assets");
-
-    const isLoading = crypto.isLoading || bonds.isLoading || etfs.isLoading || nps.isLoading || 
-                      bank.isLoading || pf.isLoading || liabilities.isLoading || custom.isLoading;
-
-    const payload: Record<string, any[]> = {
-        crypto_investments: crypto.data || [],
-        bonds: bonds.data || [],
-        etfs: etfs.data || [],
-        nps_investments: nps.data || [],
-        bank_accounts: bank.data || [],
-        provident_funds: pf.data || [],
-        liabilities: liabilities.data || [],
-        custom_assets: custom.data || []
-    };
-
-    // Calculate totals
-    let totalLiabilities = 0;
-    let totalAssets = 0;
-    let totalInvestments = 0;
-
-    payload.liabilities?.forEach(l => totalLiabilities += parseFloat(l.outstanding_amount || '0'));
-    payload.bank_accounts?.forEach(a => totalAssets += parseFloat(a.current_balance || '0'));
-    payload.custom_assets?.forEach(a => totalAssets += parseFloat(a.current_value || '0'));
-    payload.provident_funds?.forEach(p => totalAssets += parseFloat(p.current_value || '0'));
-
-    payload.crypto_investments?.forEach(c => totalInvestments += (parseFloat(c.current_price || c.average_price || '0') * parseFloat(c.quantity || '0')));
-    payload.bonds?.forEach(b => totalInvestments += parseFloat(b.face_value || '0') * parseFloat(b.quantity || '0'));
-    payload.etfs?.forEach(e => totalInvestments += parseFloat(e.current_nav || e.purchase_price || '0') * parseFloat(e.quantity || '0'));
-    payload.nps_investments?.forEach(n => totalInvestments += parseFloat(n.current_value || n.amount_invested || '0'));
-
-    return {
-        raw: payload,
-        liabilities: payload.liabilities || [],
-        totalLiabilities,
-        totalAssets,
-        totalInvestments,
-        isLoading
-    };
 };

@@ -89,10 +89,12 @@ export const usePortfolioData = (
   }, [filteredTransactions, currentValue, isNewUser]);
 
   const performanceData = useMemo(() => {
+    if (filteredTransactions.length === 0) return [];
+    
     const dataMap = new Map<string, number>();
     const now = new Date();
 
-    let labels: string[] = [];
+    const labels: string[] = [];
 
     // Initialize labels based on time filter
     if (timeFilter === "daily") { // Last 14 days
@@ -118,7 +120,8 @@ export const usePortfolioData = (
 
     labels.forEach(l => dataMap.set(l, 0));
 
-    filteredTransactions.forEach((t) => {
+    // Optimize loop: pre-calculate keys
+    for (const t of filteredTransactions) {
       const date = new Date(t.investmentDate);
       let key = "";
 
@@ -137,13 +140,15 @@ export const usePortfolioData = (
         const value = t.transactionType.toLowerCase().includes("redeem") ? -t.value : t.value;
         dataMap.set(key, currentVal + value);
       }
-    });
+    }
 
     let cumulative = 0;
-    return Array.from(dataMap.entries()).map(([label, value]) => {
-      cumulative += value;
-      return { label, value: cumulative };
-    });
+    const result = [];
+    for (const label of labels) {
+      cumulative += dataMap.get(label) || 0;
+      result.push({ label, value: cumulative });
+    }
+    return result;
   }, [filteredTransactions, timeFilter]);
 
   const portfolioComposition = useMemo(() => {

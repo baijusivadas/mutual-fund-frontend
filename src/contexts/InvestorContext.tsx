@@ -39,36 +39,25 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
   const isNewUser = !isSuperAdmin && !!user;
 
   // Filter transactions by investor - memoized for performance
-  // SuperAdmin can see all investors, regular users see all transactions but with zeroed PnL
+  // SuperAdmin sees all investors; regular users see all transactions
+  // but PnL is zeroed in usePortfolioData via the isNewUser flag.
   const filteredTransactions = useMemo(() => {
-    const baseTransactions = selectedInvestor === "all" 
-      ? transactions 
-      : transactions.filter((t) => t.investorName === selectedInvestor);
-    
-    // For non-SuperAdmin users, return transactions with zeroed values for PnL calculation
-    // They can still see the stock names and structure, but PnL will show as 0
-    if (isNewUser) {
-      return baseTransactions.map(t => ({
-        ...t,
-        // Keep original data structure but flag for PnL zeroing
-        _isNewUserView: true,
-      }));
-    }
-    
-    return baseTransactions;
-  }, [selectedInvestor, transactions, isNewUser]);
+    if (selectedInvestor === "all") return transactions;
+    return transactions.filter((t) => t.investorName === selectedInvestor);
+  }, [selectedInvestor, transactions]);
+
+
+  const contextValue = useMemo(() => ({
+    selectedInvestor,
+    setSelectedInvestor,
+    investors,
+    transactions,
+    filteredTransactions,
+    isNewUser,
+  }), [selectedInvestor, investors, transactions, filteredTransactions, isNewUser]);
 
   return (
-    <InvestorContext.Provider
-      value={{
-        selectedInvestor,
-        setSelectedInvestor,
-        investors,
-        transactions,
-        filteredTransactions,
-        isNewUser,
-      }}
-    >
+    <InvestorContext.Provider value={contextValue}>
       {children}
     </InvestorContext.Provider>
   );

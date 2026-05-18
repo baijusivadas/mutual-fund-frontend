@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { authApi } from "@/services/api";
 
 type UserRole = "superAdmin" | "user";
 
@@ -25,7 +26,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+/** Clear all auth keys from localStorage */
+const clearAuthStorage = () => {
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("auth_user");
+  localStorage.removeItem("auth_role");
+  localStorage.removeItem("auth_login_time");
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -34,6 +41,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // ── Stable signOut (used inside effects so must be useCallback) ─────────────
+  const signOut = useCallback(async () => {
+    // Notify backend so the session is destroyed server-side
+    try {
+      await authApi.logout();
+    } catch {
+      // Best-effort: clear client state regardless
+    }
+    setToken(null);
+    setUser(null);
+    setRole(null);
+    clearAuthStorage();
+    toast({ title: "Success", description: "Logged out successfully" });
+  }, [toast]);
+
+  // ── Restore session from localStorage on mount ──────────────────────────────
   useEffect(() => {
     const savedToken = localStorage.getItem("auth_token");
     const savedUser = localStorage.getItem("auth_user");
@@ -51,12 +74,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     setLoading(false);
-  }, []);
+  }, [signOut]);
 
-  // Periodic check for token expiration (every minute)
+  // ── Periodic token expiration check (every minute) ──────────────────────────
   useEffect(() => {
     if (!token) return;
-
     const interval = setInterval(() => {
       const loginTime = localStorage.getItem("auth_login_time");
       if (loginTime) {
@@ -65,170 +87,77 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           signOut();
         }
       }
-    }, 60000); // Check every minute
-
+    }, 60_000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, signOut]);
 
+  // ── Sign In ─────────────────────────────────────────────────────────────────
   const signIn = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await authApi.login({ email, password });
+      const payload = response.data?.data ?? response.data; // handles { status, message, data } wrapper
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast({
-          title: "Error",
-          description: data.error || "Login failed",
-          variant: "destructive",
-        });
-        return { error: data.error };
-      }
-
-      setToken(data.token);
-      setUser(data.user);
-      setRole(data.role);
-      localStorage.setItem("auth_token", data.token);
-      localStorage.setItem("auth_user", JSON.stringify(data.user));
-      localStorage.setItem("auth_role", data.role);
+      setToken(payload.token);
+      setUser(payload.user);
+      setRole(payload.role);
+      localStorage.setItem("auth_token", payload.token);
+      localStorage.setItem("auth_user", JSON.stringify(payload.user));
+      localStorage.setItem("auth_role", payload.role);
       localStorage.setItem("auth_login_time", Date.now().toString());
 
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
-      });
-
+      toast({ title: "Success", description: "Logged in successfully" });
       return { error: null };
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-      return { error };
+      const message = error.response?.data?.message || error.message || "Login failed";
+      toast({ title: "Error", description: message, variant: "destructive" });
+      return { error: message };
     }
   };
 
+  // ── Sign Up ─────────────────────────────────────────────────────────────────
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name: fullName }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast({
-          title: "Error",
-          description: data.error || "Signup failed",
-          variant: "destructive",
-        });
-        return { error: data.error };
-      }
-
+      await authApi.signup({ email, password, name: fullName });
       toast({
         title: "OTP Sent",
         description: "Please check your email for the verification code.",
       });
-
       return { error: null };
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-      return { error };
+      const message = error.response?.data?.message || error.message || "Signup failed";
+      toast({ title: "Error", description: message, variant: "destructive" });
+      return { error: message };
     }
   };
 
+  // ── Verify OTP ──────────────────────────────────────────────────────────────
   const verifyOTP = async (email: string, otp: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast({
-          title: "Error",
-          description: data.error || "Verification failed",
-          variant: "destructive",
-        });
-        return { error: data.error };
-      }
-
-      toast({
-        title: "Success",
-        description: "Account verified! You can now log in.",
-      });
-
+      await authApi.verifyOtp({ email, otp });
+      toast({ title: "Success", description: "Account verified! You can now log in." });
       return { error: null };
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-      return { error };
+      const message = error.response?.data?.message || error.message || "Verification failed";
+      toast({ title: "Error", description: message, variant: "destructive" });
+      return { error: message };
     }
   };
 
-  const signOut = async () => {
-    setToken(null);
-    setUser(null);
-    setRole(null);
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
-    localStorage.removeItem("auth_role");
-    localStorage.removeItem("auth_login_time");
-    toast({
-      title: "Success",
-      description: "Logged out successfully",
-    });
-  };
-
+  // ── Reset Password ──────────────────────────────────────────────────────────
   const resetPassword = async (email: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast({
-          title: "Error",
-          description: data.error || "Request failed",
-          variant: "destructive",
-        });
-        return { error: data.error };
-      }
-
-      toast({
-        title: "Instructions Sent",
-        description: "Check your email for reset instructions.",
-      });
-
+      await authApi.forgotPassword({ email });
+      toast({ title: "Instructions Sent", description: "Check your email for reset instructions." });
       return { error: null };
     } catch (error: any) {
-      return { error };
+      const message = error.response?.data?.message || error.message || "Request failed";
+      toast({ title: "Error", description: message, variant: "destructive" });
+      return { error: message };
     }
   };
 
-  const updatePassword = async (newPassword: string) => {
-    // Implement update password with backend
+  // ── Update Password (not yet implemented) ───────────────────────────────────
+  const updatePassword = async (_newPassword: string) => {
     return { error: "Not implemented yet" };
   };
 
