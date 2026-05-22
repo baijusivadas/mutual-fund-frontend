@@ -316,65 +316,67 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
               )}
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length + (showCheckboxes ? 1 : 0) + (onEdit || onDelete ? 1 : 0)}
-                  className="text-center py-20"
-                >
-                  <div className="flex flex-col items-center justify-center gap-4">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Synchronizing data...</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : paginatedData.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length + (showCheckboxes ? 1 : 0) + (onEdit || onDelete ? 1 : 0)}
-                  className="text-center py-20 text-muted-foreground"
-                >
-                   <div className="flex flex-col items-center justify-center gap-2">
-                    <Search className="h-8 w-8 opacity-20" />
-                    <p className="text-sm font-medium">
-                        {searchQuery || statusFilter !== "all" ? "No matches found for your current filters" : emptyMessage}
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : useVirtualization ? (
-                <VList style={{ height: '500px' }}>
-                    {paginatedData.map((item) => (
-                        <MemoizedRow
-                            key={item.id}
-                            item={item}
-                            columns={columns}
-                            showCheckboxes={showCheckboxes}
-                            isSelected={selectedIds.includes(item.id)}
-                            onSelect={handleSelectItem}
-                            onEdit={onEdit}
-                            onDelete={onDelete}
-                            deletingId={deletingId}
-                        />
-                    ))}
-                </VList>
-            ) : (
-              paginatedData.map((item) => (
+          {useVirtualization ? (
+            <VList key="tbody" style={{ height: '500px' }}>
+              {paginatedData.map((item) => (
                 <MemoizedRow
-                    key={item.id}
-                    item={item}
-                    columns={columns}
-                    showCheckboxes={showCheckboxes}
-                    isSelected={selectedIds.includes(item.id)}
-                    onSelect={handleSelectItem}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    deletingId={deletingId}
+                  key={item.id}
+                  item={item}
+                  columns={columns}
+                  showCheckboxes={showCheckboxes}
+                  isSelected={selectedIds.includes(item.id)}
+                  onSelect={handleSelectItem}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  deletingId={deletingId}
                 />
-              ))
-            )}
-          </TableBody>
+              ))}
+            </VList>
+          ) : (
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length + (showCheckboxes ? 1 : 0) + (onEdit || onDelete ? 1 : 0)}
+                    className="text-center py-20"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-4">
+                      <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
+                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Synchronizing data...</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedData.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length + (showCheckboxes ? 1 : 0) + (onEdit || onDelete ? 1 : 0)}
+                    className="text-center py-20 text-muted-foreground"
+                  >
+                     <div className="flex flex-col items-center justify-center gap-2">
+                      <Search className="h-8 w-8 opacity-20" />
+                      <p className="text-sm font-medium">
+                          {searchQuery || statusFilter !== "all" ? "No matches found for your current filters" : emptyMessage}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedData.map((item) => (
+                  <MemoizedRow
+                      key={item.id}
+                      item={item}
+                      columns={columns}
+                      showCheckboxes={showCheckboxes}
+                      isSelected={selectedIds.includes(item.id)}
+                      onSelect={handleSelectItem}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      deletingId={deletingId}
+                  />
+                ))
+              )}
+            </TableBody>
+          )}
         </Table>
       </div>
 

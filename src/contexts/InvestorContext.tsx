@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useMemo } fr
 import { parseExcelFile, TransactionData } from "@/utils/parseTransactions";
 import transactionsPath from "@/data/combined_transactions_1.xlsx";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserInvestments } from "@/hooks/useUserInvestments";
 
 interface InvestorContextType {
   selectedInvestor: string;
@@ -14,38 +15,67 @@ interface InvestorContextType {
 
 const InvestorContext = createContext<InvestorContextType | undefined>(undefined);
 
+const mapDbTransaction = (dbTx: any, isSell: boolean): TransactionData => {
+  return {
+    transactionType: dbTx.transaction_type || (isSell ? "Redemption" : "Purchase"),
+    investorName: dbTx.investor_name || "",
+    investmentDate: dbTx.date || "",
+    schemeName: dbTx.scheme || "",
+    units: Math.abs(Number(dbTx.units) || 0),
+    nav: Number(dbTx.nav) || 0,
+    value: Math.abs(Number(dbTx.amount) || 0),
+    folioNumber: dbTx.folio || "",
+    isSell: isSell,
+  };
+};
+
 export const InvestorProvider = ({ children }: { children: ReactNode }) => {
   const [selectedInvestor, setSelectedInvestor] = useState<string>("all");
-  const [transactions, setTransactions] = useState<TransactionData[]>([]);
-  const [investors, setInvestors] = useState<string[]>([]);
+  const [excelTransactions, setExcelTransactions] = useState<TransactionData[]>([]);
   const { isSuperAdmin, user } = useAuth();
+  
+  // Fetch real-time database transactions mapped to the user
+  const { purchases = [], redemptions = [], mappedInvestorNames = [] } = useUserInvestments();
 
   useEffect(() => {
-    const loadTransactions = async () => {
-      const allTransactions = await parseExcelFile(transactionsPath);
-      setTransactions(allTransactions);
-
-      // Get unique investors (remove duplicates and filter out empty names)
-      const uniqueInvestors = Array.from(
-        new Set(allTransactions.map((t) => t.investorName?.trim()).filter(Boolean))
-      );
-      setInvestors(uniqueInvestors.sort());
+    const loadExcelTransactions = async () => {
+      try {
+        const allTransactions = await parseExcelFile(transactionsPath);
+        setExcelTransactions(allTransactions);
+      } catch (err) {
+        console.error("Failed to load fallback transactions:", err);
+      }
     };
 
-    loadTransactions();
+    loadExcelTransactions();
   }, []);
 
-  // Check if user is new (non-SuperAdmin users are considered "new" for PnL purposes)
-  const isNewUser = !isSuperAdmin && !!user;
+  // Compute unified transactions list
+  const transactions = useMemo(() => {
+    if (purchases.length > 0 || redemptions.length > 0) {
+      const mappedPurchases = purchases.map((p) => mapDbTransaction(p, false));
+      const mappedRedemptions = redemptions.map((r) => mapDbTransaction(r, true));
+      return [...mappedPurchases, ...mappedRedemptions];
+    }
+    return excelTransactions;
+  }, [purchases, redemptions, excelTransactions]);
+
+  // Compute unique investor list dynamically from active transactions
+  const investors = useMemo(() => {
+    const uniqueInvestors = Array.from(
+      new Set(transactions.map((t) => t.investorName?.trim()).filter(Boolean))
+    );
+    return uniqueInvestors.sort();
+  }, [transactions]);
+
+  // Check if user is a new/unmapped user (regular users with no investments mapped are considered "new" for fallback)
+  const isNewUser = !isSuperAdmin && !!user && mappedInvestorNames.length === 0;
 
   // Filter transactions by investor - memoized for performance
-  // SuperAdmin sees all investors; regular users see all transactions
-  // but PnL is zeroed in usePortfolioData via the isNewUser flag.
   const filteredTransactions = useMemo(() => {
     if (selectedInvestor === "all") return transactions;
     return transactions.filter((t) => t.investorName === selectedInvestor);
   }, [selectedInvestor, transactions]);
-
 
   const contextValue = useMemo(() => ({
     selectedInvestor,

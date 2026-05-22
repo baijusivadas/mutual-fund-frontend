@@ -28,26 +28,26 @@
   }
 
   .dark {
-    --background: 222 47% 4%;
+    --background: 230 40% 4%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 6%;
+    --card: 230 40% 6%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 6%;
+    --popover: 230 40% 6%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
+    --primary: 228 90% 65%;
     --primary-foreground: 222 47% 11%;
-    --secondary: 222 47% 11%;
+    --secondary: 228 47% 11%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 222 47% 11%;
+    --muted: 228 47% 11%;
     --muted-foreground: 215 20% 65%;
-    --accent: 222 47% 11%;
+    --accent: 228 47% 11%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
     --success: 142 71% 45%;
-    --border: 222 47% 12%;
-    --input: 222 47% 12%;
-    --ring: 217 91% 60%;
+    --border: 228 30% 15%;
+    --input: 228 30% 15%;
+    --ring: 228 90% 65%;
   }
 }
 
@@ -58,12 +58,16 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-image: radial-gradient(circle at 50% 0%, hsl(var(--primary)/0.08) 0%, transparent 40%),
+                      radial-gradient(circle at 0% 50%, hsl(var(--ring)/0.05) 0%, transparent 40%);
+    background-attachment: fixed;
   }
 }
 
 /* Premium Utilities */
 .glass-card {
-  @apply bg-card/60 backdrop-blur-xl border border-border/50 shadow-2xl;
+  @apply bg-card/70 backdrop-blur-2xl border border-white/5 shadow-2xl;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
 }
 
 .hover-lift {

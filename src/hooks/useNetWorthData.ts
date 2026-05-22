@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import api from "@/services/api";
 
 export interface NetWorthData {
   portfolio: number;
@@ -14,27 +16,41 @@ export interface NetWorthData {
 }
 
 export function useNetWorthData() {
+  const { token } = useAuth();
+
   return useQuery({
     queryKey: ["net-worth"],
     queryFn: async (): Promise<NetWorthData> => {
-      // Fetch all asset data in parallel
+      // Fetch portfolio net values from Supabase, and advanced assets from the Express API in parallel
       const [
         portfolioRes,
         rentalRes,
         flatsRes,
         goldRes,
-        carsRes,
+        customAssetsRes,
         realEstateRes,
         liabilitiesRes,
       ] = await Promise.all([
         supabase.from("scheme_summary").select("net_value"),
-        supabase.from("rental_properties").select("monthly_rent, deposit"),
-        supabase.from("flats").select("price"),
-        supabase.from("gold").select("price"),
-        supabase.from("cars").select("current_value"),
-        supabase.from("real_estate").select("price"),
-        supabase.from("liabilities").select("outstanding_amount").eq("status", "active"),
+        api.get("/advanced/rental_properties").catch(() => ({ data: [] })),
+        api.get("/advanced/flats").catch(() => ({ data: [] })),
+        api.get("/advanced/gold").catch(() => ({ data: [] })),
+        api.get("/advanced/custom_assets").catch(() => ({ data: [] })),
+        api.get("/advanced/real_estate").catch(() => ({ data: [] })),
+        api.get("/advanced/liabilities").catch(() => ({ data: [] })),
       ]);
+
+      const getArray = (res: any) => {
+        if (!res || !res.data) return [];
+        return Array.isArray(res.data) ? res.data : (res.data.data || []);
+      };
+
+      const rentalData = getArray(rentalRes);
+      const flatsData = getArray(flatsRes);
+      const goldData = getArray(goldRes);
+      const customAssetsData = getArray(customAssetsRes);
+      const realEstateData = getArray(realEstateRes);
+      const liabilitiesData = getArray(liabilitiesRes);
 
       // Calculate totals
       const portfolio = (portfolioRes.data || []).reduce(
@@ -42,33 +58,36 @@ export function useNetWorthData() {
         0
       );
 
-      const rentalProperties = (rentalRes.data || []).reduce(
-        (sum, item) => sum + (Number(item.deposit) || 0) + (Number(item.monthly_rent) || 0) * 12,
+      const rentalProperties = rentalData.reduce(
+        (sum, item: any) => sum + (Number(item.deposit) || 0) + (Number(item.monthly_rent) || 0) * 12,
         0
       );
 
-      const flats = (flatsRes.data || []).reduce(
-        (sum, item) => sum + (Number(item.price) || 0),
+      const flats = flatsData.reduce(
+        (sum, item: any) => sum + (Number(item.price) || 0),
         0
       );
 
-      const gold = (goldRes.data || []).reduce(
-        (sum, item) => sum + (Number(item.price) || 0),
+      const gold = goldData.reduce(
+        (sum, item: any) => sum + (Number(item.price) || 0),
         0
       );
 
-      const cars = (carsRes.data || []).reduce(
-        (sum, item) => sum + (Number(item.current_value) || 0),
+      // Extract vehicle type custom assets for vehicles count
+      const cars = customAssetsData
+        .filter((item: any) => item.asset_type === "vehicle")
+        .reduce(
+          (sum, item: any) => sum + (Number(item.current_value) || Number(item.purchase_price) || 0),
+          0
+        );
+
+      const realEstate = realEstateData.reduce(
+        (sum, item: any) => sum + (Number(item.price) || 0),
         0
       );
 
-      const realEstate = (realEstateRes.data || []).reduce(
-        (sum, item) => sum + (Number(item.price) || 0),
-        0
-      );
-
-      const liabilities = (liabilitiesRes.data || []).reduce(
-        (sum, item) => sum + (Number(item.outstanding_amount) || 0),
+      const liabilities = liabilitiesData.reduce(
+        (sum, item: any) => sum + (Number(item.outstanding_amount) || 0),
         0
       );
 
@@ -87,6 +106,8 @@ export function useNetWorthData() {
         netWorth,
       };
     },
+    enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });
 }
+

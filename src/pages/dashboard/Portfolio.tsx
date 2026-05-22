@@ -20,7 +20,12 @@ const Portfolio = () => {
       transactions: TransactionData[];
     }>();
 
-    filteredTransactions.forEach((t) => {
+    // Sort transactions oldest to newest so the last iterated is the latest NAV
+    const sortedTx = [...filteredTransactions].sort(
+      (a, b) => new Date(a.investmentDate).getTime() - new Date(b.investmentDate).getTime()
+    );
+
+    sortedTx.forEach((t) => {
       const existing = schemes.get(t.schemeName);
       const invested = t.isSell ? -t.value : t.value;
       const units = t.isSell ? -t.units : t.units;

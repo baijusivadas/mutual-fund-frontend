@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/services/api";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 
 type UserRole = "superAdmin" | "user";
 
@@ -34,6 +35,28 @@ const clearAuthStorage = () => {
   localStorage.removeItem("auth_login_time");
 };
 
+/** Decodes JWT token payload to extract expiration timestamp (exp) in milliseconds */
+const getDecodedTokenExp = (token: string | null): number | null => {
+  if (!token) return null;
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      window.atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const decoded = JSON.parse(jsonPayload);
+    return decoded.exp ? decoded.exp * 1000 : null; // Convert seconds to milliseconds
+  } catch (error) {
+    console.error("Error decoding JWT exp claim:", error);
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -56,6 +79,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: "Success", description: "Logged out successfully" });
   }, [toast]);
 
+  // ── Automatic Inactivity Timeout (15 minutes of idle time) ──────────────────
+  useIdleTimeout({
+    onIdle: () => {
+      if (token) {
+        toast({
+          title: "Session Expired",
+          description: "You have been logged out due to inactivity.",
+          variant: "destructive",
+        });
+        signOut();
+      }
+    },
+    idleTime: 15 * 60 * 1000,
+  });
+
   // ── Restore session from localStorage on mount ──────────────────────────────
   useEffect(() => {
     const savedToken = localStorage.getItem("auth_token");
@@ -63,8 +101,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const savedRole = localStorage.getItem("auth_role") as UserRole;
     const loginTime = localStorage.getItem("auth_login_time");
 
-    if (savedToken && savedUser && savedRole && loginTime) {
-      const expirationTime = parseInt(loginTime) + 24 * 60 * 60 * 1000;
+    if (savedToken && savedUser && savedRole) {
+      const expTime = getDecodedTokenExp(savedToken);
+      const fallbackExpiration = loginTime ? parseInt(loginTime) + 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000;
+      const expirationTime = expTime || fallbackExpiration;
+
       if (Date.now() > expirationTime) {
         signOut();
       } else {
@@ -80,16 +121,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!token) return;
     const interval = setInterval(() => {
+      const expTime = getDecodedTokenExp(token);
       const loginTime = localStorage.getItem("auth_login_time");
-      if (loginTime) {
-        const expirationTime = parseInt(loginTime) + 24 * 60 * 60 * 1000;
-        if (Date.now() > expirationTime) {
-          signOut();
-        }
+      const fallbackExpiration = loginTime ? parseInt(loginTime) + 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000;
+      const expirationTime = expTime || fallbackExpiration;
+
+      if (Date.now() > expirationTime) {
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Please log in again.",
+          variant: "destructive",
+        });
+        signOut();
       }
     }, 60_000);
     return () => clearInterval(interval);
-  }, [token, signOut]);
+  }, [token, signOut, toast]);
 
   // ── Sign In ─────────────────────────────────────────────────────────────────
   const signIn = async (email: string, password: string) => {
@@ -191,3 +238,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
