@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,12 +37,8 @@ export const EditUserDialog = ({ user, open, onOpenChange }: EditUserDialogProps
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, fullName }: { userId: string; fullName: string }) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ full_name: fullName })
-        .eq('id', userId);
-
-      if (error) throw error;
+      const response = await api.patch(`/auth/users/${userId}/profile`, { full_name: fullName });
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });

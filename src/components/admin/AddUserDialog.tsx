@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Loader2 } from "lucide-react";
 
@@ -24,15 +24,14 @@ export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
 
   const createUserMutation = useMutation({
     mutationFn: async () => {
-      // Create user using Supabase Auth Admin API via edge function
-      const { data, error } = await supabase.functions.invoke("create-user", {
-        body: { email, password, fullName, role },
+      const response = await api.post("/auth/signup", {
+        name: fullName || email.split('@')[0],
+        email,
+        password,
+        role,
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      return data;
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });

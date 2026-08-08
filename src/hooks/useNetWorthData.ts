@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import api from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface NetWorthData {
   portfolio: number;
@@ -21,7 +20,7 @@ export function useNetWorthData() {
   return useQuery({
     queryKey: ["net-worth"],
     queryFn: async (): Promise<NetWorthData> => {
-      // Fetch portfolio net values from Supabase, and advanced assets from the Express API in parallel
+      // Fetch portfolio net values from the Express API, and advanced assets
       const [
         portfolioRes,
         rentalRes,
@@ -31,7 +30,7 @@ export function useNetWorthData() {
         realEstateRes,
         liabilitiesRes,
       ] = await Promise.all([
-        supabase.from("scheme_summary").select("net_value"),
+        api.get("/analytics/scheme-summary").catch(() => ({ data: [] })),
         api.get("/advanced/rental_properties").catch(() => ({ data: [] })),
         api.get("/advanced/flats").catch(() => ({ data: [] })),
         api.get("/advanced/gold").catch(() => ({ data: [] })),
@@ -45,6 +44,7 @@ export function useNetWorthData() {
         return Array.isArray(res.data) ? res.data : (res.data.data || []);
       };
 
+      const portfolioData = getArray(portfolioRes);
       const rentalData = getArray(rentalRes);
       const flatsData = getArray(flatsRes);
       const goldData = getArray(goldRes);
@@ -53,8 +53,8 @@ export function useNetWorthData() {
       const liabilitiesData = getArray(liabilitiesRes);
 
       // Calculate totals
-      const portfolio = (portfolioRes.data || []).reduce(
-        (sum, item) => sum + (Number(item.net_value) || 0),
+      const portfolio = portfolioData.reduce(
+        (sum, item: any) => sum + (Number(item.net_value) || 0),
         0
       );
 

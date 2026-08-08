@@ -30,8 +30,8 @@ const HoldingsGridComponent = ({ schemeData }: HoldingsGridProps) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {schemeData.slice(0, 6).map((scheme, index) => (
                         <Card key={index} className="glass-card border-none hover-lift group cursor-pointer overflow-hidden relative">
-                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                                <TrendingUp className="h-20 w-20 -mr-4 -mt-4" />
+                            <div className="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                                <TrendingUp className="h-20 w-20" />
                             </div>
                             <CardContent className="p-6">
                                 <div className="space-y-5">

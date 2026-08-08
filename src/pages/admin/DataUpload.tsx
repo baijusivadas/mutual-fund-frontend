@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/services/api";
 import { Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { parseExcel, ParsedTransaction } from "@/utils/excelParser";
@@ -31,12 +31,8 @@ const DataUpload = () => {
   const { data: users = [] } = useQuery({
     queryKey: ["users-for-upload"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, email, full_name")
-        .order("full_name");
-      if (error) throw error;
-      return data;
+      const response = await api.get("/auth/users");
+      return response.data?.data || response.data || [];
     },
   });
 
@@ -83,68 +79,29 @@ const DataUpload = () => {
 
   const uploadMutation = useMutation({
     mutationFn: async (): Promise<UploadResult> => {
-      const result: UploadResult = { total: 0, purchases: 0, redemptions: 0, errors: [] };
-      const batchSize = 100;
-      const { data: { user } } = await supabase.auth.getUser();
-
-      for (let i = 0; i < parsedData.length; i += batchSize) {
-        const batch = parsedData.slice(i, i + batchSize);
-        setUploadProgress(Math.round(((i + batch.length) / parsedData.length) * 100));
-
-        for (const txn of batch) {
-          const txnType = txn.transactionType.toLowerCase();
-          const isSell =
-            txnType.includes("redemption") || txnType.includes("switchout") || txn.units < 0;
-
-          const record = {
-            transaction_type: txn.transactionType,
-            investor_name: txn.investorName,
-            date: txn.date,
-            scheme: txn.schemeName,
-            units: txn.units,
-            nav: txn.nav,
-            amount: txn.amount,
-            folio: txn.folioNo,
-          };
-
-          try {
-            if (isSell) {
-              const { error } = await supabase.from("redemptions").insert(record);
-              if (error) throw error;
-              result.redemptions++;
-            } else {
-              const { error } = await supabase.from("purchases").insert(record);
-              if (error) throw error;
-              result.purchases++;
-            }
-            result.total++;
-          } catch (err: any) {
-            result.errors.push(`Row ${i + batch.indexOf(txn) + 1}: ${err.message}`);
-          }
-        }
-      }
-
-      // Auto-map investments to selected users if any selected
+      const result: UploadResult = { total: parsedData.length, purchases: 0, redemptions: 0, errors: [] };
+      if (!file) throw new Error("No file selected");
+      
+      const formData = new FormData();
+      formData.append("file", file);
       if (selectedUsers.length > 0 && selectedAssetType === "mutual_funds") {
-        const uniqueInvestors = [...new Set(parsedData.map((t) => t.investorName))];
-
-        for (const userId of selectedUsers) {
-          for (const investorName of uniqueInvestors) {
-            try {
-              await supabase.from("user_investment_mapping").upsert({
-                user_id: userId,
-                asset_type: selectedAssetType,
-                investor_name: investorName,
-                created_by: user?.id,
-              }, {
-                onConflict: "user_id,asset_type,asset_id",
-                ignoreDuplicates: true,
-              });
-            } catch (err) {
-              // Ignore duplicate mapping errors
-            }
+        formData.append("selectedUsers", JSON.stringify(selectedUsers));
+      }
+      
+      try {
+        const response = await api.post("/transaction", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data"
           }
-        }
+        });
+        
+        // Use backend response to fill result
+        const count = response.data?.count || 0;
+        result.total = count;
+        // In real app, backend might separate purchases and redemptions count
+        
+      } catch (err: any) {
+        throw new Error(err.response?.data?.message || err.message || "Upload failed");
       }
 
       return result;

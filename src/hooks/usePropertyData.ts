@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { propertyQueryConfig } from "./useQueryConfig";
 
@@ -13,25 +13,16 @@ export const usePropertyData = <T extends Record<string, any>>(
   const { data, isLoading, error } = useQuery({
     queryKey: [queryKey],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from(tableName)
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return (data || []) as T[];
+      const response = await api.get(`/advanced/${tableName}`);
+      const responseData = response.data?.data || response.data || [];
+      return responseData as T[];
     },
     ...propertyQueryConfig,
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from(tableName)
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      await api.delete(`/advanced/${tableName}/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] as const });
@@ -48,12 +39,7 @@ export const usePropertyData = <T extends Record<string, any>>(
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await (supabase as any)
-        .from(tableName)
-        .delete()
-        .in("id", ids);
-
-      if (error) throw error;
+      await Promise.all(ids.map(id => api.delete(`/advanced/${tableName}/${id}`)));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] as const });
@@ -70,12 +56,7 @@ export const usePropertyData = <T extends Record<string, any>>(
 
   const bulkStatusUpdateMutation = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
-      const { error } = await (supabase as any)
-        .from(tableName)
-        .update({ status })
-        .in("id", ids);
-
-      if (error) throw error;
+      await Promise.all(ids.map(id => api.put(`/advanced/${tableName}/${id}`, { status })));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] as const });
@@ -92,11 +73,7 @@ export const usePropertyData = <T extends Record<string, any>>(
 
   const createMutation = useMutation({
     mutationFn: async (payload: Partial<T>) => {
-      const { error } = await (supabase as any)
-        .from(tableName)
-        .insert([payload]);
-
-      if (error) throw error;
+      await api.post(`/advanced/${tableName}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] as const });
@@ -113,12 +90,7 @@ export const usePropertyData = <T extends Record<string, any>>(
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: Partial<T> }) => {
-      const { error } = await (supabase as any)
-        .from(tableName)
-        .update(payload)
-        .eq("id", id);
-
-      if (error) throw error;
+      await api.put(`/advanced/${tableName}/${id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] as const });

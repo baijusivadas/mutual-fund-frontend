@@ -59,7 +59,7 @@ const Index = () => {
           )}
 
           {/* Grand Totals Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in" style={{ animationDelay: '0.2s' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 animate-in" style={{ animationDelay: '0.2s' }}>
             <MetricCard
               title="Total Net Worth"
               value={formatCurrency(netWorth)}

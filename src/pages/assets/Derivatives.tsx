@@ -37,7 +37,7 @@ const Derivatives = () => {
     queryKey: ["derivatives"],
     queryFn: async (): Promise<DerivativePosition[]> => {
       const response = await api.get("/derivatives");
-      return response.data;
+      return Array.isArray(response.data) ? response.data : (response.data.data || []);
     },
     enabled: !!token,
   });
