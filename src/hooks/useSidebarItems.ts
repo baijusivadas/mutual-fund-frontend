@@ -22,7 +22,7 @@ export const useSidebarItems = () => {
 
       try {
         const response = await api.get("/sidebar");
-        return response.data;
+        return response.data?.data || response.data || [];
       } catch (error) {
         console.error('Sidebar fetch error:', error);
         return [];

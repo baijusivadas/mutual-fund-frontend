@@ -56,7 +56,7 @@ const UserInvestmentMapping = () => {
     queryKey: ["all-users-for-mapping"],
     queryFn: async () => {
       const response = await api.get("/auth/users");
-      return response.data;
+      return response.data?.data || response.data || [];
     },
     enabled: !!token,
   });
@@ -66,7 +66,7 @@ const UserInvestmentMapping = () => {
     queryKey: ["investment-mappings"],
     queryFn: async () => {
       const response = await api.get("/user-mappings");
-      return response.data;
+      return response.data?.data || response.data || [];
     },
     enabled: !!token,
   });

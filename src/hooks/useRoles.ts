@@ -76,7 +76,7 @@ export const useRoles = () => {
     queryKey: ['roles'],
     queryFn: async (): Promise<Role[]> => {
       const response = await api.get('/role');
-      return response.data || [];
+      return response.data?.data || response.data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -85,7 +85,7 @@ export const useRoles = () => {
     queryKey: ['role-hierarchy'],
     queryFn: async (): Promise<RoleWithChildren[]> => {
       const response = await api.get('/role');
-      return buildRoleTree(response.data || []);
+      return buildRoleTree(response.data?.data || response.data || []);
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -94,7 +94,7 @@ export const useRoles = () => {
     queryKey: ['all-sidebar-items'],
     queryFn: async (): Promise<SidebarItemBasic[]> => {
       const response = await api.get('/sidebar-items-admin');
-      return response.data || [];
+      return response.data?.data || response.data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -103,7 +103,7 @@ export const useRoles = () => {
     queryKey: ['role-sidebar-items'],
     queryFn: async () => {
       const response = await api.get('/role-sidebar-items');
-      return response.data || [];
+      return response.data?.data || response.data || [];
     },
     staleTime: 5 * 60 * 1000,
   });

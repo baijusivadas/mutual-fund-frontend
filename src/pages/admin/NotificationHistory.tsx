@@ -28,7 +28,7 @@ export default function NotificationHistory() {
     queryKey: ["notification-history"],
     queryFn: async (): Promise<NotificationHistoryItem[]> => {
       const response = await api.get("/notifications");
-      return response.data;
+      return response.data?.data || response.data || [];
     },
     enabled: !!token,
   });
