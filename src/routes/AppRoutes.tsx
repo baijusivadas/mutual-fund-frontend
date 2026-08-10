@@ -1,6 +1,9 @@
+
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Outlet } from "react-router-dom";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { Loader2 } from "lucide-react";
 
 // Lazy-loaded pages
 const Index = lazy(() => import("@/pages/dashboard/Index"));
@@ -33,68 +36,112 @@ const Investors = lazy(() => import("@/pages/admin/Investors"));
 const MasterData = lazy(() => import("@/pages/admin/MasterData"));
 const NotFound = lazy(() => import("@/pages/errors/NotFound"));
 
-const PageLoader = () => (
-  <div className="flex h-screen w-full items-center justify-center">
+// Full-page loader (used only for initial auth page loads)
+const FullPageLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-background">
     <div className="flex flex-col items-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      <p className="text-sm text-muted-foreground">Loading...</p>
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm font-medium text-muted-foreground">Loading FinSight...</p>
     </div>
   </div>
 );
 
+// Inner page content loader (keeps sidebar & header fixed and visible during SPA navigation)
+const PageContentLoader = () => (
+  <div className="flex h-64 w-full items-center justify-center">
+    <div className="flex flex-col items-center gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm font-medium text-muted-foreground">Loading page content...</p>
+    </div>
+  </div>
+);
+
+// Persistent Protected App Layout wrapper
+const ProtectedAppLayout = ({ requireSuperAdmin }: { requireSuperAdmin?: boolean }) => (
+  <ProtectedRoute requireSuperAdmin={requireSuperAdmin}>
+    <DashboardLayout>
+      <Suspense fallback={<PageContentLoader />}>
+        <Outlet />
+      </Suspense>
+    </DashboardLayout>
+  </ProtectedRoute>
+);
+
 export const AppRoutes = () => (
-  <Suspense fallback={<PageLoader />}>
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/verify-otp" element={<VerifyOTP />} />
-      
-      {/* Protected User Routes */}
-      {[
-        { path: "/", element: <Index /> },
-        { path: "/portfolio", element: <Portfolio /> },
-        { path: "/mutual-funds", element: <MutualFunds /> },
-        { path: "/derivatives", element: <Derivatives /> },
-        { path: "/liabilities", element: <Liabilities /> },
-        { path: "/other-assets", element: <OtherAssets /> },
-        { path: "/other-investments", element: <OtherInvestments /> },
-        { path: "/transactions", element: <Transactions /> },
-        { path: "/transaction-reports", element: <TransactionReports /> },
-        { path: "/pnl", element: <PnL /> },
-        { path: "/capital-gains", element: <CapitalGains /> },
-        { path: "/stock-reports", element: <StockReports /> },
-      ].map((route) => (
-        <Route
-          key={route.path}
-          path={route.path}
-          element={<ProtectedRoute>{route.element}</ProtectedRoute>}
-        />
-      ))}
+  <Routes>
+    {/* Public Auth Routes */}
+    <Route
+      path="/login"
+      element={
+        <Suspense fallback={<FullPageLoader />}>
+          <Login />
+        </Suspense>
+      }
+    />
+    <Route
+      path="/forgot-password"
+      element={
+        <Suspense fallback={<FullPageLoader />}>
+          <ForgotPassword />
+        </Suspense>
+      }
+    />
+    <Route
+      path="/reset-password"
+      element={
+        <Suspense fallback={<FullPageLoader />}>
+          <ResetPassword />
+        </Suspense>
+      }
+    />
+    <Route
+      path="/verify-otp"
+      element={
+        <Suspense fallback={<FullPageLoader />}>
+          <VerifyOTP />
+        </Suspense>
+      }
+    />
 
-      {/* Protected Admin Routes */}
-      {[
-        { path: "/admin/users", element: <UserManagement /> },
-        { path: "/admin/roles", element: <RolesManagement /> },
-        { path: "/admin/real-estate", element: <RealEstate /> },
-        { path: "/admin/gold", element: <Gold /> },
-        { path: "/admin/flats", element: <Flats /> },
-        { path: "/admin/rental-properties", element: <RentalProperties /> },
-        { path: "/admin/analytics", element: <Analytics /> },
-        { path: "/admin/notifications", element: <NotificationHistory /> },
-        { path: "/admin/data-upload", element: <DataUpload /> },
-        { path: "/admin/user-investment-mapping", element: <UserInvestmentMapping /> },
-        { path: "/admin/master-data", element: <MasterData /> },
-        { path: "/admin/investors", element: <Investors /> },
-      ].map((route) => (
-        <Route
-          key={route.path}
-          path={route.path}
-          element={<ProtectedRoute requireSuperAdmin={true}>{route.element}</ProtectedRoute>}
-        />
-      ))}
+    {/* Protected User Routes (Persistent Sidebar & Header Layout) */}
+    <Route element={<ProtectedAppLayout />}>
+      <Route path="/" element={<Index />} />
+      <Route path="/portfolio" element={<Portfolio />} />
+      <Route path="/mutual-funds" element={<MutualFunds />} />
+      <Route path="/derivatives" element={<Derivatives />} />
+      <Route path="/liabilities" element={<Liabilities />} />
+      <Route path="/other-assets" element={<OtherAssets />} />
+      <Route path="/other-investments" element={<OtherInvestments />} />
+      <Route path="/transactions" element={<Transactions />} />
+      <Route path="/transaction-reports" element={<TransactionReports />} />
+      <Route path="/pnl" element={<PnL />} />
+      <Route path="/capital-gains" element={<CapitalGains />} />
+      <Route path="/stock-reports" element={<StockReports />} />
+    </Route>
 
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  </Suspense>
+    {/* Protected Admin Routes (Persistent Sidebar & Header Layout) */}
+    <Route element={<ProtectedAppLayout requireSuperAdmin={true} />}>
+      <Route path="/admin/users" element={<UserManagement />} />
+      <Route path="/admin/roles" element={<RolesManagement />} />
+      <Route path="/admin/real-estate" element={<RealEstate />} />
+      <Route path="/admin/gold" element={<Gold />} />
+      <Route path="/admin/flats" element={<Flats />} />
+      <Route path="/admin/rental-properties" element={<RentalProperties />} />
+      <Route path="/admin/analytics" element={<Analytics />} />
+      <Route path="/admin/notifications" element={<NotificationHistory />} />
+      <Route path="/admin/data-upload" element={<DataUpload />} />
+      <Route path="/admin/user-investment-mapping" element={<UserInvestmentMapping />} />
+      <Route path="/admin/master-data" element={<MasterData />} />
+      <Route path="/admin/investors" element={<Investors />} />
+    </Route>
+
+    <Route
+      path="*"
+      element={
+        <Suspense fallback={<FullPageLoader />}>
+          <NotFound />
+        </Suspense>
+      }
+    />
+  </Routes>
 );
