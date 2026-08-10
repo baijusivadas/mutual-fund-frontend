@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -33,15 +33,20 @@ export default function Analytics() {
 
   const metrics = usePropertyMetrics(rentalProperties, flats, realEstate);
 
+  // Track which lease IDs we've already toasted to avoid duplicates across re-renders
+  const shownLeaseIds = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (metrics.expiringLeases.length > 0) {
-      metrics.expiringLeases.forEach(property => {
-        toast.warning(`Lease Expiring Soon`, {
-          description: `${property.property_name} lease expires on ${new Date(property.lease_end_date!).toLocaleDateString()}`,
-        });
+    metrics.expiringLeases.forEach((property: any) => {
+      if (shownLeaseIds.current.has(property.id)) return; // already shown
+      shownLeaseIds.current.add(property.id);
+      toast.warning(`Lease Expiring Soon`, {
+        description: `${property.property_name} lease expires on ${new Date(property.lease_end_date!).toLocaleDateString()}`,
       });
-    }
-  }, [metrics.expiringLeases]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metrics.expiringLeases.map((p: any) => p.id).join(",")]);
+  // ↑ Stable string key — only re-runs when the set of expiring lease IDs actually changes
 
   if (isLoading) {
     return (

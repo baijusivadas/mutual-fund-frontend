@@ -21,33 +21,73 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
     --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 221 83% 53%;
     --radius: 1rem;
+
+    /* Chart colors */
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 199 89% 48%;
+
+    /* Sidebar colors */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 221 83% 53%;
   }
 
   .dark {
     --background: 230 40% 4%;
     --foreground: 210 40% 98%;
-    --card: 230 40% 6%;
+    --card: 230 35% 7%;
     --card-foreground: 210 40% 98%;
-    --popover: 230 40% 6%;
+    --popover: 230 35% 7%;
     --popover-foreground: 210 40% 98%;
     --primary: 228 90% 65%;
     --primary-foreground: 222 47% 11%;
-    --secondary: 228 47% 11%;
+    --secondary: 228 47% 12%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 228 47% 11%;
+    --muted: 228 47% 12%;
     --muted-foreground: 215 20% 65%;
-    --accent: 228 47% 11%;
+    --accent: 228 47% 12%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
     --success: 142 71% 45%;
-    --border: 228 30% 15%;
-    --input: 228 30% 15%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --border: 228 30% 16%;
+    --input: 228 30% 16%;
     --ring: 228 90% 65%;
+
+    /* Dark Chart colors */
+    --chart-1: 228 90% 65%;
+    --chart-2: 142 71% 48%;
+    --chart-3: 38 92% 56%;
+    --chart-4: 262 83% 66%;
+    --chart-5: 199 89% 56%;
+
+    /* Dark Sidebar colors */
+    --sidebar-background: 230 40% 5%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 228 90% 65%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 228 47% 12%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 228 30% 16%;
+    --sidebar-ring: 228 90% 65%;
   }
 }
 
@@ -55,47 +95,85 @@
   * {
     @apply border-border;
   }
+
+  html {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
-    background-image: radial-gradient(circle at 50% 0%, hsl(var(--primary)/0.08) 0%, transparent 40%),
-                      radial-gradient(circle at 0% 50%, hsl(var(--ring)/0.05) 0%, transparent 40%);
+    @apply bg-background text-foreground antialiased font-sans;
+    background-image: 
+      radial-gradient(circle at 50% 0%, hsl(var(--primary)/0.07) 0%, transparent 50%),
+      radial-gradient(circle at 100% 100%, hsl(var(--ring)/0.04) 0%, transparent 40%),
+      radial-gradient(circle at 0% 50%, hsl(var(--chart-4)/0.03) 0%, transparent 45%);
     background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading tracking-tight;
   }
 }
 
-/* Premium Utilities */
+/* ── Premium Design Tokens & Utilities ────────────────────────────────────── */
+
+/* Ultra-Glass Container */
 .glass-card {
-  @apply bg-card/70 backdrop-blur-2xl border border-white/5 shadow-2xl;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  @apply bg-card/75 backdrop-blur-2xl border border-white/10 dark:border-white/5 shadow-xl transition-all duration-300;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
 }
 
+.dark .glass-card {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Hover Lift Effect */
 .hover-lift {
-  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10;
 }
 
+/* Gradient Text */
+.text-gradient {
+  @apply bg-gradient-to-r from-primary via-blue-500 to-indigo-500 bg-clip-text text-transparent;
+}
+
+/* Soft Glow Background Aura */
+.glow-primary {
+  box-shadow: 0 0 40px -10px hsl(var(--primary)/0.3);
+}
+
+/* Button & Badge Soft Gradient */
 .premium-gradient {
   background: linear-gradient(135deg, hsl(var(--primary)) 0%, #3b82f6 100%);
 }
 
 .animate-in {
-  animation: fadeIn 0.6s ease-out forwards;
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/20 rounded-full;
+  @apply bg-muted-foreground/20 rounded-full transition-colors;
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/40;
@@ -105,12 +183,12 @@
   display: none;
 }
 
-/* Chart Styles */
+/* Recharts Custom Styling */
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
   stroke: hsl(var(--border) / 0.4);
 }
 
 .recharts-default-tooltip {
-  @apply !bg-card/80 !backdrop-blur-md !border-border/50 !rounded-xl !shadow-2xl !p-4;
+  @apply !bg-card/90 !backdrop-blur-xl !border-border/60 !rounded-2xl !shadow-2xl !p-4 !text-foreground;
 }

@@ -59,7 +59,6 @@ export const AppRoutes = () => (
         { path: "/liabilities", element: <Liabilities /> },
         { path: "/other-assets", element: <OtherAssets /> },
         { path: "/other-investments", element: <OtherInvestments /> },
-        { path: "/investors", element: <Investors /> },
         { path: "/transactions", element: <Transactions /> },
         { path: "/transaction-reports", element: <TransactionReports /> },
         { path: "/pnl", element: <PnL /> },
@@ -86,6 +85,7 @@ export const AppRoutes = () => (
         { path: "/admin/data-upload", element: <DataUpload /> },
         { path: "/admin/user-investment-mapping", element: <UserInvestmentMapping /> },
         { path: "/admin/master-data", element: <MasterData /> },
+        { path: "/admin/investors", element: <Investors /> },
       ].map((route) => (
         <Route
           key={route.path}

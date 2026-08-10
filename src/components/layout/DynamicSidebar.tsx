@@ -59,7 +59,7 @@ export const DynamicSidebar = () => {
       id: "inv_mgmt",
       name: "Portfolio",
       icon: LucideIcons.Briefcase,
-      routes: ["/portfolio", "/mutual-funds", "/investors", "/derivatives", "/other-investments", "/other-assets", "/liabilities"]
+      routes: ["/portfolio", "/mutual-funds", "/derivatives", "/other-investments", "/other-assets", "/liabilities"]
     },
     {
       id: "reports_analytics",
@@ -71,7 +71,7 @@ export const DynamicSidebar = () => {
       id: "admin",
       name: "System",
       icon: LucideIcons.Shield,
-      routes: ["/admin/users", "/admin/roles", "/admin/data-upload", "/admin/master-data", "/admin/user-investment-mapping", "/admin/notifications"]
+      routes: ["/admin/users", "/admin/roles", "/admin/investors", "/admin/data-upload", "/admin/master-data", "/admin/user-investment-mapping", "/admin/notifications"]
     }
   ], []);
 
@@ -199,20 +199,7 @@ export const DynamicSidebar = () => {
       </nav>
       
       <div className="border-t border-border/50 p-6 bg-muted/20">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">
-          {!isCollapsed && "Network Status"}
-        </div>
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "h-2 w-2 rounded-full",
-            isFetching ? "bg-amber-500 animate-pulse" : "bg-success"
-          )} />
-          {!isCollapsed && (
-            <span className="text-xs font-medium">
-              {isFetching ? "Syncing Data..." : "Connected"}
-            </span>
-          )}
-        </div>
+  
       </div>
     </div>
   );

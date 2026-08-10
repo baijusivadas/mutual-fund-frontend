@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Stale Supabase integration (removed — backend is now Node.js/Express)
+supabase/

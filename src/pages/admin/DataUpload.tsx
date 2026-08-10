@@ -88,22 +88,19 @@ const DataUpload = () => {
         formData.append("selectedUsers", JSON.stringify(selectedUsers));
       }
       
-      try {
-        const response = await api.post("/transaction", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data"
+      setUploadProgress(0);
+      const response = await api.post("/transaction", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(pct);
           }
-        });
-        
-        // Use backend response to fill result
-        const count = response.data?.count || 0;
-        result.total = count;
-        // In real app, backend might separate purchases and redemptions count
-        
-      } catch (err: any) {
-        throw new Error(err.response?.data?.message || err.message || "Upload failed");
-      }
+        },
+      });
 
+      // Backend returns count of inserted records
+      result.total = response.data?.count || 0;
       return result;
     },
     onSuccess: (result) => {

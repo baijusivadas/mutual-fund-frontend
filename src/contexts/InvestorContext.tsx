@@ -35,9 +35,16 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
   const { isSuperAdmin, user } = useAuth();
   
   // Fetch real-time database transactions mapped to the user
-  const { purchases = [], redemptions = [], mappedInvestorNames = [] } = useUserInvestments();
+  const { purchases = [], redemptions = [], mappedInvestorNames = [], isLoading: isLoadingDb } = useUserInvestments();
 
+  // Load the Excel fallback ONLY when:
+  //   1. The DB query has finished (isLoadingDb === false)
+  //   2. AND there are no DB transactions to show
+  // This avoids fetching a large .xlsx file on every session when real data exists.
   useEffect(() => {
+    if (isLoadingDb) return; // Wait for DB query to settle
+    if (purchases.length > 0 || redemptions.length > 0) return; // DB has data — skip fallback
+
     const loadExcelTransactions = async () => {
       try {
         const allTransactions = await parseExcelFile(transactionsPath);
@@ -48,7 +55,7 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
     };
 
     loadExcelTransactions();
-  }, []);
+  }, [isLoadingDb, purchases.length, redemptions.length]);
 
   // Compute unified transactions list
   const transactions = useMemo(() => {

@@ -28,31 +28,42 @@ const MetricCardComponent = ({
   const displaySubtitle = change || subtitle;
 
   return (
-    <Card className="glass-card hover-lift overflow-hidden border-none group relative">
-      <div className="absolute -bottom-6 -right-6 p-4 opacity-5 transition-opacity group-hover:opacity-10 pointer-events-none z-0">
-        <Icon className="h-32 w-32" />
+    <Card className="glass-card hover-lift overflow-hidden border border-border/50 rounded-2xl group relative">
+      {/* Background Icon Watermark */}
+      <div className="absolute -bottom-4 -right-4 p-4 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity pointer-events-none z-0">
+        <Icon className="h-28 w-28 text-foreground" />
       </div>
+
       <CardContent className="p-6 relative z-10">
         <div className="flex items-center justify-between mb-4">
-          <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+          <div className="p-3 rounded-2xl bg-primary/10 text-primary shrink-0 transition-transform group-hover:scale-110">
             <Icon className="h-5 w-5" />
           </div>
           {changeType !== "neutral" && (
-            <div className={cn(
-              "flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap",
-              changeType === "positive" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-            )}>
-              {changeType === "positive" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+            <div
+              className={cn(
+                "flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap tracking-wide",
+                changeType === "positive"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+              )}
+            >
+              {changeType === "positive" ? (
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDownRight className="h-3.5 w-3.5" />
+              )}
               {displaySubtitle}
             </div>
           )}
         </div>
+
         <div className="min-w-0">
-          <p className="text-sm font-medium text-muted-foreground mb-1 truncate">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 truncate">
             {displayTitle}
           </p>
-          <div 
-            className={cn("text-3xl font-bold tracking-tight truncate", className)} 
+          <div
+            className={cn("text-2xl sm:text-3xl font-heading font-extrabold tracking-tight truncate", className)}
             title={value?.toString()}
           >
             {value}

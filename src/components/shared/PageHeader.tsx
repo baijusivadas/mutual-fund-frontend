@@ -22,13 +22,17 @@ export const PageHeader = ({
       {showBreadcrumbs && <Breadcrumbs />}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">{title}</h2>
+          <h2 className="text-2xl sm:text-3xl font-heading font-extrabold tracking-tight text-foreground">
+            {title}
+          </h2>
           {description && (
-            <p className="text-muted-foreground">{description}</p>
+            <p className="text-sm text-muted-foreground max-w-2xl font-normal leading-relaxed">
+              {description}
+            </p>
           )}
         </div>
         {actions && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 shrink-0">
             {actions}
           </div>
         )}
