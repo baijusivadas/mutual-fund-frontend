@@ -94,7 +94,6 @@ export const Topbar = () => {
         id: "assets",
         label: "Assets",
         icon: Building2,
-        superAdminOnly: true,
         routes: [
           { href: "/admin/real-estate", label: "Real Estate", icon: Building2, desc: "Commercial & residential land" },
           { href: "/admin/gold", label: "Gold Holdings", icon: Coins, desc: "Physical & digital bullion" },

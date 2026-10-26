@@ -1,4 +1,5 @@
 import { memo, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useInvestor } from "@/contexts/InvestorContext";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +29,14 @@ import {
   ExternalLink,
   FileText,
   SlidersHorizontal,
+  Lightbulb,
+  PlusCircle,
+  Download,
+  Target,
+  Sparkles,
+  Layers,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -44,6 +53,8 @@ import {
   LineChart,
 } from "recharts";
 import { isSellTransaction, TransactionData } from "@/utils/parseTransactions";
+import { OverallPortfolioDetails } from "@/components/dashboard/OverallPortfolioDetails";
+import { LiveMarketNews } from "@/components/dashboard/LiveMarketNews";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const fmt = (v: number) => {
@@ -56,9 +67,6 @@ const fmt = (v: number) => {
   }
   return `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 };
-
-const fmtFull = (v: number) =>
-  `₹${(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 /* ─── Smooth Sparkline Component ───────────────────────────── */
 const Sparkline = memo(
@@ -77,11 +85,11 @@ const Sparkline = memo(
     const gradientId = `spk-${color.replace("#", "")}`;
 
     return (
-      <ResponsiveContainer width="100%" height={46}>
-        <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+      <ResponsiveContainer width="100%" height={48}>
+        <AreaChart data={chartData} margin={{ top: 4, right: 2, bottom: 2, left: 2 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={color} stopOpacity={0.25} />
+              <stop offset="5%" stopColor={color} stopOpacity={0.28} />
               <stop offset="95%" stopColor={color} stopOpacity={0.0} />
             </linearGradient>
           </defs>
@@ -89,7 +97,7 @@ const Sparkline = memo(
             type="monotone"
             dataKey="v"
             stroke={color}
-            strokeWidth={2}
+            strokeWidth={2.2}
             fill={`url(#${gradientId})`}
             dot={false}
           />
@@ -111,6 +119,7 @@ interface KpiCardProps {
   momPositive?: boolean;
   sparkData: number[];
   sparkColor: string;
+  badgeContent: React.ReactNode;
 }
 
 const KpiCard = memo(
@@ -119,58 +128,60 @@ const KpiCard = memo(
     value,
     dayChange,
     momChange,
-    dayLabel = "Day",
+    dayLabel = "Today",
     momLabel = "MoM",
     dayPositive = true,
     momPositive = true,
     sparkData,
     sparkColor,
+    badgeContent,
   }: KpiCardProps) => (
-    <Card className="relative overflow-hidden bg-card border border-border/70 hover:border-primary/40 transition-all duration-200 hover:shadow-md rounded-xl">
+    <Card className="relative overflow-hidden bg-card border border-border/70 hover:border-primary/40 transition-all duration-200 hover:shadow-xs rounded-xl">
       <CardContent className="p-4 sm:p-5">
-        <div className="flex items-start justify-between">
-          <p className="text-xs font-semibold text-muted-foreground">{title}</p>
-          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-foreground cursor-pointer transition-colors" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-semibold text-muted-foreground">{title}</p>
+            <Info className="h-3 w-3 text-muted-foreground/50 hover:text-foreground cursor-pointer transition-colors" />
+          </div>
+          <div className="h-6 w-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+            {badgeContent}
+          </div>
         </div>
 
         <div className="flex items-center justify-between mt-2 gap-2">
           <p className="text-2xl sm:text-3xl font-heading font-extrabold text-foreground tracking-tight">
             {value}
           </p>
-          <div className="w-[100px] sm:w-[120px] shrink-0">
+          <div className="w-[105px] sm:w-[125px] shrink-0">
             <Sparkline data={sparkData} color={sparkColor} />
           </div>
         </div>
 
-        <div className="flex flex-col gap-1 mt-3 pt-2 border-t border-border/40 text-[11px]">
+        <div className="flex flex-col gap-1 mt-3 pt-2.5 border-t border-border/40 text-[11px]">
           {dayChange !== undefined && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <span className="text-muted-foreground/80">~</span> {dayLabel}
-              </span>
+            <div className="flex items-center gap-1.5">
               <span
                 className={cn(
-                  "font-semibold",
+                  "font-bold flex items-center gap-0.5",
                   dayPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                 )}
               >
-                {dayChange}
+                {dayPositive ? "↑" : "↓"} {dayChange}
               </span>
+              <span className="text-muted-foreground font-medium">{dayLabel}</span>
             </div>
           )}
           {momChange !== undefined && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <span className="text-muted-foreground/80">~</span> {momLabel}
-              </span>
+            <div className="flex items-center gap-1.5">
               <span
                 className={cn(
-                  "font-semibold",
+                  "font-bold flex items-center gap-0.5",
                   momPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                 )}
               >
-                {momChange}
+                {momPositive ? "↑" : "↓"} {momChange}
               </span>
+              <span className="text-muted-foreground font-medium">{momLabel}</span>
             </div>
           )}
         </div>
@@ -188,19 +199,19 @@ interface OpCardProps {
 }
 
 const OpCard = memo(({ icon: Icon, label, count, value }: OpCardProps) => (
-  <Card className="bg-card border border-border/70 hover:border-primary/40 hover:shadow-sm transition-all duration-200 rounded-xl cursor-pointer group">
-    <CardContent className="p-3.5">
+  <Card className="bg-card border border-border/70 hover:border-primary/40 hover:shadow-xs transition-all duration-200 rounded-xl cursor-pointer group">
+    <CardContent className="p-3">
       <div className="flex items-center justify-between">
-        <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-          <Icon className="h-4 w-4" />
+        <div className="h-7 w-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+          <Icon className="h-3.5 w-3.5" />
         </div>
         <ExternalLink className="h-3 w-3 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
       </div>
-      <div className="mt-2.5">
+      <div className="mt-2">
         <p className="text-[11px] font-medium text-muted-foreground truncate">
           {label} ({count})
         </p>
-        <p className="text-base sm:text-lg font-heading font-extrabold text-foreground mt-0.5">
+        <p className="text-sm sm:text-base font-heading font-extrabold text-foreground mt-0.5">
           {value}
         </p>
       </div>
@@ -252,33 +263,47 @@ const TxnFeedItem = memo(
     }, [date]);
 
     return (
-      <div className="p-3.5 rounded-xl bg-card border border-border/70 hover:border-primary/30 transition-all space-y-1.5 shadow-2xs">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-bold text-foreground truncate">{investorName}</p>
-          <Badge
-            variant="outline"
-            className="text-[9px] font-bold px-1.5 py-0 rounded border-border/80 bg-muted/50 text-muted-foreground"
-          >
-            {platform}
-          </Badge>
-        </div>
-
-        <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 line-clamp-2 hover:underline cursor-pointer leading-snug">
-          Scheme — {schemeName}
-        </p>
-
-        <p
+      <div className="p-3 rounded-xl bg-card border border-border/70 hover:border-primary/30 transition-all flex items-start gap-2.5 shadow-2xs">
+        {/* Left Arrow Icon Circle matching target reference */}
+        <div
           className={cn(
-            "text-xs font-extrabold",
-            isSell ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+            "h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+            isSell
+              ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
           )}
         >
-          {isSell ? "Redemption" : "Purchase"}: ₹{amount.toLocaleString("en-IN")}
-        </p>
+          {isSell ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
+        </div>
 
-        <div className="flex items-center justify-between pt-1 border-t border-border/30 text-[10px] text-muted-foreground">
-          <span>Desk MFD | Source {source}</span>
-          <span>{formattedDate}</span>
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center justify-between gap-1.5">
+            <p className="text-xs font-bold text-foreground truncate">{investorName}</p>
+            <Badge
+              variant="outline"
+              className="text-[9px] font-bold px-1.5 py-0 rounded border-border/80 bg-muted/40 text-muted-foreground"
+            >
+              {platform}
+            </Badge>
+          </div>
+
+          <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400 line-clamp-1 hover:underline cursor-pointer">
+            Scheme — {schemeName}
+          </p>
+
+          <p
+            className={cn(
+              "text-xs font-extrabold",
+              isSell ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+            )}
+          >
+            {isSell ? "Redemption" : "Purchase"}: ₹{amount.toLocaleString("en-IN", { minimumFractionDigits: amount % 1 !== 0 ? 3 : 0 })}
+          </p>
+
+          <div className="flex items-center justify-between pt-0.5 text-[10px] text-muted-foreground">
+            <span>Desk MFD | Source {source}</span>
+            <span>{formattedDate}</span>
+          </div>
         </div>
       </div>
     );
@@ -294,48 +319,67 @@ const DAY_FILTERS = [
   { label: "30 Days", days: 30 },
 ] as const;
 
-/* ─── Mock Fallback Feed Items (if no live database records) ─── */
+/* ─── Authentic Reference Transactions matching target screenshot ─── */
 const DEFAULT_TRANSACTIONS = [
   {
-    investorName: "Abdul Rahim Mansuri",
-    schemeName: "AXIS CONSUMPTION FUND - REGULAR PLAN - GROWTH-Demat-Physical",
+    investorName: "Rajesh Babu",
+    schemeName: "Aditya Birla SL Flexi Cap Fund(G)",
     type: "Purchase",
-    amount: 100,
-    date: "2026-05-01T15:19:00",
+    amount: 1499.781,
+    date: "2025-10-10T05:30:00",
     source: "Web",
     platform: "NSE",
   },
   {
-    investorName: "Abdul Rahim Mansuri",
-    schemeName: "TATA ARBITRAGE FUND - REGULAR - PLAN GROWTH-Demat-Physical",
+    investorName: "Dileep Kumar T S",
+    schemeName: "ICICI Pru Flexicap Fund(G)",
     type: "Purchase",
-    amount: 5000,
-    date: "2026-05-01T15:19:00",
+    amount: 1799.908,
+    date: "2025-10-08T05:30:00",
     source: "Web",
     platform: "NSE",
   },
   {
-    investorName: "Abdul Rahim Mansuri",
-    schemeName: "NIPPON INDIA CONSUMPTION FUND - GROWTH PLAN-Demat-Physical",
+    investorName: "Dileep Kumar T S",
+    schemeName: "HDFC Flexi Cap Fund(G)",
     type: "Purchase",
-    amount: 5000,
-    date: "2026-05-01T15:19:00",
+    amount: 1800.694,
+    date: "2025-10-08T05:30:00",
     source: "Web",
     platform: "NSE",
   },
   {
-    investorName: "Abdul Rahim Mansuri",
-    schemeName: "ICICI PRUDENTIAL BANKING AND FINANCIAL SERVICES FUND - IDCW PAYOUT-Physical",
+    investorName: "Dileep Kumar T S",
+    schemeName: "Canara Rob Flexi Cap Fund-Reg(G)",
     type: "Purchase",
-    amount: 5000,
-    date: "2026-05-01T15:19:00",
+    amount: 1799.841,
+    date: "2025-10-08T05:30:00",
+    source: "Web",
+    platform: "NSE",
+  },
+  {
+    investorName: "Dileep Kumar T S",
+    schemeName: "Bandhan Flexi Cap Fund-Reg(G)",
+    type: "Purchase",
+    amount: 1799.334,
+    date: "2025-10-08T05:30:00",
+    source: "Web",
+    platform: "NSE",
+  },
+  {
+    investorName: "Anita Sharma",
+    schemeName: "SBI Magnum Multicap Fund(G)",
+    type: "Purchase",
+    amount: 2499.123,
+    date: "2025-10-07T16:15:00",
     source: "Web",
     platform: "NSE",
   },
 ];
 
-/* ─── Main Wealth Elite Dashboard ──────────────────────────── */
+/* ─── Main BrickWealth Dashboard ──────────────────────────── */
 const Index = () => {
+  const navigate = useNavigate();
   const { isSuperAdmin, user } = useAuth();
   const { filteredTransactions, selectedInvestor, isNewUser } = useInvestor();
   const {
@@ -347,14 +391,13 @@ const Index = () => {
     performanceData,
     monthlyInvestmentMIS,
     sipMonthlyTrend,
-    changeMetrics,
   } = usePortfolioData(filteredTransactions, isNewUser);
 
-  const { totalLiabilities, totalAssets, totalInvestments: advancedInvestments } =
+  const { totalLiabilities, totalAssets, totalInvestments: advancedInvestments, raw: advancedDetails } =
     useAdvancedPortfolio();
 
   const [activeDays, setActiveDays] = useState<number>(3);
-  const [filterQuery, setFilterQuery] = useState<string>("");
+  const [showOperations, setShowOperations] = useState<boolean>(false);
 
   // Consolidated Net Worth / AUM
   const grandCurrentValue = useMemo(
@@ -366,10 +409,66 @@ const Index = () => {
     [grandCurrentValue, totalAssets, totalLiabilities]
   );
 
-  // Fallback defaults to match the snapshot if database is empty
-  const displayAum = netWorth > 0 ? netWorth : 494200000; // 49.42 Cr
-  const displayInvested = totalInvested > 0 ? totalInvested : 101500000; // 10.15 Cr
-  const displaySipBook = 168000; // 1.68 Lakh
+  // Real dynamic figures calculated from investor database records
+  const displayAum = netWorth > 0 ? netWorth : currentValue;
+  const displayInvested = totalInvested;
+
+  // Real dynamic SIP Book and Average SIP calculated from transactions
+  const { displaySipBook, avgSipAmount } = useMemo(() => {
+    const sipTxns = filteredTransactions.filter((t) =>
+      t.transactionType?.toLowerCase().includes("sip")
+    );
+    if (sipTxns.length > 0) {
+      const uniqueMonths = new Set(sipTxns.map((t) => t.investmentDate?.substring(0, 7))).size || 1;
+      const totalSip = sipTxns.reduce((acc, t) => acc + (t.value || 0), 0);
+      return {
+        displaySipBook: Math.round(totalSip / uniqueMonths),
+        avgSipAmount: Math.round(totalSip / sipTxns.length),
+      };
+    }
+    return { displaySipBook: 0, avgSipAmount: 0 };
+  }, [filteredTransactions]);
+
+  // Dynamic Day & MoM metrics calculated from performance data
+  const aumChange = useMemo(() => {
+    if (performanceData.length >= 2) {
+      const cur = performanceData[performanceData.length - 1].value;
+      const prev = performanceData[performanceData.length - 2].value;
+      const diff = cur - prev;
+      const pct = prev > 0 ? (diff / prev) * 100 : 0;
+      return {
+        pct: `${Math.abs(pct).toFixed(2)}%`,
+        isPositive: diff >= 0,
+      };
+    }
+    return { pct: "0.00%", isPositive: true };
+  }, [performanceData]);
+
+  const investmentChange = useMemo(() => {
+    if (totalInvested > 0) {
+      const gain = currentValue - totalInvested;
+      const pct = (gain / totalInvested) * 100;
+      return {
+        pct: `${Math.abs(pct).toFixed(2)}%`,
+        isPositive: gain >= 0,
+      };
+    }
+    return { pct: "0.00%", isPositive: true };
+  }, [currentValue, totalInvested]);
+
+  const sipChange = useMemo(() => {
+    if (sipMonthlyTrend.length >= 2) {
+      const cur = sipMonthlyTrend[sipMonthlyTrend.length - 1];
+      const prev = sipMonthlyTrend[sipMonthlyTrend.length - 2];
+      const diff = cur - prev;
+      const pct = prev > 0 ? (diff / prev) * 100 : 0;
+      return {
+        pct: `${Math.abs(pct).toFixed(2)}%`,
+        isPositive: diff >= 0,
+      };
+    }
+    return { pct: "0.00%", isPositive: true };
+  }, [sipMonthlyTrend]);
 
   // Period-filtered transactions
   const periodFilteredTxns = useMemo(() => {
@@ -379,7 +478,6 @@ const Index = () => {
     const withinDays = filteredTransactions.filter(
       (t) => new Date(t.investmentDate).getTime() >= cutoff
     );
-    // If no recent records found in the cutoff, show all available filtered records
     return withinDays.length > 0 ? withinDays : filteredTransactions;
   }, [filteredTransactions, activeDays]);
 
@@ -419,43 +517,68 @@ const Index = () => {
     };
   }, [periodFilteredTxns]);
 
-  // Sparkline data
+  // Sparkline data dynamically driven by performance history
   const aumSpark = useMemo(() => {
     if (performanceData.length > 1) {
       return performanceData.map((p) => p.value);
     }
-    return [420000000, 440000000, 465000000, 480000000, 494200000];
-  }, [performanceData]);
+    return [displayAum * 0.92, displayAum * 0.95, displayAum * 0.98, displayAum];
+  }, [performanceData, displayAum]);
 
   const investmentSpark = useMemo(() => {
     if (performanceData.length > 1) {
       return performanceData.map((p) => p.invested);
     }
-    return [90000000, 94000000, 97000000, 100000000, 101500000];
-  }, [performanceData]);
+    return [displayInvested * 0.9, displayInvested * 0.95, displayInvested];
+  }, [performanceData, displayInvested]);
 
   const sipSpark = useMemo(() => {
     if (sipMonthlyTrend.length > 0 && sipMonthlyTrend.some((v) => v > 0)) {
       return sipMonthlyTrend;
     }
-    return [120000, 135000, 150000, 160000, 168000];
-  }, [sipMonthlyTrend]);
+    return [displaySipBook * 0.85, displaySipBook * 0.95, displaySipBook];
+  }, [sipMonthlyTrend, displaySipBook]);
 
-  // SIP Business Chart Data (Matching user snapshot: Dec-2025 to May-2026)
+  // SIP Business Chart Data dynamically computed from real database transactions
   const sipBusinessChartData = useMemo(() => {
-    return [
-      { month: "Dec-2025", started: 0, closed: 0, running: 55 },
-      { month: "Jan-2026", started: 4, closed: 4, running: 55 },
-      { month: "Feb-2026", started: 0, closed: 0, running: 55 },
-      { month: "Mar-2026", started: 0, closed: 0, running: 55 },
-      { month: "Apr-2026", started: 0, closed: 0, running: 55 },
-      { month: "May-2026", started: 0, closed: 0, running: 55 },
-    ];
-  }, []);
+    const now = new Date();
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+      const ty = d.getFullYear();
+      const tm = d.getMonth();
+
+      let started = 0;
+      let closed = 0;
+      let running = 0;
+
+      for (const t of filteredTransactions) {
+        if (!t.investmentDate) continue;
+        const td = new Date(t.investmentDate);
+        if (td.getFullYear() === ty && td.getMonth() === tm) {
+          if (t.transactionType?.toLowerCase().includes("sip")) {
+            started++;
+          }
+        }
+        if (t.transactionType?.toLowerCase().includes("sip") && td <= d) {
+          running++;
+        }
+      }
+
+      months.push({
+        month: label,
+        started,
+        closed,
+        running,
+      });
+    }
+    return months;
+  }, [filteredTransactions]);
 
   // Monthly MIS Data (Inflow, Outflow, Netflow)
   const monthlyMisChartData = useMemo(() => {
-    if (monthlyInvestmentMIS.length > 0 && monthlyInvestmentMIS.some((m) => m.purchases > 0)) {
+    if (monthlyInvestmentMIS.length > 0) {
       return monthlyInvestmentMIS.map((m) => ({
         month: m.label,
         inflow: m.purchases,
@@ -463,14 +586,7 @@ const Index = () => {
         netflow: m.net,
       }));
     }
-    return [
-      { month: "Dec", inflow: 1, outflow: 0, netflow: 1 },
-      { month: "Jan", inflow: 1, outflow: 0, netflow: 1 },
-      { month: "Feb", inflow: 1, outflow: 0, netflow: 1 },
-      { month: "Mar", inflow: 1, outflow: 0, netflow: 1 },
-      { month: "Apr", inflow: 1, outflow: 0, netflow: 1 },
-      { month: "May", inflow: 1, outflow: 0, netflow: 1 },
-    ];
+    return [];
   }, [monthlyInvestmentMIS]);
 
   // Feed items for Today's Transactions
@@ -480,7 +596,7 @@ const Index = () => {
         (a, b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime()
       );
       return sorted.slice(0, 10).map((t) => ({
-        investorName: t.investorName || "Investor",
+        investorName: t.investorName || (selectedInvestor !== "all" ? selectedInvestor : "Investor"),
         schemeName: t.schemeName || "Mutual Fund Scheme",
         type: t.transactionType || (isSellTransaction(t) ? "Redemption" : "Purchase"),
         amount: t.value || 0,
@@ -489,172 +605,116 @@ const Index = () => {
         platform: "NSE",
       }));
     }
-    return DEFAULT_TRANSACTIONS;
-  }, [filteredTransactions]);
-
-  const handleRefresh = useCallback(() => {
-    window.location.reload();
-  }, []);
+    return [];
+  }, [filteredTransactions, selectedInvestor]);
 
   return (
     <div className="space-y-4 animate-in">
-      {/* ── Subheader / ASM Info Bar ──────────────────────── */}
-      
-
-      {/* ── Main Two-Column Layout ────────────────────────── */}
+      {/* ── Main Dashboard Two-Column Layout matching target UI reference ── */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-        {/* Left Column: 9 cols (KPIs, Filters, Operational Cards, 2 Charts) */}
+        {/* Left Main Content: 9 cols (KPIs, Overall Portfolio Details, Live News, 2 Charts, Banner) */}
         <div className="xl:col-span-9 space-y-4">
-          {/* Top 3 KPI Cards */}
+          {/* Row 1: Top 3 KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             <KpiCard
               title="Total AUM"
               value={fmt(displayAum)}
-              dayChange="-₹18.94 Lakh (-0.38%)"
-              momChange="-₹18.94 Lakh (-0.38%)"
-              dayPositive={false}
-              momPositive={false}
+              badgeContent="₹"
+              dayChange={aumChange.pct}
+              dayLabel="Today"
+              momChange={aumChange.pct}
+              momLabel="MoM"
+              dayPositive={aumChange.isPositive}
+              momPositive={aumChange.isPositive}
               sparkData={aumSpark}
               sparkColor="#2563eb"
             />
             <KpiCard
               title="Total Investment"
               value={fmt(displayInvested)}
-              dayChange="₹0 (0.00%)"
-              momChange="₹0 (0.00%)"
-              dayPositive={true}
-              momPositive={true}
+              badgeContent={<Wallet className="h-3.5 w-3.5" />}
+              dayChange={investmentChange.pct}
+              dayLabel="Today"
+              momChange={investmentChange.pct}
+              momLabel="MoM"
+              dayPositive={investmentChange.isPositive}
+              momPositive={false}
               sparkData={investmentSpark}
               sparkColor="#10b981"
             />
             <KpiCard
               title="SIP Book"
               value={fmt(displaySipBook)}
-              dayChange="₹3,060"
+              badgeContent={<Receipt className="h-3.5 w-3.5" />}
+              dayChange={avgSipAmount > 0 ? fmt(avgSipAmount) : "₹0"}
               dayLabel="Average SIP"
-              momChange="₹0 (0.00%)"
-              dayPositive={true}
-              momPositive={true}
+              momChange={sipChange.pct}
+              momLabel="MoM"
+              dayPositive={sipChange.isPositive}
+              momPositive={sipChange.isPositive}
               sparkData={sipSpark}
               sparkColor="#f59e0b"
             />
           </div>
 
-          {/* Timeframe Filter Bar & Action Buttons */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="inline-flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/60">
-              {DAY_FILTERS.map((f) => (
-                <button
-                  key={f.days}
-                  onClick={() => setActiveDays(f.days)}
-                  className={cn(
-                    "px-3 py-1 rounded-lg text-xs font-semibold transition-all",
-                    activeDays === f.days
-                      ? "bg-blue-600 text-white shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
+          {/* Row 2: Overall Portfolio Details & Live Market News side-by-side matching screenshot */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            {/* Overall Portfolio Details: 7 cols */}
+            <div className="lg:col-span-7">
+              <OverallPortfolioDetails
+                schemeData={schemeData}
+                totalMfCurrentValue={currentValue}
+                totalMfInvested={totalInvested}
+                advancedDetails={advancedDetails}
+                totalPortfolioValue={displayAum}
+                onViewCategory={(cat) => {
+                  if (cat === "equity") navigate("/stock-reports");
+                  else if (cat === "mutual_fund") navigate("/mutual-funds");
+                  else if (cat === "gold") navigate("/admin/gold");
+                  else if (cat === "real_estate") navigate("/admin/real-estate");
+                  else if (cat === "rent_property") navigate("/admin/rental-properties");
+                  else navigate("/portfolio");
+                }}
+              />
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-lg text-xs font-semibold border-border/70"
-                onClick={() => {
-                  window.location.href = "/transaction-reports";
-                }}
-              >
-                <FileText className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                Quick Report
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-lg text-xs font-semibold border-border/70"
-                onClick={() => {
-                  window.location.href = "/portfolio-analysis";
-                }}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                Shortcuts
-              </Button>
+            {/* Live Market News: 5 cols */}
+            <div className="lg:col-span-5">
+              <LiveMarketNews />
             </div>
           </div>
 
-          {/* Grid of 8 Operational Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <OpCard
-              icon={Wallet}
-              label="Purchase"
-              count={opMetrics.purchasesCount}
-              value={fmt(opMetrics.purchaseSum)}
-            />
-            <OpCard
-              icon={Briefcase}
-              label="Redemptions"
-              count={opMetrics.redemptionsCount}
-              value={fmt(opMetrics.redemptionSum)}
-            />
-            <OpCard
-              icon={Clock}
-              label="SIP Txns"
-              count={opMetrics.sipCount}
-              value={fmt(opMetrics.sipSum)}
-            />
-            <OpCard
-              icon={FilePlus}
-              label="New SIP"
-              count={opMetrics.newSipCount}
-              value={fmt(opMetrics.newSipSum)}
-            />
-            <OpCard
-              icon={PauseCircle}
-              label="Closed SIP"
-              count={0}
-              value="₹0"
-            />
-            <OpCard
-              icon={ArrowDownLeft}
-              label="Transfer In"
-              count={0}
-              value="₹0"
-            />
-            <OpCard
-              icon={ArrowUpRight}
-              label="Transfer Out"
-              count={0}
-              value="₹0"
-            />
-            <OpCard
-              icon={Receipt}
-              label="Rejections"
-              count={0}
-              value="₹0"
-            />
-          </div>
-
-          {/* Two Analytical Charts Side-by-Side */}
+          {/* Row 3: Two Analytical Charts Side-by-Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {/* Chart 1: SIP Business */}
-            <Card className="bg-card border border-border/70 rounded-xl overflow-hidden">
+            <Card className="bg-card border border-border/70 rounded-xl overflow-hidden shadow-xs hover:border-primary/30 transition-all">
               <CardHeader className="p-4 pb-2 border-b border-border/30">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold text-foreground">
-                    SIP Business
-                  </CardTitle>
-                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-foreground cursor-pointer transition-colors" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <BarChart2Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-foreground">
+                      SIP Business
+                    </CardTitle>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10 p-0 px-2 gap-1"
+                    onClick={() => navigate("/portfolio-analysis")}
+                  >
+                    <span>View Details</span>
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 pt-4">
+              <CardContent className="p-3 pt-3">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1 px-1">
                   <span>Started / Closed</span>
                   <span>Running</span>
                 </div>
-                <ResponsiveContainer width="100%" height={230}>
+                <ResponsiveContainer width="100%" height={220}>
                   <ComposedChart
                     data={sipBusinessChartData}
                     margin={{ top: 10, right: 15, left: -20, bottom: 5 }}
@@ -726,7 +786,7 @@ const Index = () => {
                   </ComposedChart>
                 </ResponsiveContainer>
                 {/* Legend */}
-                <div className="flex items-center justify-center gap-6 pt-3 text-[11px] text-muted-foreground border-t border-border/30">
+                <div className="flex items-center justify-center gap-6 pt-2.5 text-[11px] text-muted-foreground border-t border-border/30">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full border-2 border-emerald-500 bg-transparent" />
                     <span>Started</span>
@@ -744,17 +804,30 @@ const Index = () => {
             </Card>
 
             {/* Chart 2: Monthly MIS */}
-            <Card className="bg-card border border-border/70 rounded-xl overflow-hidden">
+            <Card className="bg-card border border-border/70 rounded-xl overflow-hidden shadow-xs hover:border-primary/30 transition-all">
               <CardHeader className="p-4 pb-2 border-b border-border/30">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold text-foreground">
-                    Monthly MIS
-                  </CardTitle>
-                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-foreground cursor-pointer transition-colors" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <BarChart2Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-foreground">
+                      Monthly MIS
+                    </CardTitle>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10 p-0 px-2 gap-1"
+                    onClick={() => navigate("/transaction-reports")}
+                  >
+                    <span>View Details</span>
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 pt-4">
-                <ResponsiveContainer width="100%" height={252}>
+              <CardContent className="p-3 pt-3">
+                <ResponsiveContainer width="100%" height={242}>
                   <LineChart
                     data={monthlyMisChartData}
                     margin={{ top: 10, right: 15, left: -20, bottom: 5 }}
@@ -767,11 +840,12 @@ const Index = () => {
                       tickLine={false}
                     />
                     <YAxis
-                      domain={[0, "auto"]}
+                      domain={[0, 150000]}
+                      ticks={[0, 50000, 100000, 150000]}
                       tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={(v) => `₹${v}`}
+                      tickFormatter={(v) => (v === 0 ? "₹0" : `₹${(v / 100000).toFixed(1)}L`)}
                     />
                     <Tooltip
                       contentStyle={{
@@ -809,7 +883,7 @@ const Index = () => {
                   </LineChart>
                 </ResponsiveContainer>
                 {/* Legend */}
-                <div className="flex items-center justify-center gap-6 pt-3 text-[11px] text-muted-foreground border-t border-border/30">
+                <div className="flex items-center justify-center gap-6 pt-2.5 text-[11px] text-muted-foreground border-t border-border/30">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full border-2 border-emerald-500 bg-transparent" />
                     <span>Inflow</span>
@@ -826,12 +900,27 @@ const Index = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Row 4: Motivational Bottom Banner matching target reference image */}
+          <div className="p-4 rounded-xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 flex items-center gap-3.5 shadow-2xs">
+            <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30">
+              <Lightbulb className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-blue-700 dark:text-blue-400">
+                Invest smart. Grow together.
+              </h4>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                Track your investments, monitor performance and achieve your financial goals with BrickWealth.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: 3 cols (Today's Transactions Feed) + Floating Dock */}
-        <div className="xl:col-span-3 flex gap-2">
+        {/* Right Column: 3 cols (Today's Transactions Feed & Quick Actions) */}
+        <div className="xl:col-span-3 space-y-3">
           {/* Main Feed Card */}
-          <Card className="flex-1 bg-card border border-border/70 rounded-xl overflow-hidden">
+          <Card className="bg-card border border-border/70 rounded-xl overflow-hidden shadow-xs hover:border-primary/30 transition-all">
             <CardHeader className="p-3.5 pb-2.5 border-b border-border/40">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -845,13 +934,10 @@ const Index = () => {
                     variant="outline"
                     size="sm"
                     className="h-6 px-2 text-[10px] font-bold rounded-md border-border/70"
-                    onClick={() => {
-                      const el = document.getElementById("search-txns-input");
-                      el?.focus();
-                    }}
+                    onClick={() => navigate("/transactions")}
                   >
                     <Filter className="h-2.5 w-2.5 mr-1" />
-                    FILTER
+                    Filter
                   </Button>
                   <Badge
                     variant="secondary"
@@ -862,58 +948,98 @@ const Index = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-2.5 space-y-2.5 max-h-[820px] overflow-y-auto">
-              {feedTransactions.map((tx, idx) => (
-                <TxnFeedItem
-                  key={idx}
-                  investorName={tx.investorName}
-                  schemeName={tx.schemeName}
-                  type={tx.type}
-                  amount={tx.amount}
-                  date={tx.date}
-                  source={tx.source}
-                  platform={tx.platform}
-                />
-              ))}
+            <CardContent className="p-2.5 space-y-2 max-h-[560px] overflow-y-auto scrollbar-thin">
+              {feedTransactions.length > 0 ? (
+                feedTransactions.map((tx, idx) => (
+                  <TxnFeedItem
+                    key={idx}
+                    investorName={tx.investorName}
+                    schemeName={tx.schemeName}
+                    type={tx.type}
+                    amount={tx.amount}
+                    date={tx.date}
+                    source={tx.source}
+                    platform={tx.platform}
+                  />
+                ))
+              ) : (
+                <div className="py-8 px-3 text-center text-xs text-muted-foreground space-y-1.5">
+                  <p className="font-semibold text-foreground/80">No Recent Transactions</p>
+                  <p className="text-[11px] text-muted-foreground/70">
+                    Transactions recorded for this investor will show up here in real time.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Quick Floating Action Dock on Far Right */}
-          <div className="hidden sm:flex flex-col gap-2 pt-2">
-            <div className="p-1 rounded-xl bg-card border border-border/70 shadow-xs flex flex-col gap-1.5">
-              <button
-                onClick={() => {
-                  window.location.href = "/portfolio";
-                }}
-                className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center hover:bg-blue-500/20 transition-colors"
-                title="Portfolio"
-              >
-                <Briefcase className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => {
-                  window.location.href = "/mutual-funds";
-                }}
-                className="h-8 w-8 rounded-lg text-amber-500 hover:bg-amber-500/10 flex items-center justify-center transition-colors"
-                title="Watchlist"
-              >
-                <Star className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => {
-                  window.location.href = "/portfolio-analysis";
-                }}
-                className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted flex items-center justify-center transition-colors"
-                title="All Tools"
-              >
-                <Grid className="h-4 w-4" />
-              </button>
+          {/* Quick Actions Panel matching target screenshot */}
+          <Card className="bg-card border border-border/70 rounded-xl overflow-hidden shadow-xs p-3 space-y-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+              <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+              <span>Quick Actions</span>
             </div>
-          </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-[11px] font-semibold justify-start px-2 gap-1.5 border-border/60 hover:bg-muted"
+                onClick={() => navigate("/online-transactions")}
+              >
+                <PlusCircle className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                <span className="truncate">Add Investment</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-[11px] font-semibold justify-start px-2 gap-1.5 border-border/60 hover:bg-muted"
+                onClick={() => navigate("/transaction-reports")}
+              >
+                <FileText className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                <span className="truncate">View Report</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-[11px] font-semibold justify-start px-2 gap-1.5 border-border/60 hover:bg-muted"
+                onClick={() => navigate("/transactions")}
+              >
+                <Download className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                <span className="truncate">Download Statement</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-[11px] font-semibold justify-start px-2 gap-1.5 border-border/60 hover:bg-muted"
+                onClick={() => navigate("/portfolio-analysis")}
+              >
+                <Target className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span className="truncate">Set Goal</span>
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
     </div>
   );
 };
+
+// Helper icon component
+const BarChart2Icon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </svg>
+);
 
 export default Index;

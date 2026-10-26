@@ -1,6 +1,21 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { handleMarketApi } from "./src/server/marketServerMiddleware";
+
+function marketApiPlugin(): Plugin {
+  return {
+    name: "market-api-middleware",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url && req.url.startsWith("/api/market/")) {
+          return handleMarketApi(req, res, next);
+        }
+        next();
+      });
+    },
+  };
+}
 
 export default defineConfig({
   server: {
@@ -14,7 +29,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react()],
+  plugins: [react(), marketApiPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -25,3 +40,4 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
   },
 });
+
