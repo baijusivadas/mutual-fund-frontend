@@ -55,6 +55,7 @@ import {
 import { isSellTransaction, TransactionData } from "@/utils/parseTransactions";
 import { OverallPortfolioDetails } from "@/components/dashboard/OverallPortfolioDetails";
 import { LiveMarketNews } from "@/components/dashboard/LiveMarketNews";
+import { ChartInsight } from "@/components/charts/ChartInsight";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const fmt = (v: number) => {
@@ -539,42 +540,46 @@ const Index = () => {
     return [displaySipBook * 0.85, displaySipBook * 0.95, displaySipBook];
   }, [sipMonthlyTrend, displaySipBook]);
 
-  // SIP Business Chart Data dynamically computed from real database transactions
+  // SIP contribution activity is based on purchase transactions marked as SIP.
   const sipBusinessChartData = useMemo(() => {
     const now = new Date();
-    const months = [];
+    const months: { month: string; contributions: number; transactions: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const label = d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
-      const ty = d.getFullYear();
-      const tm = d.getMonth();
-
-      let started = 0;
-      let closed = 0;
-      let running = 0;
+      let contributions = 0;
+      let transactions = 0;
 
       for (const t of filteredTransactions) {
-        if (!t.investmentDate) continue;
+        if (!t.investmentDate || isSellTransaction(t)) continue;
         const td = new Date(t.investmentDate);
-        if (td.getFullYear() === ty && td.getMonth() === tm) {
-          if (t.transactionType?.toLowerCase().includes("sip")) {
-            started++;
-          }
-        }
-        if (t.transactionType?.toLowerCase().includes("sip") && td <= d) {
-          running++;
+        if (
+          td.getFullYear() === d.getFullYear() &&
+          td.getMonth() === d.getMonth() &&
+          t.transactionType?.toLowerCase().includes("sip")
+        ) {
+          contributions += t.value || 0;
+          transactions++;
         }
       }
 
       months.push({
         month: label,
-        started,
-        closed,
-        running,
+        contributions: Math.round(contributions),
+        transactions,
       });
     }
     return months;
   }, [filteredTransactions]);
+
+  const sipInsight = useMemo(() => {
+    const strongestMonth = [...sipBusinessChartData].sort(
+      (a, b) => b.contributions - a.contributions
+    )[0];
+    return strongestMonth && strongestMonth.contributions > 0
+      ? `${fmt(strongestMonth.contributions)} was invested through ${strongestMonth.transactions} SIP transaction(s) in ${strongestMonth.month}, the highest monthly contribution in this six-month view.`
+      : "No SIP purchase transactions were recorded in the last six months.";
+  }, [sipBusinessChartData]);
 
   // Monthly MIS Data (Inflow, Outflow, Netflow)
   const monthlyMisChartData = useMemo(() => {
@@ -588,6 +593,14 @@ const Index = () => {
     }
     return [];
   }, [monthlyInvestmentMIS]);
+
+  const monthlyMisInsight = useMemo(() => {
+    if (monthlyMisChartData.length === 0) return "";
+    const totalNetflow = monthlyMisChartData.reduce((sum, month) => sum + month.netflow, 0);
+    const strongestMonth = [...monthlyMisChartData].sort((a, b) => b.netflow - a.netflow)[0];
+    const flowLabel = totalNetflow >= 0 ? "net invested" : "net redeemed";
+    return `${fmt(Math.abs(totalNetflow))} ${flowLabel} over the six-month view. The strongest net-flow month was ${strongestMonth.month} (${fmt(strongestMonth.netflow)}).`;
+  }, [monthlyMisChartData]);
 
   // Feed items for Today's Transactions
   const feedTransactions = useMemo(() => {
@@ -695,7 +708,7 @@ const Index = () => {
                       <BarChart2Icon className="h-3.5 w-3.5" />
                     </div>
                     <CardTitle className="text-sm font-bold text-foreground">
-                      SIP Business
+                      Monthly SIP Activity
                     </CardTitle>
                   </div>
                   <Button
@@ -711,8 +724,8 @@ const Index = () => {
               </CardHeader>
               <CardContent className="p-3 pt-3">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1 px-1">
-                  <span>Started / Closed</span>
-                  <span>Running</span>
+                  <span>Monthly contribution</span>
+                  <span>SIP purchases</span>
                 </div>
                 <ResponsiveContainer width="100%" height={220}>
                   <ComposedChart
@@ -728,17 +741,14 @@ const Index = () => {
                     />
                     <YAxis
                       yAxisId="left"
-                      domain={[0, 4]}
-                      ticks={[0, 1, 2, 3, 4]}
                       tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                       axisLine={false}
                       tickLine={false}
+                      tickFormatter={(value) => fmt(value)}
                     />
                     <YAxis
                       yAxisId="right"
                       orientation="right"
-                      domain={[0, 60]}
-                      ticks={[0, 10, 20, 30, 40, 50, 60]}
                       tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                       axisLine={false}
                       tickLine={false}
@@ -751,54 +761,37 @@ const Index = () => {
                         fontSize: "11px",
                       }}
                     />
-                    {/* Blue Bars for Running */}
                     <Bar
-                      yAxisId="right"
-                      dataKey="running"
-                      name="Running"
+                      yAxisId="left"
+                      dataKey="contributions"
+                      name="Contribution"
                       fill="#2563eb"
-                      barSize={18}
+                      barSize={20}
                       radius={[3, 3, 0, 0]}
                     />
-                    {/* Red Area/Line for Closed */}
-                    <Area
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="closed"
-                      name="Closed"
-                      stroke="#ef4444"
-                      strokeDasharray="4 4"
-                      strokeWidth={2}
-                      fill="#ef4444"
-                      fillOpacity={0.2}
-                      dot={false}
-                    />
-                    {/* Green Line for Started */}
                     <Line
-                      yAxisId="left"
+                      yAxisId="right"
                       type="monotone"
-                      dataKey="started"
-                      name="Started"
+                      dataKey="transactions"
+                      name="SIP purchases"
                       stroke="#10b981"
                       strokeWidth={2}
                       dot={{ r: 3, fill: "#10b981" }}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
-                {/* Legend */}
                 <div className="flex items-center justify-center gap-6 pt-2.5 text-[11px] text-muted-foreground border-t border-border/30">
                   <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full border-2 border-emerald-500 bg-transparent" />
-                    <span>Started</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full border-2 border-rose-500 bg-transparent" />
-                    <span>Closed</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-xs bg-blue-600" />
-                    <span>Running</span>
+                    <span>Contribution (₹)</span>
                   </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full border-2 border-emerald-500 bg-transparent" />
+                    <span>SIP purchases</span>
+                  </div>
+                </div>
+                <div className="pt-3">
+                  <ChartInsight>{sipInsight}</ChartInsight>
                 </div>
               </CardContent>
             </Card>
@@ -840,12 +833,10 @@ const Index = () => {
                       tickLine={false}
                     />
                     <YAxis
-                      domain={[0, 150000]}
-                      ticks={[0, 50000, 100000, 150000]}
                       tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={(v) => (v === 0 ? "₹0" : `₹${(v / 100000).toFixed(1)}L`)}
+                      tickFormatter={(v) => fmt(v)}
                     />
                     <Tooltip
                       contentStyle={{
@@ -897,6 +888,11 @@ const Index = () => {
                     <span>Netflow</span>
                   </div>
                 </div>
+                {monthlyMisChartData.length > 0 && (
+                  <div className="pt-3">
+                    <ChartInsight>{monthlyMisInsight}</ChartInsight>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

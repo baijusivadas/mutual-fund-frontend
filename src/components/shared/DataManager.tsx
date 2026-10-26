@@ -44,6 +44,7 @@ interface DataManagerProps<T, TForm extends Record<string, unknown>> {
   statusFilters?: { label: string; value: string }[];
   transformPayload?: (data: TForm) => unknown;
   hideHeader?: boolean;
+  dashboardStyle?: boolean;
 }
 
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -67,6 +68,7 @@ export function DataManager<
   statusFilters,
   transformPayload,
   hideHeader = false,
+  dashboardStyle = false,
 }: DataManagerProps<T, TForm>) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<T | null>(null);
@@ -288,12 +290,12 @@ export function DataManager<
       )}
 
       {hideHeader && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+        <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 ${dashboardStyle ? "border-b border-border/40 pb-4" : ""}`}>
           <div>
-            <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <h2 className={dashboardStyle ? "text-base font-heading font-bold tracking-tight text-foreground" : "text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent"}>
               {title}
             </h2>
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleExport} disabled={!items.length}>
@@ -317,7 +319,7 @@ export function DataManager<
         </div>
       )}
 
-      <Card className="glass-card border-none shadow-lg">
+      <Card className={dashboardStyle ? "bg-card border border-border/70 rounded-xl shadow-xs" : "glass-card border-none shadow-lg"}>
         <CardContent className="pt-6">
           <CommonTable<T>
             data={items}

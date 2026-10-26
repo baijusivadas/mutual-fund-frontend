@@ -2,11 +2,20 @@ import { memo, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useInvestor } from "@/contexts/InvestorContext";
-import { TransactionData } from "@/utils/parseTransactions";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { CommonCard } from "@/components/shared/CommonCard";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { MetricCard } from "@/components/shared/MetricCard";
-import { Wallet, TrendingUp, PieChart, Layers, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
+import { ChartInsight } from "@/components/charts/ChartInsight";
+import {
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  PieChart,
+  Layers,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FundItem {
@@ -17,7 +26,19 @@ interface FundItem {
   invested: number;
   returns: number;
   returnPercent: number;
+  portfolioShare: number;
 }
+
+const formatCurrency = (value: number) => {
+  const absoluteValue = Math.abs(value);
+  const formatted =
+    absoluteValue >= 10000000
+      ? `₹${(absoluteValue / 10000000).toFixed(2)} Cr`
+      : absoluteValue >= 100000
+        ? `₹${(absoluteValue / 100000).toFixed(2)} L`
+        : `₹${absoluteValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  return value < 0 ? `-${formatted}` : formatted;
+};
 
 const PortfolioFundCard = memo(({ fund }: { fund: FundItem }) => {
   const isPositive = fund.returns >= 0;
@@ -25,7 +46,7 @@ const PortfolioFundCard = memo(({ fund }: { fund: FundItem }) => {
   return (
     <CommonCard
       noHeader
-      className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl hover:border-primary/40 transition-all duration-300 hover:shadow-lg group"
+      className="rounded-xl border border-border/70 bg-card transition-all duration-200 hover:border-primary/40 hover:shadow-sm group"
       contentClassName="p-5"
     >
       <div className="space-y-4">
@@ -59,13 +80,13 @@ const PortfolioFundCard = memo(({ fund }: { fund: FundItem }) => {
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Invested</p>
             <p className="text-base font-heading font-extrabold text-foreground mt-0.5">
-              ₹{(fund.invested / 1000).toFixed(1)}K
+              {formatCurrency(fund.invested)}
             </p>
           </div>
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Current Value</p>
             <p className="text-base font-heading font-extrabold text-primary mt-0.5">
-              ₹{(fund.value / 1000).toFixed(1)}K
+              {formatCurrency(fund.value)}
             </p>
           </div>
         </div>
@@ -73,25 +94,27 @@ const PortfolioFundCard = memo(({ fund }: { fund: FundItem }) => {
         {/* Returns & Progress Bar */}
         <div className="space-y-2 border-t border-border/40 pt-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground font-medium">Total Gain / Loss</span>
+            <span className="text-muted-foreground font-medium">Value vs. Net Invested</span>
             <span
               className={cn(
                 "font-bold",
                 isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
               )}
             >
-              {isPositive ? "+" : ""}₹{(fund.returns / 1000).toFixed(1)}K
+              {formatCurrency(fund.returns)}
             </span>
           </div>
           <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
             <div
               className={cn(
-                "h-full rounded-full transition-all duration-500",
-                isPositive ? "bg-emerald-500" : "bg-rose-500"
+                "h-full rounded-full bg-primary transition-all duration-500"
               )}
-              style={{ width: `${Math.min(Math.abs(fund.returnPercent), 100)}%` }}
+              style={{ width: `${Math.min(fund.portfolioShare, 100)}%` }}
             />
           </div>
+          <p className="text-[10px] text-right text-muted-foreground">
+            {fund.portfolioShare.toFixed(1)}% of portfolio
+          </p>
         </div>
       </div>
     </CommonCard>
@@ -100,84 +123,28 @@ const PortfolioFundCard = memo(({ fund }: { fund: FundItem }) => {
 PortfolioFundCard.displayName = "PortfolioFundCard";
 
 const Portfolio = () => {
-  const { filteredTransactions, selectedInvestor } = useInvestor();
-
-  // Group by scheme and calculate totals using useMemo
-  const { mutualFunds, totalInvested, totalValue, totalReturns, overallReturnPercent } = useMemo(() => {
-    const schemes = new Map<
-      string,
-      {
-        name: string;
-        units: number;
-        invested: number;
-        nav: number;
-        transactions: TransactionData[];
-      }
-    >();
-
-    // Sort transactions oldest to newest so the last iterated is the latest NAV
-    const sortedTx = [...filteredTransactions].sort(
-      (a, b) => new Date(a.investmentDate).getTime() - new Date(b.investmentDate).getTime()
-    );
-
-    sortedTx.forEach((t) => {
-      const existing = schemes.get(t.schemeName);
-      const invested = t.isSell ? -t.value : t.value;
-      const units = t.isSell ? -t.units : t.units;
-
-      if (existing) {
-        existing.units += units;
-        existing.invested += invested;
-        existing.nav = t.nav;
-        existing.transactions.push(t);
-      } else {
-        schemes.set(t.schemeName, {
-          name: t.schemeName,
-          units: units,
-          invested: invested,
-          nav: t.nav,
-          transactions: [t],
-        });
-      }
-    });
-
-    const funds = Array.from(schemes.values())
-      .filter((s) => s.units > 0.01) // Filter out negligible units
-      .map((s) => {
-        const val = s.units * s.nav;
-        const rets = val - s.invested;
-        const retPct = s.invested > 0 ? (rets / s.invested) * 100 : 0;
-
-        return {
-          name: s.name,
-          units: s.units,
-          nav: s.nav,
-          value: val,
-          invested: s.invested,
-          returns: rets,
-          returnPercent: retPct,
-        };
-      })
-      .sort((a, b) => b.value - a.value);
-
-    let totInv = 0;
-    let totVal = 0;
-    for (const f of funds) {
-      totInv += f.invested;
-      totVal += f.value;
-    }
-    const totRet = totVal - totInv;
-    const overallPct = totInv > 0 ? (totRet / totInv) * 100 : 0;
-
-    return {
-      mutualFunds: funds,
-      totalInvested: totInv,
-      totalValue: totVal,
-      totalReturns: totRet,
-      overallReturnPercent: overallPct,
-    };
-  }, [filteredTransactions]);
-
+  const { filteredTransactions, selectedInvestor, isNewUser } = useInvestor();
+  const { schemeData, totalInvested, currentValue, totalReturns, roi } =
+    usePortfolioData(filteredTransactions, isNewUser);
+  const mutualFunds = useMemo(
+    () =>
+      schemeData.map((scheme) => ({
+        name: scheme.schemeName,
+        units: scheme.totalUnits,
+        nav: scheme.latestNav,
+        value: scheme.currentValue,
+        invested: scheme.totalInvested,
+        returns: scheme.returns,
+        returnPercent: scheme.returnPercent,
+        portfolioShare: currentValue > 0 ? (scheme.currentValue / currentValue) * 100 : 0,
+      })),
+    [schemeData, currentValue]
+  );
+  const positiveHoldings = mutualFunds.filter((fund) => fund.returns > 0).length;
+  const topHolding = mutualFunds[0];
+  const portfolioInsight = topHolding
+    ? `${topHolding.name} is your largest holding at ${topHolding.portfolioShare.toFixed(1)}% of mutual fund value. ${positiveHoldings} of ${mutualFunds.length} holdings are above net invested amount.`
+    : "No active mutual fund holdings are available for this investor.";
   const isPositiveReturns = totalReturns >= 0;
 
   return (
@@ -189,35 +156,37 @@ const Portfolio = () => {
 
       {/* Summary Metric Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
+        <DashboardMetricCard
           title="Total Portfolio Value"
-          value={`₹${(totalValue / 100000).toFixed(2)} Lakh`}
+          value={formatCurrency(currentValue)}
           change={`${mutualFunds.length} Active Schemes`}
           changeType="neutral"
           icon={Wallet}
         />
-        <MetricCard
+        <DashboardMetricCard
           title="Total Invested"
-          value={`₹${(totalInvested / 100000).toFixed(2)} Lakh`}
+          value={formatCurrency(totalInvested)}
           change="Net Capital Deployed"
           changeType="neutral"
           icon={Layers}
         />
-        <MetricCard
-          title="Total Returns"
-          value={`₹${Math.abs(totalReturns / 1000).toFixed(1)}K`}
-          change={`${isPositiveReturns ? "+" : ""}${overallReturnPercent.toFixed(2)}% ROI`}
+        <DashboardMetricCard
+          title="Value vs. Net Invested"
+          value={formatCurrency(totalReturns)}
+          change={`${isPositiveReturns ? "+" : ""}${Number(roi).toFixed(2)}% vs. net invested`}
           changeType={isPositiveReturns ? "positive" : "negative"}
-          icon={TrendingUp}
+          icon={isPositiveReturns ? TrendingUp : TrendingDown}
         />
-        <MetricCard
+        <DashboardMetricCard
           title="Active Holdings"
-          value={mutualFunds.length.toString()}
-          change="Diversified Assets"
+          value={mutualFunds.length}
+          change={`${positiveHoldings} above net invested`}
           changeType="neutral"
           icon={PieChart}
         />
       </div>
+
+      <ChartInsight>{portfolioInsight}</ChartInsight>
 
       <div className="space-y-6">
         <Tabs defaultValue="mutualfunds" className="w-full">

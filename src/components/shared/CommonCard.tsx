@@ -10,6 +10,7 @@ interface CommonCardProps {
   headerAction?: ReactNode;
   className?: string;
   headerClassName?: string;
+  titleClassName?: string;
   contentClassName?: string;
   noHeader?: boolean;
 }
@@ -22,6 +23,7 @@ export const CommonCard = ({
   headerAction,
   className,
   headerClassName,
+  titleClassName,
   contentClassName,
   noHeader = false,
 }: CommonCardProps) => {
@@ -33,7 +35,7 @@ export const CommonCard = ({
         >
           <div className="space-y-1">
             {title && (
-              <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <CardTitle className={cn("text-xl font-bold flex items-center gap-2", titleClassName)}>
                 {Icon && <Icon className="h-5 w-5 text-primary" />}
                 {title}
               </CardTitle>

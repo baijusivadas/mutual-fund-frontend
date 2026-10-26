@@ -140,6 +140,7 @@ const BankAccountManager = memo(() => {
       emptyMessage="No bank accounts found."
       defaultFormData={BANK_DEFAULT_FORM}
       hideHeader={true}
+      dashboardStyle
       renderForm={renderForm}
     />
   );
@@ -239,6 +240,7 @@ const ProvidentFundManager = memo(() => {
       emptyMessage="No provident funds found."
       defaultFormData={PF_DEFAULT_FORM}
       hideHeader={true}
+      dashboardStyle
       renderForm={renderForm}
     />
   );
@@ -385,6 +387,7 @@ const CustomAssetManager = memo(() => {
         emptyMessage="No custom assets found."
         defaultFormData={CUSTOM_DEFAULT_FORM}
         hideHeader={true}
+        dashboardStyle
         renderForm={renderForm}
       />
     </div>

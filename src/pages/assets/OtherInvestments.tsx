@@ -111,6 +111,7 @@ const CryptoManager = memo(() => {
       emptyMessage="No crypto investments found."
       defaultFormData={CRYPTO_DEFAULT_FORM}
       hideHeader={true}
+      dashboardStyle
       renderForm={renderForm}
     />
   );
@@ -238,6 +239,7 @@ const BondManager = memo(() => {
       emptyMessage="No bonds found."
       defaultFormData={BOND_DEFAULT_FORM}
       hideHeader={true}
+      dashboardStyle
       renderForm={renderForm}
     />
   );
@@ -335,6 +337,7 @@ const EtfManager = memo(() => {
       emptyMessage="No ETFs found."
       defaultFormData={ETF_DEFAULT_FORM}
       hideHeader={true}
+      dashboardStyle
       renderForm={renderForm}
     />
   );
@@ -404,6 +407,7 @@ const NpsManager = memo(() => {
       emptyMessage="No NPS accounts found."
       defaultFormData={NPS_DEFAULT_FORM}
       hideHeader={true}
+      dashboardStyle
       renderForm={renderForm}
     />
   );

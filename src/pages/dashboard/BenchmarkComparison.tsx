@@ -1,25 +1,24 @@
 import { memo, useMemo, useState } from "react";
 import { useInvestor } from "@/contexts/InvestorContext";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { calculateXIRR } from "@/lib/xirr";
+import { isSellTransaction } from "@/utils/parseTransactions";
+import { ChartInsight } from "@/components/charts/ChartInsight";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  TrendingUp,
-  TrendingDown,
-  Search,
-  ArrowUpRight,
   ArrowDownRight,
   BarChart3,
   Target,
-  CheckCircle2,
-  XCircle,
   MinusCircle,
   Info,
   Download,
   RefreshCcw,
   Filter,
+  ArrowUpRight,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -35,12 +34,12 @@ import {
 } from "recharts";
 
 /* ─── helpers ─────────────────────────────────────────────── */
-const fmt = (v: number) => {
-  if (!v || isNaN(v)) return "N/A";
+const fmt = (v: number | null) => {
+  if (v === null || v === undefined || !Number.isFinite(v)) return "N/A";
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 };
 
-type PerfStatus = "outperforming" | "in-line" | "underperforming";
+type PerfStatus = "outperforming" | "in-line" | "underperforming" | "unavailable";
 
 const getStatus = (fundXirr: number, benchmarkXirr: number): PerfStatus => {
   const diff = fundXirr - benchmarkXirr;
@@ -73,6 +72,12 @@ const STATUS_CONFIG: Record<PerfStatus, {
     bg: "bg-rose-500/10 border-rose-500/30",
     icon: ArrowDownRight,
   },
+  "unavailable": {
+    label: "Unavailable",
+    color: "text-muted-foreground",
+    bg: "bg-muted/60 border-border/60",
+    icon: MinusCircle,
+  },
 };
 
 /* ─── Mock Benchmark Data (real would come from AMC/API) ─── */
@@ -102,7 +107,7 @@ function getBenchmarkForScheme(schemeName: string): { name: string; xirr: number
 interface FundCompareCardProps {
   rank: number;
   schemeName: string;
-  fundXirr: number;
+  fundXirr: number | null;
   benchmark: { name: string; xirr: number };
   invested: number;
   currentValue: number;
@@ -113,7 +118,7 @@ const FundCompareCard = memo(
   ({ rank, schemeName, fundXirr, benchmark, invested, currentValue, status }: FundCompareCardProps) => {
     const cfg = STATUS_CONFIG[status];
     const StatusIcon = cfg.icon;
-    const diff = fundXirr - benchmark.xirr;
+    const diff = fundXirr !== null ? fundXirr - benchmark.xirr : null;
     const returnPct = invested > 0 ? ((currentValue - invested) / invested) * 100 : 0;
 
     return (
@@ -134,7 +139,7 @@ const FundCompareCard = memo(
 
         {/* Fund XIRR */}
         <div className="text-center min-w-[80px]">
-          <p className={cn("text-sm font-extrabold", fundXirr >= benchmark.xirr ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+          <p className={cn("text-sm font-extrabold", fundXirr === null ? "text-muted-foreground" : fundXirr >= benchmark.xirr ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
             {fmt(fundXirr)}
           </p>
           <p className="text-[10px] text-muted-foreground">Fund XIRR</p>
@@ -148,8 +153,8 @@ const FundCompareCard = memo(
 
         {/* Alpha */}
         <div className="text-center min-w-[70px]">
-          <p className={cn("text-sm font-extrabold", diff >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-            {diff >= 0 ? "+" : ""}{diff.toFixed(2)}%
+          <p className={cn("text-sm font-extrabold", diff === null ? "text-muted-foreground" : diff >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+            {diff === null ? "N/A" : `${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`}
           </p>
           <p className="text-[10px] text-muted-foreground">Alpha</p>
         </div>
@@ -191,8 +196,17 @@ const BenchmarkComparison = () => {
   const fundList = useMemo(() => {
     return schemeData.map((scheme, idx) => {
       const benchmark = getBenchmarkForScheme(scheme.schemeName);
-      const fundXirr = scheme.returnPercent; // approximation using returnPercent
-      const status = getStatus(fundXirr, benchmark.xirr);
+      const cashFlows = scheme.transactions
+        .filter((transaction) => transaction.investmentDate)
+        .map((transaction) => ({
+          date: new Date(transaction.investmentDate),
+          amount: isSellTransaction(transaction) ? transaction.value : -transaction.value,
+        }));
+      if (scheme.currentValue > 0) {
+        cashFlows.push({ date: new Date(), amount: scheme.currentValue });
+      }
+      const fundXirr = calculateXIRR(cashFlows);
+      const status = fundXirr === null ? "unavailable" : getStatus(fundXirr, benchmark.xirr);
       return {
         rank: idx + 1,
         schemeName: scheme.schemeName,
@@ -210,7 +224,8 @@ const BenchmarkComparison = () => {
     const out = fundList.filter((f) => f.status === "outperforming").length;
     const inl = fundList.filter((f) => f.status === "in-line").length;
     const under = fundList.filter((f) => f.status === "underperforming").length;
-    return { outperforming: out, inLine: inl, underperforming: under };
+    const unavailable = fundList.filter((f) => f.status === "unavailable").length;
+    return { outperforming: out, inLine: inl, underperforming: under, unavailable };
   }, [fundList]);
 
   // Filtered list
@@ -229,7 +244,10 @@ const BenchmarkComparison = () => {
   // Bar chart data (top 8 funds by alpha)
   const chartData = useMemo(() => {
     return [...fundList]
-      .sort((a, b) => (b.fundXirr - b.benchmark.xirr) - (a.fundXirr - a.benchmark.xirr))
+      .filter((fund): fund is typeof fund & { fundXirr: number } => fund.fundXirr !== null)
+      .sort((a, b) => {
+        return (b.fundXirr - b.benchmark.xirr) - (a.fundXirr - a.benchmark.xirr);
+      })
       .slice(0, 8)
       .map((f) => ({
         name: f.schemeName.length > 20 ? f.schemeName.substring(0, 20) + "…" : f.schemeName,
@@ -240,6 +258,7 @@ const BenchmarkComparison = () => {
   }, [fundList]);
 
   const hasData = fundList.length > 0;
+  const strongestAlpha = chartData[0];
 
   return (
     <div className="space-y-6 animate-in">
@@ -267,7 +286,7 @@ const BenchmarkComparison = () => {
       </div>
 
       {/* 3 Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           {
             key: "outperforming" as const,
@@ -295,6 +314,15 @@ const BenchmarkComparison = () => {
             color: "text-rose-600 dark:text-rose-400",
             bg: "bg-rose-500/10 border-rose-500/30",
             desc: "Below benchmark performance",
+          },
+          {
+            key: "unavailable" as const,
+            label: "Unavailable",
+            count: summary.unavailable,
+            icon: MinusCircle,
+            color: "text-muted-foreground",
+            bg: "bg-muted/60 border-border/60",
+            desc: "Insufficient cash-flow data for XIRR",
           },
         ].map((item) => {
           const Icon = item.icon;
@@ -363,6 +391,14 @@ const BenchmarkComparison = () => {
                 <Bar dataKey="Benchmark" name="Benchmark" fill="#10b981" radius={[4, 4, 0, 0]} barSize={18} />
               </BarChart>
             </ResponsiveContainer>
+            {strongestAlpha && (
+              <ChartInsight>
+                {strongestAlpha.Alpha >= 0
+                  ? `${strongestAlpha.name} leads its benchmark by ${fmt(strongestAlpha.Alpha)} percentage points.`
+                  : `${strongestAlpha.name} has the smallest benchmark gap at ${fmt(strongestAlpha.Alpha)} percentage points.`}{" "}
+                {summary.outperforming} of {fundList.length} fund(s) are outperforming their benchmark.
+              </ChartInsight>
+            )}
           </CardContent>
         </Card>
       )}

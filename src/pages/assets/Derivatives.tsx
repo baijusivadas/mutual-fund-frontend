@@ -1,6 +1,7 @@
 import { memo, useMemo, useCallback } from "react";
-import { MetricCard } from "@/components/shared/MetricCard";
-import { TrendingUp, TrendingDown, Activity, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
+import { TrendingUp, TrendingDown, Activity, AlertCircle, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +18,18 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ColumnConfig } from "@/components/shared/CommonTable";
 import api from "@/services/api";
+import { ChartInsight } from "@/components/charts/ChartInsight";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  ReferenceLine,
+} from "recharts";
 
 interface DerivativePosition {
   id: string;
@@ -56,6 +69,9 @@ const calculatePnL = (pos: DerivativePosition) => {
 const calculateValue = (pos: DerivativePosition) => {
   return pos.ltp * pos.qty * pos.lot_size;
 };
+
+const formatCurrency = (value: number) =>
+  `${value < 0 ? "-" : ""}₹${Math.abs(value).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 const transformPayload = (data: typeof DEFAULT_FORM_DATA) => ({
   ...data,
@@ -144,20 +160,28 @@ const Derivatives = () => {
     totalOptionsPnL,
     totalPremiumPaid,
     totalPositionValue,
+    totalPnL,
+    winningPositions,
+    positionChartData,
   } = useMemo(() => {
     let fPnL = 0;
     let fMargin = 0;
     let oPnL = 0;
     let oPremium = 0;
     let posVal = 0;
+    let netPnL = 0;
+    let winners = 0;
 
     for (const pos of positions) {
       posVal += calculateValue(pos);
+      const positionPnL = calculatePnL(pos);
+      netPnL += positionPnL;
+      if (positionPnL > 0) winners++;
       if (pos.derivative_type === "futures") {
-        fPnL += calculatePnL(pos);
+        fPnL += positionPnL;
         fMargin += pos.margin_used || 0;
       } else {
-        oPnL += calculatePnL(pos);
+        oPnL += positionPnL;
         oPremium += pos.premium_paid || 0;
       }
     }
@@ -168,8 +192,21 @@ const Derivatives = () => {
       totalOptionsPnL: oPnL,
       totalPremiumPaid: oPremium,
       totalPositionValue: posVal,
+      totalPnL: netPnL,
+      winningPositions: winners,
+      positionChartData: [...positions]
+        .sort((a, b) => calculatePnL(b) - calculatePnL(a))
+        .slice(0, 8)
+        .map((position) => ({
+          contract:
+            position.contract_name.length > 18
+              ? `${position.contract_name.slice(0, 18)}…`
+              : position.contract_name,
+          pnl: calculatePnL(position),
+        })),
     };
   }, [positions]);
+  const bestPosition = positionChartData[0];
 
   const renderForm = useCallback(
     (
@@ -305,16 +342,16 @@ const Derivatives = () => {
       />
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
+        <DashboardMetricCard
           title="Total Position Value"
           value={isLoading ? "..." : `₹${(totalPositionValue / 100000).toFixed(2)}L`}
           change="Combined F&O Notional"
           changeType="neutral"
           icon={Activity}
         />
-        <MetricCard
+        <DashboardMetricCard
           title="Futures P&L"
-          value={isLoading ? "..." : `₹${totalFuturesPnL.toLocaleString("en-IN")}`}
+          value={isLoading ? "..." : formatCurrency(totalFuturesPnL)}
           change={
             totalFuturesMargin > 0
               ? `${((totalFuturesPnL / totalFuturesMargin) * 100).toFixed(2)}% Return`
@@ -323,14 +360,14 @@ const Derivatives = () => {
           changeType={totalFuturesPnL >= 0 ? "positive" : "negative"}
           icon={totalFuturesPnL >= 0 ? TrendingUp : TrendingDown}
         />
-        <MetricCard
+        <DashboardMetricCard
           title="Options P&L"
-          value={isLoading ? "..." : `₹${totalOptionsPnL.toLocaleString("en-IN")}`}
+          value={isLoading ? "..." : formatCurrency(totalOptionsPnL)}
           change={`Premium: ₹${totalPremiumPaid.toLocaleString("en-IN")}`}
           changeType={totalOptionsPnL >= 0 ? "positive" : "negative"}
           icon={totalOptionsPnL >= 0 ? TrendingUp : TrendingDown}
         />
-        <MetricCard
+        <DashboardMetricCard
           title="Total Margin Used"
           value={isLoading ? "..." : `₹${(totalFuturesMargin / 100000).toFixed(2)}L`}
           change="Futures Margin"
@@ -339,12 +376,83 @@ const Derivatives = () => {
         />
       </div>
 
+      <Card className="bg-card border border-border/70 rounded-xl shadow-xs">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-bold">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Position P&L
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoading ? (
+            <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
+              Loading positions…
+            </div>
+          ) : positionChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart
+                data={positionChartData}
+                layout="vertical"
+                margin={{ top: 4, right: 20, left: 12, bottom: 4 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" horizontal={false} />
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickFormatter={(value) => `₹${Number(value).toLocaleString("en-IN")}`}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="contract"
+                  width={130}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                  }}
+                  formatter={(value: number) => [`₹${value.toLocaleString("en-IN")}`, "P&L"]}
+                />
+                <ReferenceLine x={0} stroke="hsl(var(--border))" />
+                <Bar
+                  dataKey="pnl"
+                  name="Position P&L"
+                  radius={[0, 4, 4, 0]}
+                  barSize={18}
+                >
+                  {positionChartData.map((entry) => (
+                    <Cell key={entry.contract} fill={entry.pnl >= 0 ? "#10b981" : "#ef4444"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
+              No derivative positions available.
+            </div>
+          )}
+          <ChartInsight>
+            {bestPosition
+              ? `Net position P&L is ${formatCurrency(totalPnL)}. ${winningPositions} of ${positions.length} positions are profitable; ${bestPosition.contract} has the highest P&L in the current list.`
+              : "Add derivative positions to see contract-level P&L and performance insights."}
+          </ChartInsight>
+        </CardContent>
+      </Card>
+
       <DataManager<DerivativePosition, typeof DEFAULT_FORM_DATA>
         entity="derivatives"
         title="Derivatives Positions"
         description="Manage your futures and options contracts"
         icon={<Activity className="h-8 w-8 text-primary" />}
         hideHeader={true}
+        dashboardStyle
         columns={COLUMNS}
         searchKeys={SEARCH_KEYS}
         emptyMessage="No derivatives positions found."

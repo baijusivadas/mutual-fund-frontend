@@ -7,8 +7,8 @@ interface PropertyMetrics {
   totalProperties: number;
   totalPropertyValue: number;
   statusDistribution: { name: string; value: number }[];
-  revenueData: { month: string; revenue: number }[];
-  propertyTypeData: { name: string; value: number; revenue: number }[];
+  rentalRevenueData: { property: string; revenue: number }[];
+  propertyTypeData: { name: string; value: number }[];
   expiringLeases: RentalProperty[];
 }
 
@@ -19,13 +19,15 @@ export const usePropertyMetrics = (
 ): PropertyMetrics => {
   return useMemo(() => {
     const totalRentalProperties = rentalProperties.length;
-    const occupiedRentals = rentalProperties.filter((p) => p.status === "occupied").length;
+    const occupiedRentalCount = rentalProperties.filter((p) => p.status === "occupied").length;
     const occupancyRate =
-      totalRentalProperties > 0 ? (occupiedRentals / totalRentalProperties) * 100 : 0;
+      totalRentalProperties > 0 ? (occupiedRentalCount / totalRentalProperties) * 100 : 0;
 
-    const totalMonthlyRevenue = rentalProperties
-      .filter((p) => p.status === "occupied")
-      .reduce((sum, p) => sum + Number(p.monthly_rent), 0);
+    const occupiedRentals = rentalProperties.filter((p) => p.status === "occupied");
+    const totalMonthlyRevenue = occupiedRentals.reduce(
+      (sum, p) => sum + (Number(p.monthly_rent) || 0),
+      0
+    );
 
     const totalProperties = totalRentalProperties + flats.length + realEstate.length;
     const totalPropertyValue = [
@@ -47,26 +49,23 @@ export const usePropertyMetrics = (
       },
     ].filter((item) => item.value > 0);
 
-    const revenueData = Array.from({ length: 6 }, (_, i) => {
-      const month = new Date();
-      month.setMonth(month.getMonth() - (5 - i));
-      return {
-        month: month.toLocaleDateString("en-US", { month: "short" }),
-        revenue: totalMonthlyRevenue * (0.85 + Math.random() * 0.3),
-      };
-    });
+    const rentalRevenueData = occupiedRentals
+      .map((property) => ({
+        property: property.property_name,
+        revenue: Number(property.monthly_rent) || 0,
+      }))
+      .filter((item) => item.revenue > 0)
+      .sort((a, b) => b.revenue - a.revenue);
 
     const propertyTypeData = [
-      { name: "Rental Properties", value: rentalProperties.length, revenue: totalMonthlyRevenue },
+      { name: "Rental Properties", value: rentalProperties.length },
       {
         name: "Flats",
         value: flats.length,
-        revenue: flats.reduce((sum, p) => sum + Number(p.price) * 0.01, 0),
       },
       {
         name: "Real Estate",
         value: realEstate.length,
-        revenue: realEstate.reduce((sum, p) => sum + Number(p.price) * 0.01, 0),
       },
     ];
 
@@ -86,7 +85,7 @@ export const usePropertyMetrics = (
       totalProperties,
       totalPropertyValue,
       statusDistribution,
-      revenueData,
+      rentalRevenueData,
       propertyTypeData,
       expiringLeases,
     };

@@ -5,8 +5,6 @@ import { toast } from "sonner";
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -31,6 +29,7 @@ import {
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ChartCard, chartTooltipStyle } from "@/components/charts/ChartCard";
+import { ChartInsight } from "@/components/charts/ChartInsight";
 import { usePropertyMetrics } from "@/hooks/usePropertyMetrics";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +68,20 @@ export default function Analytics() {
   const realEstate = useMemo(() => data?.details?.realEstate || [], [data]);
 
   const metrics = usePropertyMetrics(rentalProperties, flats, realEstate);
+  const topRentalIncome = metrics.rentalRevenueData[0];
+  const rentalIncomeInsight = topRentalIncome
+    ? `${topRentalIncome.property} contributes the highest monthly rent (${topRentalIncome.revenue.toLocaleString("en-IN")}), ${((topRentalIncome.revenue / metrics.totalMonthlyRevenue) * 100).toFixed(1)}% of current rental income.`
+    : "No occupied rental properties have recorded monthly rent.";
+  const topStatus = [...metrics.statusDistribution].sort((a, b) => b.value - a.value)[0];
+  const statusInsight = topStatus
+    ? `${topStatus.name} is the most common property status (${topStatus.value} of ${metrics.totalProperties} properties).`
+    : "Add property records to see a status breakdown.";
+  const topPropertyType = [...metrics.propertyTypeData]
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value)[0];
+  const propertyTypeInsight = topPropertyType
+    ? `${topPropertyType.name} make up the largest category, with ${topPropertyType.value} of ${metrics.totalProperties} properties.`
+    : "Add property records to see a category breakdown.";
 
   // Track which lease IDs we've already toasted to avoid duplicates across re-renders
   const shownLeaseIds = useRef<Set<string>>(new Set());
@@ -102,8 +115,8 @@ export default function Analytics() {
         <MetricCard
           title="Occupancy Rate"
           value={`${metrics.occupancyRate.toFixed(1)}%`}
-          change="+2.4% from last month"
-          changeType="positive"
+          change={`${rentalProperties.filter((property) => property.status === "occupied").length} of ${rentalProperties.length} rentals occupied`}
+          changeType="neutral"
           icon={Activity}
         />
         <MetricCard
@@ -130,40 +143,34 @@ export default function Analytics() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <ChartCard title="Revenue Trends" icon={TrendingUp} className="glass-card">
-          <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={metrics.revenueData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis
-                dataKey="month"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) => `₹${value / 1000}k`}
-              />
-              <Tooltip
-                contentStyle={chartTooltipStyle}
-                cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 1 }}
-              />
-              <Legend iconType="circle" />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="hsl(var(--primary))"
-                strokeWidth={3}
-                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-                name="Monthly Revenue"
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        <ChartCard title="Monthly Rental Income by Property" icon={TrendingUp} className="glass-card">
+          {metrics.rentalRevenueData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={metrics.rentalRevenueData} layout="vertical" margin={{ left: 16, right: 16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis
+                  dataKey="property"
+                  type="category"
+                  width={120}
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  contentStyle={chartTooltipStyle}
+                  formatter={(value: number) => [`₹${value.toLocaleString("en-IN")}`, "Monthly rent"]}
+                />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} name="Monthly rent" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[350px] items-center justify-center text-sm text-muted-foreground">
+              No occupied rental income is available.
+            </div>
+          )}
+          <ChartInsight>{rentalIncomeInsight}</ChartInsight>
         </ChartCard>
 
         <ChartCard title="Property Status" icon={PieIcon} className="glass-card">
@@ -186,37 +193,7 @@ export default function Analytics() {
               <Legend verticalAlign="bottom" height={36} />
             </PieChart>
           </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Revenue by Type" icon={DollarSign} className="glass-card">
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={metrics.propertyTypeData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis
-                dataKey="name"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                contentStyle={chartTooltipStyle}
-                cursor={{ fill: "hsl(var(--muted)/0.1)" }}
-              />
-              <Bar
-                dataKey="revenue"
-                fill="hsl(var(--primary))"
-                radius={[6, 6, 0, 0]}
-                name="Monthly Revenue (₹)"
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartInsight>{statusInsight}</ChartInsight>
         </ChartCard>
 
         <ChartCard title="Property Distribution" icon={Users} className="glass-card">
@@ -242,12 +219,13 @@ export default function Analytics() {
               />
               <Bar
                 dataKey="value"
-                fill="hsl(var(--accent))"
+                fill="hsl(var(--primary))"
                 radius={[6, 6, 0, 0]}
-                name="Property Count"
+                name="Properties"
               />
             </BarChart>
           </ResponsiveContainer>
+          <ChartInsight>{propertyTypeInsight}</ChartInsight>
         </ChartCard>
       </div>
 

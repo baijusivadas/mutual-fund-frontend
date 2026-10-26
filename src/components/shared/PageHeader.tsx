@@ -15,20 +15,24 @@ export const PageHeader = ({
   className,
 }: PageHeaderProps) => {
   return (
-    <div className={cn("mb-6", className)}>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-heading font-extrabold tracking-tight text-foreground">
+    <header className={cn("mb-5 sm:mb-6 border-b border-border/60 pb-4", className)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-xl sm:text-2xl font-heading font-bold tracking-tight text-foreground">
             {title}
-          </h2>
+          </h1>
           {description && (
-            <p className="text-sm text-muted-foreground max-w-2xl font-normal leading-relaxed">
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
               {description}
             </p>
           )}
         </div>
-        {actions && <div className="flex items-center gap-3 shrink-0">{actions}</div>}
+        {actions && (
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+            {actions}
+          </div>
+        )}
       </div>
-    </div>
+    </header>
   );
 };

@@ -1,8 +1,8 @@
 import { memo, useMemo } from "react";
-import { MetricCard } from "@/components/shared/MetricCard";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { TrendingUp, Wallet, PieChart, Calendar, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -11,15 +11,24 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  Legend,
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
-import { isSellTransaction, TransactionData } from "@/utils/parseTransactions";
-import { calculateXIRR } from "@/lib/xirr";
 import { useInvestor } from "@/contexts/InvestorContext";
 import { CommonCard } from "@/components/shared/CommonCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CommonTable, ColumnConfig } from "@/components/shared/CommonTable";
 import { cn } from "@/lib/utils";
+import { ChartInsight } from "@/components/charts/ChartInsight";
+import type { TransactionData } from "@/utils/parseTransactions";
+
+const formatCurrency = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const formatCompactCurrency = (value: number) => {
+  if (Math.abs(value) >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
+  if (Math.abs(value) >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+  if (Math.abs(value) >= 1000) return `₹${(value / 1000).toFixed(0)}k`;
+  return `₹${value}`;
+};
 
 interface SchemeHolding {
   id: string;
@@ -32,112 +41,32 @@ interface SchemeHolding {
 
 const MutualFunds = () => {
   const { filteredTransactions, isNewUser } = useInvestor();
-
-  // Group by scheme and calculate totals using useMemo
-  const schemeData = useMemo(() => {
-    const schemes = new Map<string, SchemeHolding>();
-
-    // Sort transactions oldest to newest so the last iterated is the latest NAV
-    const sortedTx = [...filteredTransactions].sort(
-      (a, b) => new Date(a.investmentDate).getTime() - new Date(b.investmentDate).getTime()
-    );
-
-    sortedTx.forEach((t) => {
-      const existing = schemes.get(t.schemeName);
-      const isSell = isSellTransaction(t);
-      const invested = isSell ? -t.value : t.value;
-      const units = isSell ? -t.units : t.units;
-
-      if (existing) {
-        existing.totalUnits += units;
-        existing.totalInvested += invested;
-        existing.latestNav = t.nav;
-        existing.transactions.push(t);
-      } else {
-        schemes.set(t.schemeName, {
-          id: t.schemeName,
-          schemeName: t.schemeName,
-          totalUnits: units,
-          totalInvested: invested,
-          latestNav: t.nav,
-          transactions: [t],
-        });
-      }
-    });
-
-    return Array.from(schemes.values()).filter((s) => s.totalUnits > 0);
-  }, [filteredTransactions]);
-
-  // Calculate portfolio totals using useMemo
-  const { totalInvested, totalValue, totalReturns, overallReturn } = useMemo(() => {
-    if (isNewUser) {
-      return { totalInvested: 0, totalValue: 0, totalReturns: 0, overallReturn: "0.00" };
-    }
-
-    let invested = 0;
-    let val = 0;
-    for (const s of schemeData) {
-      invested += s.totalInvested;
-      val += s.totalUnits * s.latestNav;
-    }
-    const returns = val - invested;
-    const returnPct = invested > 0 ? ((returns / invested) * 100).toFixed(2) : "0.00";
-
-    return {
-      totalInvested: invested,
-      totalValue: val,
-      totalReturns: returns,
-      overallReturn: returnPct,
-    };
-  }, [schemeData, isNewUser]);
-
-  // Calculate XIRR for the selected investor using useMemo
-  const xirr = useMemo(() => {
-    if (filteredTransactions.length === 0 || isNewUser) return isNewUser ? 0 : null;
-
-    const xirrTransactions = filteredTransactions.map((t) => ({
-      date: new Date(t.investmentDate),
-      amount: isSellTransaction(t) ? t.value : -t.value,
-    }));
-
-    if (totalValue > 0) {
-      xirrTransactions.push({
-        date: new Date(),
-        amount: totalValue,
-      });
-    }
-
-    return calculateXIRR(xirrTransactions);
-  }, [filteredTransactions, isNewUser, totalValue]);
-
-  // Performance data over time (last 12 months)
-  const performanceData = useMemo(() => {
-    const monthlyData = new Map<string, number>();
-    const now = new Date();
-
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthKey = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-      monthlyData.set(monthKey, 0);
-    }
-
-    filteredTransactions.forEach((t) => {
-      const date = new Date(t.investmentDate);
-      const monthKey = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-
-      if (monthlyData.has(monthKey)) {
-        const currentValue = monthlyData.get(monthKey) || 0;
-        const value = isSellTransaction(t) ? -t.value : t.value;
-        monthlyData.set(monthKey, currentValue + value);
-      }
-    });
-
-    let cumulative = 0;
-    return Array.from(monthlyData.entries()).map(([month, value]) => {
-      cumulative += value;
-      return { month, value: Math.max(0, cumulative) };
-    });
-  }, [filteredTransactions]);
+  const {
+    schemeData: portfolioSchemes,
+    totalInvested,
+    currentValue: totalValue,
+    totalReturns,
+    roi: overallReturn,
+    xirr,
+    performanceData,
+  } = usePortfolioData(filteredTransactions, isNewUser);
+  const schemeData = useMemo(
+    () =>
+      portfolioSchemes.map((scheme) => ({
+        id: scheme.schemeName,
+        schemeName: scheme.schemeName,
+        totalUnits: scheme.totalUnits,
+        totalInvested: scheme.totalInvested,
+        latestNav: scheme.latestNav,
+        transactions: scheme.transactions,
+      })),
+    [portfolioSchemes]
+  );
+  const isPositiveReturns = totalReturns >= 0;
+  const portfolioInsight =
+    totalInvested > 0
+      ? `Current value is ${formatCurrency(Math.abs(totalReturns))} ${isPositiveReturns ? "above" : "below"} net invested (${Math.abs(Number(overallReturn)).toFixed(2)}%). The chart shows the recent valuation trend alongside net invested.`
+      : "Add mutual fund transactions to see your portfolio valuation trend and performance.";
 
   // Table columns memoized to prevent table rows from re-rendering unnecessarily
   const columns: ColumnConfig<SchemeHolding>[] = useMemo(
@@ -228,8 +157,6 @@ const MutualFunds = () => {
     []
   );
 
-  const isPositiveReturns = totalReturns >= 0;
-
   return (
     <div className="space-y-6 animate-in">
       <PageHeader
@@ -238,78 +165,109 @@ const MutualFunds = () => {
       />
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
+        <DashboardMetricCard
           title="Total Investment"
-          value={`₹${totalInvested.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+          value={formatCurrency(totalInvested)}
           change={`Across ${schemeData.length} schemes`}
           changeType="neutral"
           icon={Wallet}
+          tone="blue"
+          sparkData={performanceData.map((point) => point.invested)}
         />
-        <MetricCard
+        <DashboardMetricCard
           title="Current Value"
-          value={`₹${totalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
-          change={`${isPositiveReturns ? "+" : ""}${overallReturn}% returns`}
+          value={formatCurrency(totalValue)}
+          change={`${isPositiveReturns ? "+" : ""}${overallReturn}% vs. net invested`}
           changeType={isPositiveReturns ? "positive" : "negative"}
           icon={TrendingUp}
+          tone="green"
+          sparkData={performanceData.map((point) => point.value)}
         />
-        <MetricCard
+        <DashboardMetricCard
           title="Total Returns"
-          value={`₹${totalReturns.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
-          change="Absolute Gain"
+          value={formatCurrency(totalReturns)}
+          change="Value vs. net invested"
           changeType={isPositiveReturns ? "positive" : "negative"}
           icon={PieChart}
+          tone={isPositiveReturns ? "amber" : "rose"}
+          sparkData={performanceData.map((point) => point.value - point.invested)}
         />
-        <MetricCard
+        <DashboardMetricCard
           title="Portfolio XIRR"
-          value={xirr ? `${xirr.toFixed(2)}%` : "N/A"}
+          value={typeof xirr === "number" ? `${xirr.toFixed(2)}%` : "N/A"}
           change="Annualized Return"
-          changeType={xirr && xirr > 0 ? "positive" : "neutral"}
+          changeType={typeof xirr === "number" && xirr >= 0 ? "positive" : "neutral"}
           icon={Calendar}
+          tone="rose"
         />
       </div>
 
-      <CommonCard title="Portfolio Growth Trend">
+      <CommonCard title="Portfolio Valuation Trend" className="bg-card border border-border/70 rounded-xl shadow-xs" titleClassName="text-base">
         <div className="h-[280px] w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={performanceData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+          {performanceData.length > 0 ? <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={performanceData} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
               <defs>
                 <linearGradient id="mfGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.4)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickMargin={8} />
               <YAxis
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                width={56}
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(val) => (val >= 100000 ? `₹${(val / 100000).toFixed(0)}L` : `₹${val}`)}
+                tickMargin={8}
+                tickFormatter={formatCompactCurrency}
               />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
-                  borderColor: "hsl(var(--border))",
+                  border: "1px solid hsl(var(--border))",
                   borderRadius: "12px",
                   fontSize: "12px",
                 }}
-                formatter={(value: number) => [`₹${value.toLocaleString("en-IN")}`, "Cumulative Value"]}
+                formatter={(value: number, name: string) => [formatCurrency(value), name]}
+              />
+              <Line
+                type="monotone"
+                dataKey="invested"
+                name="Net invested"
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="5 5"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Legend
+                verticalAlign="top"
+                align="right"
+                iconType="circle"
+                iconSize={7}
+                wrapperStyle={{ fontSize: "11px", paddingBottom: "8px" }}
               />
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="#3b82f6"
+                name="Portfolio value"
+                stroke="hsl(var(--primary))"
                 strokeWidth={2.5}
                 fill="url(#mfGrad)"
                 dot={false}
-                activeDot={{ r: 5, fill: "#3b82f6" }}
+                activeDot={{ r: 5, fill: "hsl(var(--primary))" }}
               />
             </AreaChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer> : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              No portfolio valuation data available.
+            </div>
+          )}
         </div>
+        <ChartInsight>{portfolioInsight}</ChartInsight>
       </CommonCard>
 
-      <CommonCard title="Scheme Holdings">
+      <CommonCard title="Scheme Holdings" className="bg-card border border-border/70 rounded-xl shadow-xs" titleClassName="text-base">
         <CommonTable<SchemeHolding>
           data={schemeData}
           columns={columns}

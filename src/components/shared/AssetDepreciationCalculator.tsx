@@ -31,7 +31,7 @@ export function AssetDepreciationCalculator() {
   };
 
   return (
-    <Card className="mb-6 bg-gradient-to-r from-muted/50 to-muted border-muted">
+    <Card className="mb-4 rounded-xl border border-border/70 bg-card shadow-xs">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <Calculator className="h-5 w-5 text-primary" />
