@@ -38,12 +38,12 @@ export const RedemptionsTable = ({ redemptions }: RedemptionsTableProps) => {
               </thead>
               <tbody>
                 {displayedRedemptions.map((redemption, index) => (
-                  <tr 
-                    key={index} 
+                  <tr
+                    key={index}
                     className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors"
                   >
                     <td className="py-3 text-sm text-foreground whitespace-nowrap">
-                      {new Date(redemption.investmentDate).toLocaleDateString('en-IN')}
+                      {new Date(redemption.investmentDate).toLocaleDateString("en-IN")}
                     </td>
                     <td className="py-3 text-sm font-medium text-foreground">
                       {redemption.investorName}
@@ -52,34 +52,36 @@ export const RedemptionsTable = ({ redemptions }: RedemptionsTableProps) => {
                       {redemption.schemeName}
                     </td>
                     <td className="py-3">
-                      <Badge 
-                        variant={redemption.category === 'switchout' ? 'secondary' : 'destructive'}
+                      <Badge
+                        variant={redemption.category === "switchout" ? "secondary" : "destructive"}
                       >
                         {redemption.category}
                       </Badge>
                     </td>
                     <td className="py-3 text-right text-sm text-foreground">
-                      {Math.abs(redemption.units).toLocaleString('en-IN', { maximumFractionDigits: 4 })}
+                      {Math.abs(redemption.units).toLocaleString("en-IN", {
+                        maximumFractionDigits: 4,
+                      })}
                     </td>
                     <td className="py-3 text-right text-sm text-muted-foreground">
-                      ₹{redemption.nav.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      ₹{redemption.nav.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </td>
                     <td className="py-3 text-right text-sm font-medium text-red-600 dark:text-red-400">
-                      ₹{Math.abs(redemption.value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹
+                      {Math.abs(redemption.value).toLocaleString("en-IN", {
+                        maximumFractionDigits: 0,
+                      })}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          
+
           {redemptions.length > 50 && (
             <div className="flex justify-center pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowAll(!showAll)}
-              >
-                {showAll ? 'Show Less' : `Show All ${redemptions.length} Transactions`}
+              <Button variant="outline" onClick={() => setShowAll(!showAll)}>
+                {showAll ? "Show Less" : `Show All ${redemptions.length} Transactions`}
               </Button>
             </div>
           )}

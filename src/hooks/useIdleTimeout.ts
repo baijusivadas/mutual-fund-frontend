@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from "react";
 
 interface UseIdleTimeoutOptions {
   onIdle: () => void;
@@ -6,20 +6,22 @@ interface UseIdleTimeoutOptions {
 }
 
 export const useIdleTimeout = ({ onIdle, idleTime = 15 * 60 * 1000 }: UseIdleTimeoutOptions) => {
-  const timeoutId = useRef<NodeJS.Timeout>();
+  const timeoutId = useRef<ReturnType<typeof setTimeout>>();
+  const onIdleRef = useRef(onIdle);
+  onIdleRef.current = onIdle;
 
-  const resetTimer = () => {
+  const resetTimer = useCallback(() => {
     if (timeoutId.current) {
       clearTimeout(timeoutId.current);
     }
 
     timeoutId.current = setTimeout(() => {
-      onIdle();
+      onIdleRef.current();
     }, idleTime);
-  };
+  }, [idleTime]);
 
   useEffect(() => {
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
 
     // Reset timer on user activity
     events.forEach((event) => {
@@ -38,5 +40,5 @@ export const useIdleTimeout = ({ onIdle, idleTime = 15 * 60 * 1000 }: UseIdleTim
         document.removeEventListener(event, resetTimer);
       });
     };
-  }, [idleTime, onIdle]);
+  }, [resetTimer]);
 };
