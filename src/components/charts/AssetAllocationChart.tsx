@@ -14,9 +14,25 @@ interface AssetAllocationChartProps {
   portfolioComposition: PortfolioCompositionItem[];
 }
 
-const renderActiveShape = (props: any) => {
-  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
+interface ActiveShapeProps {
+  cx: number;
+  cy: number;
+  innerRadius: number;
+  outerRadius: number;
+  startAngle: number;
+  endAngle: number;
+  fill: string;
+}
 
+const renderActiveShape = ({
+  cx,
+  cy,
+  innerRadius,
+  outerRadius,
+  startAngle,
+  endAngle,
+  fill,
+}: ActiveShapeProps) => {
   return (
     <g>
       <Sector
@@ -69,7 +85,8 @@ export const AssetAllocationChart = ({ portfolioComposition }: AssetAllocationCh
           </div>
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/50 border border-border/40 text-xs font-bold text-muted-foreground">
             <Layers className="h-3.5 w-3.5 text-primary" />
-            {portfolioComposition.length} {portfolioComposition.length === 1 ? "Holding" : "Holdings"}
+            {portfolioComposition.length}{" "}
+            {portfolioComposition.length === 1 ? "Holding" : "Holdings"}
           </div>
         </div>
       </CardHeader>
@@ -106,7 +123,8 @@ export const AssetAllocationChart = ({ portfolioComposition }: AssetAllocationCh
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
-                        const share = totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : 0;
+                        const share =
+                          totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : 0;
                         return (
                           <div className="glass-card p-3 rounded-2xl border border-border/80 shadow-2xl space-y-1">
                             <p className="text-xs font-bold text-foreground truncate max-w-[200px]">
@@ -133,7 +151,8 @@ export const AssetAllocationChart = ({ portfolioComposition }: AssetAllocationCh
                   {activeItem ? activeItem.name : "Total Value"}
                 </span>
                 <span className="text-base sm:text-lg font-heading font-black tracking-tight text-foreground truncate max-w-[130px]">
-                  ₹{(activeItem ? activeItem.value : totalValue).toLocaleString("en-IN", {
+                  ₹
+                  {(activeItem ? activeItem.value : totalValue).toLocaleString("en-IN", {
                     maximumFractionDigits: 0,
                   })}
                 </span>
@@ -171,7 +190,10 @@ export const AssetAllocationChart = ({ portfolioComposition }: AssetAllocationCh
                           className="h-3 w-3 rounded-full shrink-0 shadow-sm"
                           style={{ backgroundColor: item.color }}
                         />
-                        <span className="text-xs font-bold truncate text-foreground" title={item.name}>
+                        <span
+                          className="text-xs font-bold truncate text-foreground"
+                          title={item.name}
+                        >
                           {item.name}
                         </span>
                       </div>

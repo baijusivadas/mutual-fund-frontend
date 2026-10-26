@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Users, Link2, Loader2, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,16 @@ interface Mapping {
   created_at: string;
 }
 
+interface UserOption {
+  id: string;
+  email: string;
+  full_name?: string | null;
+}
+
+interface PurchaseInvestor {
+  investor_name?: string | null;
+}
+
 const UserInvestmentMapping = () => {
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [selectedAssetType, setSelectedAssetType] = useState<string>("");
@@ -52,7 +63,7 @@ const UserInvestmentMapping = () => {
   const queryClient = useQueryClient();
 
   // Fetch all users with profiles
-  const { data: users = [], isLoading: loadingUsers } = useQuery({
+  const { data: users = [], isLoading: loadingUsers } = useQuery<UserOption[]>({
     queryKey: ["all-users-for-mapping"],
     queryFn: async () => {
       const response = await api.get("/auth/users");
@@ -62,7 +73,7 @@ const UserInvestmentMapping = () => {
   });
 
   // Fetch existing mappings
-  const { data: mappings = [], isLoading: loadingMappings } = useQuery({
+  const { data: mappings = [], isLoading: loadingMappings } = useQuery<Mapping[]>({
     queryKey: ["investment-mappings"],
     queryFn: async () => {
       const response = await api.get("/user-mappings");
@@ -72,13 +83,15 @@ const UserInvestmentMapping = () => {
   });
 
   // Fetch unique investor names from purchases
-  const { data: investorNames = [] } = useQuery({
+  const { data: investorNames = [] } = useQuery<string[]>({
     queryKey: ["unique-investor-names"],
     queryFn: async () => {
       const response = await api.get("/advanced/purchases");
       // advanced API might return { data: [], pagination: {} } or []
-      const data = Array.isArray(response.data) ? response.data : (response.data.data || []);
-      const uniqueNames = [...new Set(data.map((d: any) => d.investor_name))].filter(Boolean) as string[];
+      const data = Array.isArray(response.data) ? response.data : response.data.data || [];
+      const uniqueNames = [...new Set(data.map((d: PurchaseInvestor) => d.investor_name))].filter(
+        Boolean
+      ) as string[];
       return uniqueNames;
     },
     enabled: !!token,
@@ -105,10 +118,10 @@ const UserInvestmentMapping = () => {
       setSelectedAssetType("");
       setInvestorName("");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error",
-        description: error.response?.data?.message || error.message,
+        description: getErrorMessage(error, "Failed to create mapping"),
         variant: "destructive",
       });
     },
@@ -126,17 +139,17 @@ const UserInvestmentMapping = () => {
         description: "Investment mapping has been removed.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error",
-        description: error.response?.data?.message || error.message,
+        description: getErrorMessage(error, "Failed to delete mapping"),
         variant: "destructive",
       });
     },
   });
 
   const getUserName = (userId: string) => {
-    const user = users.find((u: any) => u.id === userId);
+    const user = users.find((u) => u.id === userId);
     return user?.full_name || user?.email || "Unknown User";
   };
 
@@ -145,33 +158,29 @@ const UserInvestmentMapping = () => {
   };
 
   const columns: ColumnConfig<Mapping>[] = [
-    { 
-      key: "user_id", 
-      label: "User", 
+    {
+      key: "user_id",
+      label: "User",
       sortable: true,
-      render: (item) => getUserName(item.user_id)
+      render: (item) => getUserName(item.user_id),
     },
-    { 
-      key: "asset_type", 
-      label: "Asset Type", 
+    {
+      key: "asset_type",
+      label: "Asset Type",
       sortable: true,
-      render: (item) => (
-        <Badge variant="secondary">
-          {getAssetTypeLabel(item.asset_type)}
-        </Badge>
-      )
+      render: (item) => <Badge variant="secondary">{getAssetTypeLabel(item.asset_type)}</Badge>,
     },
-    { 
-      key: "investor_name", 
-      label: "Investor Name", 
+    {
+      key: "investor_name",
+      label: "Investor Name",
       sortable: true,
-      render: (item) => item.investor_name || "-"
+      render: (item) => item.investor_name || "-",
     },
-    { 
-      key: "created_at", 
-      label: "Created At", 
+    {
+      key: "created_at",
+      label: "Created At",
       sortable: true,
-      render: (item) => new Date(item.created_at).toLocaleDateString()
+      render: (item) => new Date(item.created_at).toLocaleDateString(),
     },
   ];
 
@@ -187,8 +196,8 @@ const UserInvestmentMapping = () => {
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="User Investment Mapping" 
+      <PageHeader
+        title="User Investment Mapping"
         description="Assign investments and assets to specific users"
         actions={
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -202,7 +211,8 @@ const UserInvestmentMapping = () => {
               <DialogHeader>
                 <DialogTitle>Create Investment Mapping</DialogTitle>
                 <DialogDescription>
-                  Assign an asset type to a user. For mutual funds, you can also specify the investor name.
+                  Assign an asset type to a user. For mutual funds, you can also specify the
+                  investor name.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -211,9 +221,9 @@ const UserInvestmentMapping = () => {
                   <CommonSelect
                     value={selectedUser}
                     onValueChange={setSelectedUser}
-                    options={users.map((user: any) => ({
+                    options={users.map((user) => ({
                       value: user.id,
-                      label: user.full_name || user.email
+                      label: user.full_name || user.email,
                     }))}
                     placeholder="Select a user"
                   />
@@ -237,13 +247,11 @@ const UserInvestmentMapping = () => {
                       onValueChange={setInvestorName}
                       options={investorNames.map((name: string) => ({
                         value: name,
-                        label: name
+                        label: name,
                       }))}
                       placeholder="Select investor name"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Or enter a custom name:
-                    </p>
+                    <p className="text-xs text-muted-foreground">Or enter a custom name:</p>
                     <Input
                       value={investorName}
                       onChange={(e) => setInvestorName(e.target.value)}
@@ -304,7 +312,7 @@ const UserInvestmentMapping = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Mapped Users</p>
                 <p className="text-2xl font-bold">
-                  {new Set(mappings.map((m: any) => m.user_id)).size}
+                  {new Set(mappings.map((mapping) => mapping.user_id)).size}
                 </p>
               </div>
             </div>

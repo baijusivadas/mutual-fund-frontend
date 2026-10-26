@@ -2,7 +2,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RoleWithChildren } from "@/hooks/useRoles";
-import { ChevronDown, ChevronRight, Lock, Pencil, Settings, Shield, Trash2, Users } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Lock,
+  Pencil,
+  Settings,
+  Shield,
+  Trash2,
+  Users,
+} from "lucide-react";
 
 interface RoleTreeNodeProps {
   role: RoleWithChildren;
@@ -50,7 +59,9 @@ export const RoleTreeNode = ({
           <span className="w-6" />
         )}
 
-        <Shield className={cn("h-5 w-5", role.is_system_role ? "text-primary" : "text-muted-foreground")} />
+        <Shield
+          className={cn("h-5 w-5", role.is_system_role ? "text-primary" : "text-muted-foreground")}
+        />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -64,7 +75,7 @@ export const RoleTreeNode = ({
             {hasChildren && (
               <Badge variant="outline" className="text-xs">
                 <Users className="h-3 w-3 mr-1" />
-                {role.children.length} child{role.children.length > 1 ? 'ren' : ''}
+                {role.children.length} child{role.children.length > 1 ? "ren" : ""}
               </Badge>
             )}
           </div>
@@ -78,7 +89,12 @@ export const RoleTreeNode = ({
         </Badge>
 
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPermissions(role)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onPermissions(role)}
+          >
             <Settings className="h-4 w-4" />
           </Button>
           <Button

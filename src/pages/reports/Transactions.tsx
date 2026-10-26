@@ -29,7 +29,11 @@ const TransactionCard = memo(({ transaction }: { transaction: TransactionData })
   const Icon = txType.icon;
 
   return (
-    <CommonCard noHeader className="border hover:border-primary/50 transition-all" contentClassName="p-4">
+    <CommonCard
+      noHeader
+      className="border hover:border-primary/50 transition-all"
+      contentClassName="p-4"
+    >
       <div className="flex items-start justify-between gap-4">
         {/* Left Section */}
         <div className="flex-1 min-w-0">
@@ -115,16 +119,14 @@ const Transactions = () => {
 
         return matchesSearch && matchesType;
       })
-      .sort(
-        (a, b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime()
-      );
+      .sort((a, b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime());
   }, [filteredTransactions, debouncedSearch, typeFilter]);
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Daily Sauda Report" 
-        description="Complete transaction history from all investors" 
+      <PageHeader
+        title="Daily Sauda Report"
+        description="Complete transaction history from all investors"
       />
 
       <div className="space-y-6">
@@ -141,17 +143,17 @@ const Transactions = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-                <CommonSelect
-                  value={typeFilter}
-                  onValueChange={setTypeFilter}
-                  options={[
-                    { value: "all", label: "All Transactions" },
-                    { value: "purchase", label: "Purchases & SIP" },
-                    { value: "redemption", label: "Redemptions & Switchout" }
-                  ]}
-                  placeholder="Filter by type"
-                  className="w-full sm:w-[200px] h-11"
-                />
+              <CommonSelect
+                value={typeFilter}
+                onValueChange={setTypeFilter}
+                options={[
+                  { value: "all", label: "All Transactions" },
+                  { value: "purchase", label: "Purchases & SIP" },
+                  { value: "redemption", label: "Redemptions & Switchout" },
+                ]}
+                placeholder="Filter by type"
+                className="w-full sm:w-[200px] h-11"
+              />
             </div>
             <div className="flex items-center justify-between text-sm">
               <p className="text-muted-foreground">
@@ -166,10 +168,7 @@ const Transactions = () => {
                 transactions
               </p>
               {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="text-primary hover:underline"
-                >
+                <button onClick={() => setSearchQuery("")} className="text-primary hover:underline">
                   Clear search
                 </button>
               )}
@@ -178,9 +177,7 @@ const Transactions = () => {
         </CommonCard>
 
         {/* Transactions List */}
-        <CommonCard
-          title="Transaction History"
-        >
+        <CommonCard title="Transaction History">
           {displayedTransactions.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No transactions found</p>
@@ -189,7 +186,10 @@ const Transactions = () => {
             <div className="h-[600px] overflow-auto pr-2">
               <VList className="space-y-3">
                 {displayedTransactions.map((transaction, index) => (
-                  <div key={`${transaction.folioNumber}-${transaction.investmentDate}-${index}`} className="pb-3">
+                  <div
+                    key={`${transaction.folioNumber}-${transaction.investmentDate}-${index}`}
+                    className="pb-3"
+                  >
                     <TransactionCard transaction={transaction} />
                   </div>
                 ))}

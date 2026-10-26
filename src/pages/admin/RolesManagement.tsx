@@ -99,7 +99,9 @@ const RolesManagement = () => {
 
   const togglePermission = (sidebarItemId: string) => {
     setSelectedPermissions((prev) =>
-      prev.includes(sidebarItemId) ? prev.filter((id) => id !== sidebarItemId) : [...prev, sidebarItemId]
+      prev.includes(sidebarItemId)
+        ? prev.filter((id) => id !== sidebarItemId)
+        : [...prev, sidebarItemId]
     );
   };
 
@@ -135,8 +137,8 @@ const RolesManagement = () => {
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Role Hierarchy Management" 
+      <PageHeader
+        title="Role Hierarchy Management"
         description="Manage roles in a tree structure where parent roles control child role permissions"
         actions={
           <Button onClick={() => setIsCreateOpen(true)}>
@@ -175,9 +177,9 @@ const RolesManagement = () => {
 
             <div className="mt-6 p-4 bg-muted rounded-lg">
               <p className="text-sm text-muted-foreground">
-                <strong>Hierarchy Note:</strong> Child roles can be used to manage access for family members
-                or team hierarchies. Parent roles (like "Father") can access data of their child roles
-                (like "Daughter's Portfolio").
+                <strong>Hierarchy Note:</strong> Child roles can be used to manage access for family
+                members or team hierarchies. Parent roles (like "Father") can access data of their
+                child roles (like "Daughter's Portfolio").
               </p>
             </div>
           </CardContent>

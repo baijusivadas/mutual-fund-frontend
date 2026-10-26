@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, KeyRound, CheckCircle } from "lucide-react";
 
-
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -36,7 +35,7 @@ const ResetPassword = () => {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validatePassword(password)) {
       return;
     }
@@ -47,9 +46,9 @@ const ResetPassword = () => {
     }
 
     setIsLoading(true);
-    
+
     const { error } = await updatePassword(password);
-    
+
     if (!error) {
       setIsSuccess(true);
       setTimeout(() => {
@@ -58,7 +57,7 @@ const ResetPassword = () => {
     } else {
       setErrors([error]);
     }
-    
+
     setIsLoading(false);
   };
 
@@ -129,7 +128,7 @@ const ResetPassword = () => {
                 minLength={8}
               />
             </div>
-            
+
             {errors.length > 0 && (
               <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
                 <ul className="list-disc list-inside space-y-1">

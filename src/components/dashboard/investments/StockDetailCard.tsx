@@ -13,9 +13,11 @@ export const StockDetailCard = ({ stock }: StockDetailCardProps) => {
         <div className="flex items-start justify-between">
           <div>
             <CardTitle>{stock.name}</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">{stock.symbol} • {stock.sector}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {stock.symbol} • {stock.sector}
+            </p>
           </div>
-          <Badge 
+          <Badge
             variant={stock.dayChange.startsWith("+") ? "default" : "destructive"}
             className="text-xs"
           >

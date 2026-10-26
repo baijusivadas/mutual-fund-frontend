@@ -15,7 +15,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -57,20 +64,28 @@ const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
                   {/* Mobile Navigation Drawer */}
                   <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                     <SheetTrigger asChild>
-                      <Button variant="ghost" size="icon" className="lg:hidden rounded-xl hover:bg-muted">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="lg:hidden rounded-xl hover:bg-muted"
+                      >
                         <Menu className="h-5 w-5" />
                       </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="p-0 border-r w-72 bg-background/95 backdrop-blur-2xl">
+                    <SheetContent
+                      side="left"
+                      className="p-0 border-r w-72 bg-background/95 backdrop-blur-2xl"
+                    >
                       <SheetHeader className="sr-only">
                         <SheetTitle>Navigation Menu</SheetTitle>
+                        <SheetDescription>Choose a section to open.</SheetDescription>
                       </SheetHeader>
                       <DynamicSidebar />
                     </SheetContent>
                   </Sheet>
 
                   <h2 className="text-xl font-heading font-extrabold tracking-tight bg-gradient-to-r from-primary via-blue-500 to-indigo-500 bg-clip-text text-transparent truncate">
-                    FinSight Portfolio
+                    BrickWealth Portfolio
                   </h2>
                 </div>
 
@@ -81,7 +96,9 @@ const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
                     </div>
                   )}
 
-                  {isSuperAdmin && <Separator orientation="vertical" className="h-6 mx-1 hidden sm:block" />}
+                  {isSuperAdmin && (
+                    <Separator orientation="vertical" className="h-6 mx-1 hidden sm:block" />
+                  )}
 
                   <Button
                     variant="ghost"
@@ -111,8 +128,12 @@ const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
                     <DropdownMenuContent align="end" className="w-64 p-2 glass-card rounded-2xl">
                       <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1.5 p-2">
-                          <p className="text-sm font-semibold leading-none truncate">{user?.email}</p>
-                          <p className="text-xs leading-none text-muted-foreground">Wealth Account</p>
+                          <p className="text-sm font-semibold leading-none truncate">
+                            {user?.email}
+                          </p>
+                          <p className="text-xs leading-none text-muted-foreground">
+                            Wealth Account
+                          </p>
                           <Badge
                             variant={isSuperAdmin ? "default" : "secondary"}
                             className="w-fit text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md font-bold mt-1"

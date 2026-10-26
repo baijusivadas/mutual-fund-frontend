@@ -28,14 +28,12 @@ export const StockPnLCard = ({ stock }: StockPnLCardProps) => {
             <span className="text-lg font-semibold">₹{totalInvestment.toLocaleString()}</span>
           </div>
         </div>
-        
+
         <div className="border-t-2 pt-4 space-y-3">
           <div className="p-4 rounded-lg bg-success/10 border-2 border-success/20">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium">Total P&L</span>
-              <span className="text-2xl font-bold text-success">
-                +₹{totalPnL.toLocaleString()}
-              </span>
+              <span className="text-2xl font-bold text-success">+₹{totalPnL.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-xs text-muted-foreground">Return Percentage</span>

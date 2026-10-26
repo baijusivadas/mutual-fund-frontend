@@ -9,13 +9,14 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { InvestorProvider } from "@/contexts/InvestorContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { AppRoutes } from "@/routes/AppRoutes";
+import { getErrorMessage, getErrorStatus } from "@/lib/errors";
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
-    onError: (error: any) => {
-      const message = error.response?.data?.message || error.response?.data?.error || error.message || "A data query failed";
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, "A data query failed");
       // Avoid redirect status codes
-      if (error.response?.status !== 401) {
+      if (getErrorStatus(error) !== 401) {
         toast({
           title: "Query Error",
           description: message,
@@ -25,9 +26,9 @@ const queryClient = new QueryClient({
     },
   }),
   mutationCache: new MutationCache({
-    onError: (error: any) => {
-      const message = error.response?.data?.message || error.response?.data?.error || error.message || "An action failed";
-      if (error.response?.status !== 401) {
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, "An action failed");
+      if (getErrorStatus(error) !== 401) {
         toast({
           title: "Action Error",
           description: message,

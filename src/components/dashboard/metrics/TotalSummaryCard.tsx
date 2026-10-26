@@ -8,16 +8,17 @@ interface TotalSummaryCardProps {
   taxLabel?: string;
 }
 
-export const TotalSummaryCard = ({ 
-  totalGains, 
-  totalTax, 
+export const TotalSummaryCard = ({
+  totalGains,
+  totalTax,
   variant = "shortTerm",
   gainsLabel = "Total Capital Gains",
-  taxLabel = "Total Tax Liability"
+  taxLabel = "Total Tax Liability",
 }: TotalSummaryCardProps) => {
-  const borderClass = variant === "longTerm" 
-    ? "border-2 border-success/30 bg-success/5" 
-    : "border-2 border-primary/30 bg-primary/5";
+  const borderClass =
+    variant === "longTerm"
+      ? "border-2 border-success/30 bg-success/5"
+      : "border-2 border-primary/30 bg-primary/5";
 
   return (
     <Card className={borderClass}>

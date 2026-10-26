@@ -34,9 +34,9 @@ export default function NotificationHistory() {
   });
 
   const columns: ColumnConfig<NotificationHistoryItem>[] = [
-    { 
-      key: "status", 
-      label: "Status", 
+    {
+      key: "status",
+      label: "Status",
       sortable: true,
       render: (item) => (
         <div className="flex items-center gap-2">
@@ -47,44 +47,68 @@ export default function NotificationHistory() {
           ) : (
             <Clock className="h-4 w-4 text-muted-foreground" />
           )}
-          <Badge variant={item.status === "sent" ? "default" : item.status === "failed" ? "destructive" : "secondary"} 
-                 className={item.status === "sent" ? "bg-success" : ""}>
+          <Badge
+            variant={
+              item.status === "sent"
+                ? "default"
+                : item.status === "failed"
+                  ? "destructive"
+                  : "secondary"
+            }
+            className={item.status === "sent" ? "bg-success" : ""}
+          >
             {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
           </Badge>
         </div>
-      )
+      ),
     },
-    { 
-      key: "notification_type", 
-      label: "Type", 
+    {
+      key: "notification_type",
+      label: "Type",
       sortable: true,
       render: (item) => {
-        const typeMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+        const typeMap: Record<
+          string,
+          { label: string; variant: "default" | "secondary" | "outline" }
+        > = {
           lease_renewal: { label: "Lease Renewal", variant: "default" },
           rent_reminder: { label: "Rent Reminder", variant: "secondary" },
           maintenance_update: { label: "Maintenance", variant: "outline" },
         };
-        const config = typeMap[item.notification_type] || { label: item.notification_type, variant: "outline" as const };
+        const config = typeMap[item.notification_type] || {
+          label: item.notification_type,
+          variant: "outline" as const,
+        };
         return <Badge variant={config.variant}>{config.label}</Badge>;
-      }
+      },
     },
     { key: "recipient_email", label: "Recipient", sortable: true, className: "font-mono text-sm" },
     { key: "subject", label: "Subject", sortable: true, className: "max-w-xs truncate" },
-    { key: "property_name", label: "Property", sortable: true, render: (item) => item.property_name || "-" },
-    { key: "tenant_name", label: "Tenant", sortable: true, render: (item) => item.tenant_name || "-" },
-    { 
-      key: "sent_at", 
-      label: "Sent At", 
-      sortable: true, 
-      render: (item) => item.sent_at ? format(new Date(item.sent_at), "MMM dd, yyyy HH:mm") : "-"
+    {
+      key: "property_name",
+      label: "Property",
+      sortable: true,
+      render: (item) => item.property_name || "-",
+    },
+    {
+      key: "tenant_name",
+      label: "Tenant",
+      sortable: true,
+      render: (item) => item.tenant_name || "-",
+    },
+    {
+      key: "sent_at",
+      label: "Sent At",
+      sortable: true,
+      render: (item) => (item.sent_at ? format(new Date(item.sent_at), "MMM dd, yyyy HH:mm") : "-"),
     },
   ];
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Notification History" 
-        description="Track all sent email notifications with delivery status and timestamps" 
+      <PageHeader
+        title="Notification History"
+        description="Track all sent email notifications with delivery status and timestamps"
       />
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-3">

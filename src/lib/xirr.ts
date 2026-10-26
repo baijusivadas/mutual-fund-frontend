@@ -9,7 +9,7 @@ export function calculateXIRR(transactions: Transaction[], guess = 0.1): number 
 
   const sortedTransactions = [...transactions].sort((a, b) => a.date.getTime() - b.date.getTime());
   const firstDate = sortedTransactions[0].date;
-  
+
   // Newton-Raphson method to find XIRR
   let rate = guess;
   const maxIterations = 100;
@@ -21,8 +21,9 @@ export function calculateXIRR(transactions: Transaction[], guess = 0.1): number 
     let isInvalid = false;
 
     for (const transaction of sortedTransactions) {
-      const years = (transaction.date.getTime() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-      
+      const years =
+        (transaction.date.getTime() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+
       // Prevent Math.pow NaN errors if rate drops to or below -100% (-1)
       if (1 + rate <= 0.0001) {
         isInvalid = true;
@@ -31,7 +32,7 @@ export function calculateXIRR(transactions: Transaction[], guess = 0.1): number 
 
       const factor = Math.pow(1 + rate, years);
       npv += transaction.amount / factor;
-      dnpv -= transaction.amount * years / Math.pow(1 + rate, years + 1);
+      dnpv -= (transaction.amount * years) / Math.pow(1 + rate, years + 1);
     }
 
     // Guard against invalid state or divide-by-zero
@@ -40,15 +41,15 @@ export function calculateXIRR(transactions: Transaction[], guess = 0.1): number 
     }
 
     const newRate = rate - npv / dnpv;
-    
+
     if (isNaN(newRate) || !isFinite(newRate)) {
       return null;
     }
-    
+
     if (Math.abs(newRate - rate) < tolerance) {
       return newRate * 100; // Return as percentage
     }
-    
+
     rate = newRate;
   }
 

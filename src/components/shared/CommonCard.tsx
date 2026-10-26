@@ -26,7 +26,9 @@ export const CommonCard = ({
   return (
     <Card className={cn("overflow-hidden", className)}>
       {!noHeader && (title || description || headerAction) && (
-        <CardHeader className={cn("flex flex-row items-center justify-between gap-4", headerClassName)}>
+        <CardHeader
+          className={cn("flex flex-row items-center justify-between gap-4", headerClassName)}
+        >
           <div className="space-y-1">
             {title && <CardTitle className="text-xl font-bold">{title}</CardTitle>}
             {description && <CardDescription>{description}</CardDescription>}

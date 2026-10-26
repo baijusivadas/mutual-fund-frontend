@@ -18,9 +18,7 @@ export const Breadcrumbs = () => {
   const pathnames = location.pathname.split("/").filter((x) => x);
 
   const formatName = (name: string) => {
-    return name
-      .replace(/-/g, " ")
-      .replace(/\b\w/g, (l) => l.toUpperCase());
+    return name.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   if (location.pathname === "/") {

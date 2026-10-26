@@ -69,5 +69,5 @@ export const stockDetails = [
   },
 ];
 
-export type StockDetail = typeof stockDetails[number];
+export type StockDetail = (typeof stockDetails)[number];
 export type StockPriceDataKey = keyof typeof stockPriceData;

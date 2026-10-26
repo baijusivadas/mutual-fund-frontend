@@ -1,11 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface InvestmentGrowthChartProps {
-  performanceData: any[];
+  performanceData: { label: string; value: number }[];
   timeFilter: "daily" | "weekly" | "monthly" | "yearly";
   setTimeFilter: (v: "daily" | "weekly" | "monthly" | "yearly") => void;
 }
@@ -17,7 +25,8 @@ export const InvestmentGrowthChart = ({
 }: InvestmentGrowthChartProps) => {
   // Calculate gain/loss stats from performanceData if available
   const initialVal = performanceData.length > 0 ? performanceData[0]?.value || 0 : 0;
-  const latestVal = performanceData.length > 0 ? performanceData[performanceData.length - 1]?.value || 0 : 0;
+  const latestVal =
+    performanceData.length > 0 ? performanceData[performanceData.length - 1]?.value || 0 : 0;
   const netGain = latestVal - initialVal;
   const percentGain = initialVal > 0 ? (netGain / initialVal) * 100 : 0;
 
@@ -88,10 +97,14 @@ export const InvestmentGrowthChart = ({
                 ) : (
                   <ArrowDownRight className="h-3.5 w-3.5" />
                 )}
-                <span>{netGain >= 0 ? "+" : ""}{percentGain.toFixed(1)}%</span>
+                <span>
+                  {netGain >= 0 ? "+" : ""}
+                  {percentGain.toFixed(1)}%
+                </span>
               </div>
               <span className="text-xs font-bold text-muted-foreground">
-                ({netGain >= 0 ? "+" : ""}₹{Math.abs(netGain).toLocaleString("en-IN", { maximumFractionDigits: 0 })})
+                ({netGain >= 0 ? "+" : ""}₹
+                {Math.abs(netGain).toLocaleString("en-IN", { maximumFractionDigits: 0 })})
               </span>
             </div>
           </div>
@@ -108,7 +121,12 @@ export const InvestmentGrowthChart = ({
                   <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
+              <CartesianGrid
+                strokeDasharray="4 4"
+                stroke="hsl(var(--border))"
+                opacity={0.3}
+                vertical={false}
+              />
               <XAxis
                 dataKey="label"
                 stroke="hsl(var(--muted-foreground))"

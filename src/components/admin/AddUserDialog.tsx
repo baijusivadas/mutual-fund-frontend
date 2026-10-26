@@ -1,13 +1,28 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Loader2 } from "lucide-react";
+import { getErrorMessage } from "@/lib/errors";
 
 interface AddUserDialogProps {
   onSuccess?: () => void;
@@ -25,7 +40,7 @@ export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
   const createUserMutation = useMutation({
     mutationFn: async () => {
       const response = await api.post("/auth/signup", {
-        name: fullName || email.split('@')[0],
+        name: fullName || email.split("@")[0],
         email,
         password,
         role,
@@ -43,10 +58,10 @@ export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
       resetForm();
       onSuccess?.();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error creating user",
-        description: error.message || "Failed to create user",
+        description: getErrorMessage(error, "Failed to create user"),
         variant: "destructive",
       });
     },

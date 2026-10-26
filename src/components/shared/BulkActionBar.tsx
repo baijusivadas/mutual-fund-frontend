@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Trash2, CheckSquare } from "lucide-react";
 import {
   AlertDialog,
@@ -36,7 +42,7 @@ export const BulkActionBar = ({
         <p className="text-sm font-medium">
           {selectedCount} item{selectedCount > 1 ? "s" : ""} selected
         </p>
-        
+
         {onBulkStatusUpdate && statusOptions.length > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-sm">Update status:</span>
@@ -60,7 +66,7 @@ export const BulkActionBar = ({
         <Button variant="outline" size="sm" onClick={onClearSelection}>
           Clear Selection
         </Button>
-        
+
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm" className="gap-2">
@@ -72,7 +78,7 @@ export const BulkActionBar = ({
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete {selectedCount} item{selectedCount > 1 ? "s" : ""}. 
+                This will permanently delete {selectedCount} item{selectedCount > 1 ? "s" : ""}.
                 This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>

@@ -18,9 +18,11 @@ export const useUserInvestments = () => {
     queryKey: ["user-investments", user?.id],
     queryFn: async () => {
       if (!user) return { mappings: [], purchases: [], redemptions: [], mappedInvestorNames: [] };
-      
+
       const response = await api.get("/user-investments");
-      return response.data || { mappings: [], purchases: [], redemptions: [], mappedInvestorNames: [] };
+      return (
+        response.data || { mappings: [], purchases: [], redemptions: [], mappedInvestorNames: [] }
+      );
     },
     enabled: !!user,
   });
@@ -33,7 +35,7 @@ export const useUserInvestments = () => {
   // Check if user has specific asset type mapped
   const hasAssetTypeAccess = (assetType: string) => {
     if (isSuperAdmin) return true;
-    return mappings.some((m: any) => m.asset_type === assetType);
+    return mappings.some((m: UserInvestmentMapping) => m.asset_type === assetType);
   };
 
   return {

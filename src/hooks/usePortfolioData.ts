@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { TransactionData } from "@/utils/parseTransactions";
+import { isSellTransaction, TransactionData } from "@/utils/parseTransactions";
 import { calculateXIRR } from "@/lib/xirr";
 
-interface SchemeData {
+export interface SchemeData {
   schemeName: string;
   totalUnits: number;
   totalInvested: number;
@@ -13,11 +13,10 @@ interface SchemeData {
   transactions: TransactionData[];
 }
 
-export const usePortfolioData = (
-  filteredTransactions: TransactionData[],
-  isNewUser: boolean
-) => {
-  const [timeFilter, setTimeFilter] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
+export const usePortfolioData = (filteredTransactions: TransactionData[], isNewUser: boolean) => {
+  const [timeFilter, setTimeFilter] = useState<"daily" | "weekly" | "monthly" | "yearly">(
+    "monthly"
+  );
 
   const schemeData: SchemeData[] = useMemo(() => {
     const schemes = new Map<string, SchemeData>();
@@ -29,8 +28,9 @@ export const usePortfolioData = (
 
     sortedTx.forEach((t) => {
       const existing = schemes.get(t.schemeName);
-      const invested = t.transactionType.toLowerCase().includes("redeem") ? -t.value : t.value;
-      const units = t.transactionType.toLowerCase().includes("redeem") ? -t.units : t.units;
+      const isSell = isSellTransaction(t);
+      const invested = isSell ? -t.value : t.value;
+      const units = isSell ? -t.units : t.units;
 
       if (existing) {
         existing.totalUnits += units;
@@ -73,14 +73,18 @@ export const usePortfolioData = (
   );
 
   const totalReturns = isNewUser ? 0 : currentValue - totalInvested;
-  const roi = isNewUser ? "0.00" : totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : "0.00";
+  const roi = isNewUser
+    ? "0.00"
+    : totalInvested > 0
+      ? ((totalReturns / totalInvested) * 100).toFixed(2)
+      : "0.00";
 
   const xirr = useMemo(() => {
     if (filteredTransactions.length === 0 || isNewUser) return isNewUser ? 0 : null;
 
     const xirrTransactions = filteredTransactions.map((t) => ({
       date: new Date(t.investmentDate),
-      amount: t.transactionType.toLowerCase().includes("redeem") ? t.value : -t.value,
+      amount: isSellTransaction(t) ? t.value : -t.value,
     }));
 
     if (currentValue > 0) {
@@ -95,35 +99,39 @@ export const usePortfolioData = (
 
   const performanceData = useMemo(() => {
     if (filteredTransactions.length === 0) return [];
-    
+
     const dataMap = new Map<string, number>();
     const now = new Date();
 
     const labels: string[] = [];
 
     // Initialize labels based on time filter
-    if (timeFilter === "daily") { // Last 14 days
+    if (timeFilter === "daily") {
+      // Last 14 days
       for (let i = 13; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
         labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
       }
-    } else if (timeFilter === "weekly") { // Last 12 weeks
+    } else if (timeFilter === "weekly") {
+      // Last 12 weeks
       for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (i * 7));
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
         labels.push(`Wk ${d.getDate()} ${d.toLocaleDateString("en-US", { month: "short" })}`);
       }
-    } else if (timeFilter === "monthly") { // Last 6 months
+    } else if (timeFilter === "monthly") {
+      // Last 6 months
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         labels.push(d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }));
       }
-    } else if (timeFilter === "yearly") { // Last 5 years
+    } else if (timeFilter === "yearly") {
+      // Last 5 years
       for (let i = 4; i >= 0; i--) {
         labels.push((now.getFullYear() - i).toString());
       }
     }
 
-    labels.forEach(l => dataMap.set(l, 0));
+    labels.forEach((l) => dataMap.set(l, 0));
 
     // Optimize loop: pre-calculate keys
     for (const t of filteredTransactions) {
@@ -142,7 +150,7 @@ export const usePortfolioData = (
 
       if (dataMap.has(key)) {
         const currentVal = dataMap.get(key) || 0;
-        const value = t.transactionType.toLowerCase().includes("redeem") ? -t.value : t.value;
+        const value = isSellTransaction(t) ? -t.value : t.value;
         dataMap.set(key, currentVal + value);
       }
     }

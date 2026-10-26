@@ -35,17 +35,15 @@ api.interceptors.response.use(
 
 // ── Auth endpoints ────────────────────────────────────────────────────────────
 export const authApi = {
-  login: (data: { email: string; password: string }) =>
-    api.post("/auth/login", data),
+  login: (data: { email: string; password: string }) => api.post("/auth/login", data),
   signup: (data: { email: string; password: string; name?: string }) =>
     api.post("/auth/signup", data),
-  verifyOtp: (data: { email: string; otp: string }) =>
-    api.post("/auth/verify-otp", data),
-  forgotPassword: (data: { email: string }) =>
-    api.post("/auth/forgot-password", data),
+  verifyOtp: (data: { email: string; otp: string }) => api.post("/auth/verify-otp", data),
+  forgotPassword: (data: { email: string }) => api.post("/auth/forgot-password", data),
   logout: () => api.post("/auth/logout"),
   getUsers: () => api.get("/auth/users"),
-  updateUserRole: (userId: string, role: string) => api.patch(`/auth/users/${userId}/role`, { role }),
+  updateUserRole: (userId: string, role: string) =>
+    api.patch(`/auth/users/${userId}/role`, { role }),
   deleteUser: (userId: string) => api.delete(`/auth/users/${userId}`),
 };
 
@@ -70,4 +68,3 @@ export const masterApi = {
 };
 
 export default api;
-

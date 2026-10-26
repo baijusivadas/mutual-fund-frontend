@@ -4,7 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
@@ -58,7 +65,7 @@ const Login = () => {
       <div className="w-full max-w-md space-y-4">
         <Card className="shadow-lg">
           <CardHeader className="space-y-2 text-center">
-            <CardTitle className="text-3xl font-bold">TradePro</CardTitle>
+            <CardTitle className="text-3xl font-bold">BrickWealth</CardTitle>
             <CardDescription>Manage your investment portfolio</CardDescription>
           </CardHeader>
           <CardContent>

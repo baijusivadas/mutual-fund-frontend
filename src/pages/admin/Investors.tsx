@@ -5,9 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Dialog, DialogContent, DialogHeader, 
-  DialogTitle, DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Building2, CreditCard, ShieldCheck } from "lucide-react";
@@ -15,6 +18,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CommonTable, ColumnConfig } from "@/components/shared/CommonTable";
 import { CommonCard } from "@/components/shared/CommonCard";
+import { getErrorMessage } from "@/lib/errors";
 
 interface Investor {
   id: string;
@@ -25,11 +29,15 @@ interface Investor {
   InvestorBankAccounts?: { is_primary: boolean }[];
 }
 
+interface InvestorCreateData {
+  [key: string]: FormDataEntryValue;
+}
+
 const Investors = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: investors = [], isLoading } = useQuery({
+  const { data: investors = [], isLoading } = useQuery<Investor[]>({
     queryKey: ["investors"],
     queryFn: async () => {
       const res = await investorApi.getAll();
@@ -38,43 +46,53 @@ const Investors = () => {
   });
 
   const createInvestorMutation = useMutation({
-    mutationFn: (data: any) => investorApi.create(data),
+    mutationFn: (data: InvestorCreateData) => investorApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["investors"] });
       toast({ title: "Success", description: "Investor created successfully" });
     },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error.response?.data?.error || "Failed to create investor", 
-        variant: "destructive" 
+    onError: (error: unknown) => {
+      toast({
+        title: "Error",
+        description: getErrorMessage(error, "Failed to create investor"),
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const columns: ColumnConfig<Investor>[] = [
     { key: "full_name", label: "Investor Name", sortable: true, className: "font-medium" },
-    { key: "pan", label: "PAN", sortable: true, className: "font-mono text-sm uppercase", render: (item) => item.pan || 'N/A' },
-    { key: "email", label: "Email", sortable: true, render: (item) => item.email || 'N/A' },
-    { 
-      key: "kyc_status", 
-      label: "KYC Status", 
+    {
+      key: "pan",
+      label: "PAN",
+      sortable: true,
+      className: "font-mono text-sm uppercase",
+      render: (item) => item.pan || "N/A",
+    },
+    { key: "email", label: "Email", sortable: true, render: (item) => item.email || "N/A" },
+    {
+      key: "kyc_status",
+      label: "KYC Status",
       sortable: true,
       render: (item) => (
-        <Badge 
-          variant={item.InvestorKyc?.kyc_status === 'Verified' ? 'default' : 'secondary'}
-          className={item.InvestorKyc?.kyc_status === 'Verified' ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : ''}
+        <Badge
+          variant={item.InvestorKyc?.kyc_status === "Verified" ? "default" : "secondary"}
+          className={
+            item.InvestorKyc?.kyc_status === "Verified"
+              ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+              : ""
+          }
         >
-          {item.InvestorKyc?.kyc_status || 'Pending'}
+          {item.InvestorKyc?.kyc_status || "Pending"}
         </Badge>
-      )
+      ),
     },
   ];
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Investors" 
+      <PageHeader
+        title="Investors"
         description="Manage your family member profiles and investment entities."
         actions={
           <Dialog>
@@ -88,11 +106,14 @@ const Investors = () => {
               <DialogHeader>
                 <DialogTitle>Add New Investor</DialogTitle>
               </DialogHeader>
-              <form className="space-y-4 py-4" onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                createInvestorMutation.mutate(Object.fromEntries(formData));
-              }}>
+              <form
+                className="space-y-4 py-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  createInvestorMutation.mutate(Object.fromEntries(formData));
+                }}
+              >
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Full Name</label>
                   <Input name="full_name" placeholder="Enter full name" required />
@@ -100,7 +121,13 @@ const Investors = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">PAN</label>
-                    <Input name="pan" placeholder="ABCDE1234F" className="uppercase" maxLength={10} required />
+                    <Input
+                      name="pan"
+                      placeholder="ABCDE1234F"
+                      className="uppercase"
+                      maxLength={10}
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Date of Birth</label>
@@ -111,7 +138,11 @@ const Investors = () => {
                   <label className="text-sm font-medium">Email</label>
                   <Input name="email" type="email" placeholder="investor@example.com" />
                 </div>
-                <Button type="submit" className="w-full" disabled={createInvestorMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createInvestorMutation.isPending}
+                >
                   {createInvestorMutation.isPending ? "Creating..." : "Create Investor"}
                 </Button>
               </form>
@@ -138,7 +169,8 @@ const Investors = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {investors?.filter((i: any) => i.InvestorKyc?.kyc_status === 'Verified').length || 0}
+                {investors.filter((investor) => investor.InvestorKyc?.kyc_status === "Verified")
+                  .length || 0}
               </div>
             </CardContent>
           </Card>
@@ -149,7 +181,9 @@ const Investors = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {investors?.filter((i: any) => i.InvestorBankAccounts?.some((b: any) => b.is_primary)).length || 0}
+                {investors.filter((investor) =>
+                  investor.InvestorBankAccounts?.some((account) => account.is_primary)
+                ).length || 0}
               </div>
             </CardContent>
           </Card>

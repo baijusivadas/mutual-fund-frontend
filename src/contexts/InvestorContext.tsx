@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from "react";
-import { parseExcelFile, TransactionData } from "@/utils/parseTransactions";
-import transactionsPath from "@/data/combined_transactions_1.xlsx";
+import { createContext, useContext, useState, ReactNode, useMemo } from "react";
+import { TransactionData } from "@/utils/parseTransactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserInvestments } from "@/hooks/useUserInvestments";
 
@@ -15,7 +14,18 @@ interface InvestorContextType {
 
 const InvestorContext = createContext<InvestorContextType | undefined>(undefined);
 
-const mapDbTransaction = (dbTx: any, isSell: boolean): TransactionData => {
+interface DbTransaction {
+  transaction_type?: string | null;
+  investor_name?: string | null;
+  date?: string | null;
+  scheme?: string | null;
+  units?: number | string | null;
+  nav?: number | string | null;
+  amount?: number | string | null;
+  folio?: string | null;
+}
+
+const mapDbTransaction = (dbTx: DbTransaction, isSell: boolean): TransactionData => {
   return {
     transactionType: dbTx.transaction_type || (isSell ? "Redemption" : "Purchase"),
     investorName: dbTx.investor_name || "",
@@ -31,41 +41,17 @@ const mapDbTransaction = (dbTx: any, isSell: boolean): TransactionData => {
 
 export const InvestorProvider = ({ children }: { children: ReactNode }) => {
   const [selectedInvestor, setSelectedInvestor] = useState<string>("all");
-  const [excelTransactions, setExcelTransactions] = useState<TransactionData[]>([]);
   const { isSuperAdmin, user } = useAuth();
-  
+
   // Fetch real-time database transactions mapped to the user
-  const { purchases = [], redemptions = [], mappedInvestorNames = [], isLoading: isLoadingDb } = useUserInvestments();
+  const { purchases = [], redemptions = [], mappedInvestorNames = [] } = useUserInvestments();
 
-  // Load the Excel fallback ONLY when:
-  //   1. The DB query has finished (isLoadingDb === false)
-  //   2. AND there are no DB transactions to show
-  // This avoids fetching a large .xlsx file on every session when real data exists.
-  useEffect(() => {
-    if (isLoadingDb) return; // Wait for DB query to settle
-    if (purchases.length > 0 || redemptions.length > 0) return; // DB has data — skip fallback
-
-    const loadExcelTransactions = async () => {
-      try {
-        const allTransactions = await parseExcelFile(transactionsPath);
-        setExcelTransactions(allTransactions);
-      } catch (err) {
-        console.error("Failed to load fallback transactions:", err);
-      }
-    };
-
-    loadExcelTransactions();
-  }, [isLoadingDb, purchases.length, redemptions.length]);
-
-  // Compute unified transactions list
+  // Transaction data must come from the authenticated API, never a public bundled workbook.
   const transactions = useMemo(() => {
-    if (purchases.length > 0 || redemptions.length > 0) {
-      const mappedPurchases = purchases.map((p) => mapDbTransaction(p, false));
-      const mappedRedemptions = redemptions.map((r) => mapDbTransaction(r, true));
-      return [...mappedPurchases, ...mappedRedemptions];
-    }
-    return excelTransactions;
-  }, [purchases, redemptions, excelTransactions]);
+    const mappedPurchases = purchases.map((p) => mapDbTransaction(p, false));
+    const mappedRedemptions = redemptions.map((r) => mapDbTransaction(r, true));
+    return [...mappedPurchases, ...mappedRedemptions];
+  }, [purchases, redemptions]);
 
   // Compute unique investor list dynamically from active transactions
   const investors = useMemo(() => {
@@ -75,7 +61,7 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
     return uniqueInvestors.sort();
   }, [transactions]);
 
-  // Check if user is a new/unmapped user (regular users with no investments mapped are considered "new" for fallback)
+  // Regular users without mapped investments should see an empty portfolio, not shared sample data.
   const isNewUser = !isSuperAdmin && !!user && mappedInvestorNames.length === 0;
 
   // Filter transactions by investor - memoized for performance
@@ -84,20 +70,19 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
     return transactions.filter((t) => t.investorName === selectedInvestor);
   }, [selectedInvestor, transactions]);
 
-  const contextValue = useMemo(() => ({
-    selectedInvestor,
-    setSelectedInvestor,
-    investors,
-    transactions,
-    filteredTransactions,
-    isNewUser,
-  }), [selectedInvestor, investors, transactions, filteredTransactions, isNewUser]);
-
-  return (
-    <InvestorContext.Provider value={contextValue}>
-      {children}
-    </InvestorContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      selectedInvestor,
+      setSelectedInvestor,
+      investors,
+      transactions,
+      filteredTransactions,
+      isNewUser,
+    }),
+    [selectedInvestor, investors, transactions, filteredTransactions, isNewUser]
   );
+
+  return <InvestorContext.Provider value={contextValue}>{children}</InvestorContext.Provider>;
 };
 
 export const useInvestor = () => {

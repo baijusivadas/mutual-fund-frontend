@@ -1,12 +1,35 @@
 import { useState, useMemo, ReactNode, useCallback, memo } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Search, Loader2, ArrowUpDown } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { PaginationControls } from "./PaginationControls";
 import { BulkActionBar } from "./BulkActionBar";
 import { VList } from "virtua";
@@ -24,95 +47,105 @@ export interface FilterConfig {
   label: string;
 }
 
-// Memoized Row Component for maximum performance
-const MemoizedRow = memo(({ 
-  item, 
-  columns, 
-  showCheckboxes, 
-  isSelected, 
-  onSelect, 
-  onEdit, 
-  onDelete, 
-  deletingId 
-}: { 
-  item: any; 
-  columns: ColumnConfig<any>[]; 
-  showCheckboxes?: boolean; 
+interface MemoizedRowProps<T extends { id: string }> {
+  item: T;
+  columns: ColumnConfig<T>[];
+  showCheckboxes?: boolean;
   isSelected?: boolean;
   onSelect: (id: string, checked: boolean) => void;
-  onEdit?: (item: any) => void;
+  onEdit?: (item: T) => void;
   onDelete?: (id: string) => void;
   deletingId?: string | null;
-}) => (
-  <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
-    {showCheckboxes && (
-      <TableCell className="w-12">
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={(checked) => onSelect(item.id, checked as boolean)}
-        />
-      </TableCell>
-    )}
-    {columns.map((column) => (
-      <TableCell key={column.key} className={column.className}>
-        {column.render
-          ? column.render(item)
-          : item[column.key]?.toString() || "-"}
-      </TableCell>
-    ))}
-    {(onEdit || onDelete) && (
-      <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-2">
-          {onEdit && (
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => onEdit(item)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-          )}
-          {onDelete && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="h-8 w-8"
-                  disabled={deletingId === item.id}
-                >
-                  {deletingId === item.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="glass-card border-none">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete this item. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => onDelete(item.id)}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+}
+
+function getColumnValue(item: object, key: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(item, key);
+  return descriptor && "value" in descriptor ? descriptor.value : undefined;
+}
+
+const MemoizedRow = memo(
+  <T extends { id: string }>({
+    item,
+    columns,
+    showCheckboxes,
+    isSelected,
+    onSelect,
+    onEdit,
+    onDelete,
+    deletingId,
+  }: MemoizedRowProps<T>) => (
+    <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
+      {showCheckboxes && (
+        <TableCell className="w-12">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelect(item.id, checked === true)}
+          />
+        </TableCell>
+      )}
+      {columns.map((column) => (
+        <TableCell key={column.key} className={column.className}>
+          {column.render
+            ? column.render(item)
+            : getColumnValue(item, column.key) == null
+              ? "-"
+              : String(getColumnValue(item, column.key))}
+        </TableCell>
+      ))}
+      {(onEdit || onDelete) && (
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end gap-2">
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onEdit(item)}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={deletingId === item.id}
                   >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
-      </TableCell>
-    )}
-  </TableRow>
-));
+                    {deletingId === item.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="glass-card border-none">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete this item. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete(item.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        </TableCell>
+      )}
+    </TableRow>
+  )
+);
 
 MemoizedRow.displayName = "MemoizedRow";
 
@@ -135,7 +168,7 @@ interface CommonTableProps<T extends { id: string }> {
   useVirtualization?: boolean;
 }
 
-export function CommonTable<T extends { id: string; [key: string]: any }>({
+export function CommonTable<T extends { id: string }>({
   data,
   columns,
   onEdit,
@@ -162,9 +195,9 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const handleSort = useCallback((columnKey: string) => {
-    setSortColumn(prev => {
+    setSortColumn((prev) => {
       if (prev === columnKey) {
-        setSortDirection(dir => dir === "asc" ? "desc" : "asc");
+        setSortDirection((dir) => (dir === "asc" ? "desc" : "asc"));
         return columnKey;
       }
       setSortDirection("asc");
@@ -175,14 +208,14 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
   const filteredData = useMemo(() => {
     const query = searchQuery.toLowerCase();
     return data.filter((item) => {
-      const matchesSearch = searchKeys.length === 0 || searchKeys.some((key) => {
-        return item[key]?.toString().toLowerCase().includes(query);
-      });
+      const matchesSearch =
+        searchKeys.length === 0 ||
+        searchKeys.some((key) => {
+          return item[key]?.toString().toLowerCase().includes(query);
+        });
 
       const matchesStatus =
-        !statusKey ||
-        statusFilter === "all" ||
-        item[statusKey] === statusFilter;
+        !statusKey || statusFilter === "all" || item[statusKey] === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -192,12 +225,15 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
     if (!sortColumn) return filteredData;
 
     return [...filteredData].sort((a, b) => {
-      const aValue = a[sortColumn];
-      const bValue = b[sortColumn];
+      const aValue = getColumnValue(a, sortColumn);
+      const bValue = getColumnValue(b, sortColumn);
 
       if (aValue === bValue) return 0;
-      
-      const comparison = (aValue ?? "") < (bValue ?? "") ? -1 : 1;
+
+      const comparison =
+        typeof aValue === "number" && typeof bValue === "number"
+          ? aValue - bValue
+          : String(aValue ?? "").localeCompare(String(bValue ?? ""));
       return sortDirection === "asc" ? comparison : -comparison;
     });
   }, [filteredData, sortColumn, sortDirection]);
@@ -210,14 +246,15 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
 
   const totalPages = Math.ceil(sortedData.length / pageSize);
 
-  const handleSelectAll = useCallback((checked: boolean) => {
-    setSelectedIds(checked ? paginatedData.map((item) => item.id) : []);
-  }, [paginatedData]);
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
+      setSelectedIds(checked ? paginatedData.map((item) => item.id) : []);
+    },
+    [paginatedData]
+  );
 
   const handleSelectItem = useCallback((id: string, checked: boolean) => {
-    setSelectedIds((prev) =>
-      checked ? [...prev, id] : prev.filter((itemId) => itemId !== id)
-    );
+    setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((itemId) => itemId !== id)));
   }, []);
 
   const handleBulkDeleteInternal = useCallback(() => {
@@ -225,10 +262,13 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
     setSelectedIds([]);
   }, [onBulkDelete, selectedIds]);
 
-  const handleBulkStatusUpdateInternal = useCallback((status: string) => {
-    onBulkStatusUpdate?.(selectedIds, status);
-    setSelectedIds([]);
-  }, [onBulkStatusUpdate, selectedIds]);
+  const handleBulkStatusUpdateInternal = useCallback(
+    (status: string) => {
+      onBulkStatusUpdate?.(selectedIds, status);
+      setSelectedIds([]);
+    },
+    [onBulkStatusUpdate, selectedIds]
+  );
 
   return (
     <div className="space-y-4">
@@ -288,15 +328,17 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
                 <TableHead className="w-12">
                   <Checkbox
                     checked={
-                      selectedIds.length === paginatedData.length &&
-                      paginatedData.length > 0
+                      selectedIds.length === paginatedData.length && paginatedData.length > 0
                     }
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
               )}
               {columns.map((column) => (
-                <TableHead key={column.key} className={cn("font-bold text-xs uppercase tracking-wider", column.className)}>
+                <TableHead
+                  key={column.key}
+                  className={cn("font-bold text-xs uppercase tracking-wider", column.className)}
+                >
                   {column.sortable ? (
                     <Button
                       variant="ghost"
@@ -307,17 +349,21 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
                       <ArrowUpDown className="ml-2 h-3 w-3 opacity-50" />
                     </Button>
                   ) : (
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70">{column.label}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70">
+                      {column.label}
+                    </span>
                   )}
                 </TableHead>
               ))}
               {(onEdit || onDelete) && (
-                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest opacity-70">Actions</TableHead>
+                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest opacity-70">
+                  Actions
+                </TableHead>
               )}
             </TableRow>
           </TableHeader>
           {useVirtualization ? (
-            <VList key="tbody" style={{ height: '500px' }}>
+            <VList key="tbody" style={{ height: "500px" }}>
               {paginatedData.map((item) => (
                 <MemoizedRow
                   key={item.id}
@@ -337,25 +383,33 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
               {isLoading ? (
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length + (showCheckboxes ? 1 : 0) + (onEdit || onDelete ? 1 : 0)}
+                    colSpan={
+                      columns.length + (showCheckboxes ? 1 : 0) + (onEdit || onDelete ? 1 : 0)
+                    }
                     className="text-center py-20"
                   >
                     <div className="flex flex-col items-center justify-center gap-4">
                       <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
-                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Synchronizing data...</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Synchronizing data...
+                      </p>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length + (showCheckboxes ? 1 : 0) + (onEdit || onDelete ? 1 : 0)}
+                    colSpan={
+                      columns.length + (showCheckboxes ? 1 : 0) + (onEdit || onDelete ? 1 : 0)
+                    }
                     className="text-center py-20 text-muted-foreground"
                   >
-                     <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="flex flex-col items-center justify-center gap-2">
                       <Search className="h-8 w-8 opacity-20" />
                       <p className="text-sm font-medium">
-                          {searchQuery || statusFilter !== "all" ? "No matches found for your current filters" : emptyMessage}
+                        {searchQuery || statusFilter !== "all"
+                          ? "No matches found for your current filters"
+                          : emptyMessage}
                       </p>
                     </div>
                   </TableCell>
@@ -363,15 +417,15 @@ export function CommonTable<T extends { id: string; [key: string]: any }>({
               ) : (
                 paginatedData.map((item) => (
                   <MemoizedRow
-                      key={item.id}
-                      item={item}
-                      columns={columns}
-                      showCheckboxes={showCheckboxes}
-                      isSelected={selectedIds.includes(item.id)}
-                      onSelect={handleSelectItem}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      deletingId={deletingId}
+                    key={item.id}
+                    item={item}
+                    columns={columns}
+                    showCheckboxes={showCheckboxes}
+                    isSelected={selectedIds.includes(item.id)}
+                    onSelect={handleSelectItem}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    deletingId={deletingId}
                   />
                 ))
               )}
@@ -401,7 +455,9 @@ function cn(...classes: (string | undefined | false)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-export function getBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
+export function getBadgeVariant(
+  status: string
+): "default" | "secondary" | "outline" | "destructive" {
   const variants: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
     available: "default",
     in_stock: "default",
@@ -416,7 +472,10 @@ export function getBadgeVariant(status: string): "default" | "secondary" | "outl
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <Badge variant={getBadgeVariant(status)} className="capitalize rounded-lg px-2 py-0.5 text-[10px] font-bold tracking-wider">
+    <Badge
+      variant={getBadgeVariant(status)}
+      className="capitalize rounded-lg px-2 py-0.5 text-[10px] font-bold tracking-wider"
+    >
       {status.replace(/_/g, " ")}
     </Badge>
   );

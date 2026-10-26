@@ -63,7 +63,10 @@ const MetricCardComponent = ({
             {displayTitle}
           </p>
           <div
-            className={cn("text-2xl sm:text-3xl font-heading font-extrabold tracking-tight truncate", className)}
+            className={cn(
+              "text-2xl sm:text-3xl font-heading font-extrabold tracking-tight truncate",
+              className
+            )}
             title={value?.toString()}
           >
             {value}

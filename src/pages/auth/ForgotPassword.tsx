@@ -4,7 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Loader2, Mail, ArrowLeft, CheckCircle } from "lucide-react";
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -18,22 +25,22 @@ const ForgotPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (!isValidEmail(email)) {
       setError("Please enter a valid email address");
       return;
     }
 
     setIsLoading(true);
-    
+
     const { error: resetError } = await resetPassword(email);
-    
+
     if (!resetError) {
       setIsEmailSent(true);
     } else {
       setError(resetError);
     }
-    
+
     setIsLoading(false);
   };
 
@@ -92,9 +99,7 @@ const ForgotPassword = () => {
                 required
                 disabled={isLoading}
               />
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
@@ -109,7 +114,10 @@ const ForgotPassword = () => {
           </form>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Link to="/login" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+          <Link
+            to="/login"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
             <ArrowLeft className="h-4 w-4" />
             Back to Login
           </Link>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
 import { Info } from "lucide-react";
@@ -79,15 +80,20 @@ const DataUpload = () => {
 
   const uploadMutation = useMutation({
     mutationFn: async (): Promise<UploadResult> => {
-      const result: UploadResult = { total: parsedData.length, purchases: 0, redemptions: 0, errors: [] };
+      const result: UploadResult = {
+        total: parsedData.length,
+        purchases: 0,
+        redemptions: 0,
+        errors: [],
+      };
       if (!file) throw new Error("No file selected");
-      
+
       const formData = new FormData();
       formData.append("file", file);
       if (selectedUsers.length > 0 && selectedAssetType === "mutual_funds") {
         formData.append("selectedUsers", JSON.stringify(selectedUsers));
       }
-      
+
       setUploadProgress(0);
       const response = await api.post("/transaction", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -120,10 +126,10 @@ const DataUpload = () => {
       setUploadProgress(0);
       setSelectedUsers([]);
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       toast({
         title: "Upload failed",
-        description: err.message,
+        description: getErrorMessage(err, "Upload failed"),
         variant: "destructive",
       });
     },
@@ -138,20 +144,17 @@ const DataUpload = () => {
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
   };
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Data Upload" 
-        description="Upload Excel or CSV files to auto-analyze and update portfolio data" 
+      <PageHeader
+        title="Data Upload"
+        description="Upload Excel or CSV files to auto-analyze and update portfolio data"
       />
       <div className="max-w-4xl mx-auto space-y-6">
-
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>

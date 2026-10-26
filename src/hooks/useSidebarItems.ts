@@ -16,17 +16,12 @@ export const useSidebarItems = () => {
   const { user, role, token } = useAuth();
 
   return useQuery({
-    queryKey: ['sidebar-items', role],
+    queryKey: ["sidebar-items", role],
     queryFn: async (): Promise<SidebarItem[]> => {
       if (!user || !role || !token) return [];
 
-      try {
-        const response = await api.get("/sidebar");
-        return response.data?.data || response.data || [];
-      } catch (error) {
-        console.error('Sidebar fetch error:', error);
-        return [];
-      }
+      const response = await api.get("/sidebar");
+      return response.data?.data || response.data || [];
     },
     enabled: !!user && !!role && !!token,
     staleTime: 5 * 60 * 1000, // 5 minutes cache

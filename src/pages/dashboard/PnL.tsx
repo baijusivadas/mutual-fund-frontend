@@ -3,7 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, DollarSign, Percent } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CommonCard } from "@/components/shared/CommonCard";
 
@@ -25,19 +36,16 @@ const sectorPnL = [
 
 const stockPnL = [
   { stock: "Reliance Industries", invested: 587500, current: 612500, pnl: 25000, pnlPercent: 4.26 },
-  { stock: "HDFC Bank", invested: 291600, current: 302400, pnl: 10800, pnlPercent: 3.70 },
+  { stock: "HDFC Bank", invested: 291600, current: 302400, pnl: 10800, pnlPercent: 3.7 },
   { stock: "ICICI Bank", invested: 170000, current: 184000, pnl: 14000, pnlPercent: 8.24 },
   { stock: "TCS", invested: 300000, current: 308000, pnl: 8000, pnlPercent: 2.67 },
-  { stock: "Infosys", invested: 222000, current: 228000, pnl: 6000, pnlPercent: 2.70 },
+  { stock: "Infosys", invested: 222000, current: 228000, pnl: 6000, pnlPercent: 2.7 },
 ];
 
 const PnL = () => {
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Profit & Loss Report" 
-        description="Comprehensive P&L analysis" 
-      />
+      <PageHeader title="Profit & Loss Report" description="Comprehensive P&L analysis" />
 
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -138,30 +146,39 @@ const PnL = () => {
                   <div className="space-y-4">
                     <div className="flex items-start justify-between">
                       <h3 className="text-base font-bold">{stock.stock}</h3>
-                      <Badge 
+                      <Badge
                         variant={stock.pnl >= 0 ? "default" : "destructive"}
                         className="text-xs font-bold"
                       >
-                        {stock.pnl >= 0 ? '+' : ''}{stock.pnlPercent.toFixed(2)}%
+                        {stock.pnl >= 0 ? "+" : ""}
+                        {stock.pnlPercent.toFixed(2)}%
                       </Badge>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 border-t pt-3">
                       <div>
                         <p className="text-xs text-muted-foreground">Invested</p>
-                        <p className="text-base font-bold">₹{(stock.invested / 1000).toFixed(0)}K</p>
+                        <p className="text-base font-bold">
+                          ₹{(stock.invested / 1000).toFixed(0)}K
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Current Value</p>
-                        <p className="text-base font-bold text-primary">₹{(stock.current / 1000).toFixed(0)}K</p>
+                        <p className="text-base font-bold text-primary">
+                          ₹{(stock.current / 1000).toFixed(0)}K
+                        </p>
                       </div>
                     </div>
 
-                    <div className={`p-3 rounded-lg ${stock.pnl >= 0 ? 'bg-success/10' : 'bg-destructive/10'} border-t pt-3`}>
+                    <div
+                      className={`p-3 rounded-lg ${stock.pnl >= 0 ? "bg-success/10" : "bg-destructive/10"} border-t pt-3`}
+                    >
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">Total P&L</span>
-                        <span className={`text-lg font-bold ${stock.pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {stock.pnl >= 0 ? '+' : ''}₹{stock.pnl.toLocaleString()}
+                        <span
+                          className={`text-lg font-bold ${stock.pnl >= 0 ? "text-success" : "text-destructive"}`}
+                        >
+                          {stock.pnl >= 0 ? "+" : ""}₹{stock.pnl.toLocaleString()}
                         </span>
                       </div>
                     </div>

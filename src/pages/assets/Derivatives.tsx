@@ -9,7 +9,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DataManager } from "@/components/shared/DataManager";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import api from "@/services/api";
@@ -17,13 +23,13 @@ import api from "@/services/api";
 interface DerivativePosition {
   id: string;
   contract_name: string;
-  derivative_type: 'futures' | 'options';
+  derivative_type: "futures" | "options";
   qty: number;
   buy_price: number;
   ltp: number;
   lot_size: number;
   expiry_date: string;
-  option_type?: 'Call' | 'Put';
+  option_type?: "Call" | "Put";
   strike_price?: number;
   margin_used?: number;
   premium_paid?: number;
@@ -37,13 +43,13 @@ const Derivatives = () => {
     queryKey: ["derivatives"],
     queryFn: async (): Promise<DerivativePosition[]> => {
       const response = await api.get("/derivatives");
-      return Array.isArray(response.data) ? response.data : (response.data.data || []);
+      return Array.isArray(response.data) ? response.data : response.data.data || [];
     },
     enabled: !!token,
   });
 
-  const futuresPositions = positions.filter(p => p.derivative_type === 'futures');
-  const optionsPositions = positions.filter(p => p.derivative_type === 'options');
+  const futuresPositions = positions.filter((p) => p.derivative_type === "futures");
+  const optionsPositions = positions.filter((p) => p.derivative_type === "options");
 
   const calculatePnL = (pos: DerivativePosition) => {
     return (pos.ltp - pos.buy_price) * pos.qty * pos.lot_size;
@@ -62,28 +68,40 @@ const Derivatives = () => {
   const defaultFormData = {
     contract_name: "",
     derivative_type: "futures",
-    qty: 1,
-    buy_price: 0,
-    ltp: 0,
-    lot_size: 1,
+    qty: "1",
+    buy_price: "0",
+    ltp: "0",
+    lot_size: "1",
     expiry_date: "",
     option_type: "Call",
-    strike_price: 0,
-    margin_used: 0,
-    premium_paid: 0,
+    strike_price: "0",
+    margin_used: "0",
+    premium_paid: "0",
   };
 
-  const renderForm = (formData: any, setFormData: (data: any) => void) => (
+  const renderForm = (
+    formData: typeof defaultFormData,
+    setFormData: (data: typeof defaultFormData) => void
+  ) => (
     <div className="grid gap-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
           <Label>Contract Name *</Label>
-          <Input value={formData.contract_name} onChange={e => setFormData({ ...formData, contract_name: e.target.value })} placeholder="NIFTY DEC FUT" />
+          <Input
+            value={formData.contract_name}
+            onChange={(e) => setFormData({ ...formData, contract_name: e.target.value })}
+            placeholder="NIFTY DEC FUT"
+          />
         </div>
         <div className="grid gap-2">
           <Label>Type</Label>
-          <Select value={formData.derivative_type} onValueChange={v => setFormData({ ...formData, derivative_type: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+          <Select
+            value={formData.derivative_type}
+            onValueChange={(v) => setFormData({ ...formData, derivative_type: v })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="futures">Futures</SelectItem>
               <SelectItem value="options">Options</SelectItem>
@@ -94,39 +112,68 @@ const Derivatives = () => {
       <div className="grid grid-cols-3 gap-4">
         <div className="grid gap-2">
           <Label>Quantity (Lots)</Label>
-          <Input type="number" value={formData.qty} onChange={e => setFormData({ ...formData, qty: e.target.value })} />
+          <Input
+            type="number"
+            value={formData.qty}
+            onChange={(e) => setFormData({ ...formData, qty: e.target.value })}
+          />
         </div>
         <div className="grid gap-2">
           <Label>Lot Size</Label>
-          <Input type="number" value={formData.lot_size} onChange={e => setFormData({ ...formData, lot_size: e.target.value })} />
+          <Input
+            type="number"
+            value={formData.lot_size}
+            onChange={(e) => setFormData({ ...formData, lot_size: e.target.value })}
+          />
         </div>
         <div className="grid gap-2">
           <Label>Expiry Date</Label>
-          <Input type="date" value={formData.expiry_date} onChange={e => setFormData({ ...formData, expiry_date: e.target.value })} />
+          <Input
+            type="date"
+            value={formData.expiry_date}
+            onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+          />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
           <Label>Buy Price</Label>
-          <Input type="number" value={formData.buy_price} onChange={e => setFormData({ ...formData, buy_price: e.target.value })} />
+          <Input
+            type="number"
+            value={formData.buy_price}
+            onChange={(e) => setFormData({ ...formData, buy_price: e.target.value })}
+          />
         </div>
         <div className="grid gap-2">
           <Label>LTP (Current Price)</Label>
-          <Input type="number" value={formData.ltp} onChange={e => setFormData({ ...formData, ltp: e.target.value })} />
+          <Input
+            type="number"
+            value={formData.ltp}
+            onChange={(e) => setFormData({ ...formData, ltp: e.target.value })}
+          />
         </div>
       </div>
-      {formData.derivative_type === 'futures' ? (
+      {formData.derivative_type === "futures" ? (
         <div className="grid gap-2">
           <Label>Margin Used (₹)</Label>
-          <Input type="number" value={formData.margin_used} onChange={e => setFormData({ ...formData, margin_used: e.target.value })} />
+          <Input
+            type="number"
+            value={formData.margin_used}
+            onChange={(e) => setFormData({ ...formData, margin_used: e.target.value })}
+          />
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Option Type</Label>
-              <Select value={formData.option_type} onValueChange={v => setFormData({ ...formData, option_type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={formData.option_type}
+                onValueChange={(v) => setFormData({ ...formData, option_type: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Call">Call</SelectItem>
                   <SelectItem value="Put">Put</SelectItem>
@@ -135,12 +182,20 @@ const Derivatives = () => {
             </div>
             <div className="grid gap-2">
               <Label>Strike Price</Label>
-              <Input type="number" value={formData.strike_price} onChange={e => setFormData({ ...formData, strike_price: e.target.value })} />
+              <Input
+                type="number"
+                value={formData.strike_price}
+                onChange={(e) => setFormData({ ...formData, strike_price: e.target.value })}
+              />
             </div>
           </div>
           <div className="grid gap-2">
             <Label>Premium Paid (₹)</Label>
-            <Input type="number" value={formData.premium_paid} onChange={e => setFormData({ ...formData, premium_paid: e.target.value })} />
+            <Input
+              type="number"
+              value={formData.premium_paid}
+              onChange={(e) => setFormData({ ...formData, premium_paid: e.target.value })}
+            />
           </div>
         </>
       )}
@@ -150,10 +205,10 @@ const Derivatives = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-      <PageHeader 
-        title="Derivatives Trading" 
-        description="Futures & Options positions and analysis"
-      />
+        <PageHeader
+          title="Derivatives Trading"
+          description="Futures & Options positions and analysis"
+        />
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
@@ -166,7 +221,11 @@ const Derivatives = () => {
           <MetricCard
             title="Futures P&L"
             value={isLoading ? "..." : `₹${totalFuturesPnL.toLocaleString()}`}
-            change={totalFuturesMargin > 0 ? `${((totalFuturesPnL / totalFuturesMargin) * 100).toFixed(2)}% return` : "No margin data"}
+            change={
+              totalFuturesMargin > 0
+                ? `${((totalFuturesPnL / totalFuturesMargin) * 100).toFixed(2)}% return`
+                : "No margin data"
+            }
             changeType={totalFuturesPnL >= 0 ? "positive" : "negative"}
             icon={totalFuturesPnL >= 0 ? TrendingUp : TrendingDown}
           />
@@ -186,7 +245,7 @@ const Derivatives = () => {
           />
         </div>
 
-        <DataManager<DerivativePosition>
+        <DataManager<DerivativePosition, typeof defaultFormData>
           entity="derivatives"
           title="Derivatives Positions"
           description="Manage your futures and options contracts"
@@ -194,18 +253,37 @@ const Derivatives = () => {
           hideHeader={true}
           columns={[
             { key: "contract_name", label: "Contract", sortable: true, className: "font-medium" },
-            { key: "derivative_type", label: "Type", sortable: true, render: (item) => <Badge variant="outline" className="capitalize">{item.derivative_type}</Badge> },
+            {
+              key: "derivative_type",
+              label: "Type",
+              sortable: true,
+              render: (item) => (
+                <Badge variant="outline" className="capitalize">
+                  {item.derivative_type}
+                </Badge>
+              ),
+            },
             { key: "qty", label: "Lots", sortable: true },
             { key: "ltp", label: "LTP", render: (item) => `₹${item.ltp.toLocaleString()}` },
             {
-              key: "pnl" as any, label: "P&L", render: (item) => {
+              key: "pnl",
+              label: "P&L",
+              render: (item) => {
                 const pnl = calculatePnL(item);
-                return <span className={pnl >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>
-                  {pnl >= 0 ? "+" : ""}₹{pnl.toLocaleString()}
-                </span>
-              }
+                return (
+                  <span
+                    className={pnl >= 0 ? "text-success font-bold" : "text-destructive font-bold"}
+                  >
+                    {pnl >= 0 ? "+" : ""}₹{pnl.toLocaleString()}
+                  </span>
+                );
+              },
             },
-            { key: "expiry_date", label: "Expiry", render: (item) => new Date(item.expiry_date).toLocaleDateString() },
+            {
+              key: "expiry_date",
+              label: "Expiry",
+              render: (item) => new Date(item.expiry_date).toLocaleDateString(),
+            },
           ]}
           searchKeys={["contract_name"]}
           emptyMessage="No derivatives positions found."
@@ -213,13 +291,13 @@ const Derivatives = () => {
           renderForm={renderForm}
           transformPayload={(data) => ({
             ...data,
-            qty: parseFloat(data.qty),
-            buy_price: parseFloat(data.buy_price),
-            ltp: parseFloat(data.ltp),
-            lot_size: parseFloat(data.lot_size),
-            strike_price: parseFloat(data.strike_price || 0),
-            margin_used: parseFloat(data.margin_used || 0),
-            premium_paid: parseFloat(data.premium_paid || 0),
+            qty: Number(data.qty),
+            buy_price: Number(data.buy_price),
+            ltp: Number(data.ltp),
+            lot_size: Number(data.lot_size),
+            strike_price: Number(data.strike_price || 0),
+            margin_used: Number(data.margin_used || 0),
+            premium_paid: Number(data.premium_paid || 0),
           })}
         />
       </div>

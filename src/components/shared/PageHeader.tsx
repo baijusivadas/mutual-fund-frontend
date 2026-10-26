@@ -31,11 +31,7 @@ export const PageHeader = ({
             </p>
           )}
         </div>
-        {actions && (
-          <div className="flex items-center gap-3 shrink-0">
-            {actions}
-          </div>
-        )}
+        {actions && <div className="flex items-center gap-3 shrink-0">{actions}</div>}
       </div>
     </div>
   );

@@ -1,12 +1,12 @@
 /**
  * useRealtimePropertyChanges
- * 
+ *
  * Previously used Supabase realtime subscriptions to listen for
  * property table changes. Now a no-op stub since we migrated to
  * the Express backend. Use React Query cache invalidation instead.
  */
 
-type PropertyTable = 'rental_properties' | 'flats' | 'real_estate';
+type PropertyTable = "rental_properties" | "flats" | "real_estate";
 
 interface UseRealtimePropertyChangesOptions {
   tables: PropertyTable[];

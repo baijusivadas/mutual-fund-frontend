@@ -8,10 +8,37 @@ export interface NetWorthData {
   flats: number;
   gold: number;
   cars: number;
+  otherAssets: number;
   realEstate: number;
   liabilities: number;
   totalAssets: number;
   netWorth: number;
+}
+
+type AssetRecord = Record<string, unknown>;
+
+function isAssetRecord(value: unknown): value is AssetRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getArray(response: { data: unknown }): AssetRecord[] {
+  const payload = response.data;
+  const records = Array.isArray(payload)
+    ? payload
+    : isAssetRecord(payload)
+      ? payload.data
+      : undefined;
+
+  if (!Array.isArray(records) || !records.every(isAssetRecord)) {
+    throw new Error("The backend returned an invalid asset list");
+  }
+
+  return records;
+}
+
+function numericValue(value: unknown): number {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
 }
 
 export function useNetWorthData() {
@@ -30,19 +57,14 @@ export function useNetWorthData() {
         realEstateRes,
         liabilitiesRes,
       ] = await Promise.all([
-        api.get("/analytics/scheme-summary").catch(() => ({ data: [] })),
-        api.get("/advanced/rental_properties").catch(() => ({ data: [] })),
-        api.get("/advanced/flats").catch(() => ({ data: [] })),
-        api.get("/advanced/gold").catch(() => ({ data: [] })),
-        api.get("/advanced/custom_assets").catch(() => ({ data: [] })),
-        api.get("/advanced/real_estate").catch(() => ({ data: [] })),
-        api.get("/advanced/liabilities").catch(() => ({ data: [] })),
+        api.get("/analytics/scheme-summary"),
+        api.get("/advanced/rental_properties"),
+        api.get("/advanced/flats"),
+        api.get("/advanced/gold"),
+        api.get("/advanced/custom_assets"),
+        api.get("/advanced/real_estate"),
+        api.get("/advanced/liabilities"),
       ]);
-
-      const getArray = (res: any) => {
-        if (!res || !res.data) return [];
-        return Array.isArray(res.data) ? res.data : (res.data.data || []);
-      };
 
       const portfolioData = getArray(portfolioRes);
       const rentalData = getArray(rentalRes);
@@ -53,45 +75,35 @@ export function useNetWorthData() {
       const liabilitiesData = getArray(liabilitiesRes);
 
       // Calculate totals
-      const portfolio = portfolioData.reduce(
-        (sum, item: any) => sum + (Number(item.net_value) || 0),
-        0
-      );
+      const portfolio = portfolioData.reduce((sum, item) => sum + numericValue(item.net_value), 0);
 
       const rentalProperties = rentalData.reduce(
-        (sum, item: any) => sum + (Number(item.deposit) || 0) + (Number(item.monthly_rent) || 0) * 12,
+        (sum, item) => sum + numericValue(item.deposit) + numericValue(item.monthly_rent) * 12,
         0
       );
 
-      const flats = flatsData.reduce(
-        (sum, item: any) => sum + (Number(item.price) || 0),
-        0
-      );
+      const flats = flatsData.reduce((sum, item) => sum + numericValue(item.price), 0);
 
-      const gold = goldData.reduce(
-        (sum, item: any) => sum + (Number(item.price) || 0),
-        0
-      );
+      const gold = goldData.reduce((sum, item) => sum + numericValue(item.price), 0);
 
-      // Extract vehicle type custom assets for vehicles count
+      // Separate vehicles from other custom assets so every custom asset is included once.
       const cars = customAssetsData
-        .filter((item: any) => item.asset_type === "vehicle")
-        .reduce(
-          (sum, item: any) => sum + (Number(item.current_value) || Number(item.purchase_price) || 0),
-          0
-        );
+        .filter((item) => item.asset_type === "vehicle")
+        .reduce((sum, item) => sum + numericValue(item.current_value || item.purchase_price), 0);
 
-      const realEstate = realEstateData.reduce(
-        (sum, item: any) => sum + (Number(item.price) || 0),
-        0
-      );
+      const otherAssets = customAssetsData
+        .filter((item) => item.asset_type !== "vehicle")
+        .reduce((sum, item) => sum + numericValue(item.current_value || item.purchase_price), 0);
+
+      const realEstate = realEstateData.reduce((sum, item) => sum + numericValue(item.price), 0);
 
       const liabilities = liabilitiesData.reduce(
-        (sum, item: any) => sum + (Number(item.outstanding_amount) || 0),
+        (sum, item) => sum + numericValue(item.outstanding_amount),
         0
       );
 
-      const totalAssets = portfolio + rentalProperties + flats + gold + cars + realEstate;
+      const totalAssets =
+        portfolio + rentalProperties + flats + gold + cars + otherAssets + realEstate;
       const netWorth = totalAssets - liabilities;
 
       return {
@@ -100,6 +112,7 @@ export function useNetWorthData() {
         flats,
         gold,
         cars,
+        otherAssets,
         realEstate,
         liabilities,
         totalAssets,
@@ -110,4 +123,3 @@ export function useNetWorthData() {
     staleTime: 5 * 60 * 1000,
   });
 }
-

@@ -12,13 +12,16 @@ const Portfolio = () => {
 
   // Group by scheme and calculate totals
   const mutualFunds = useMemo(() => {
-    const schemes = new Map<string, {
-      name: string;
-      units: number;
-      invested: number;
-      nav: number;
-      transactions: TransactionData[];
-    }>();
+    const schemes = new Map<
+      string,
+      {
+        name: string;
+        units: number;
+        invested: number;
+        nav: number;
+        transactions: TransactionData[];
+      }
+    >();
 
     // Sort transactions oldest to newest so the last iterated is the latest NAV
     const sortedTx = [...filteredTransactions].sort(
@@ -52,7 +55,7 @@ const Portfolio = () => {
         const value = s.units * s.nav;
         const returns = value - s.invested;
         const returnPercent = s.invested > 0 ? (returns / s.invested) * 100 : 0;
-        
+
         return {
           name: s.name,
           units: s.units,
@@ -67,8 +70,8 @@ const Portfolio = () => {
   }, [filteredTransactions]);
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Portfolio" 
+      <PageHeader
+        title="Portfolio"
         description={`${selectedInvestor === "all" ? "All Investors" : selectedInvestor} - Complete Investment Portfolio`}
       />
 
@@ -82,8 +85,8 @@ const Portfolio = () => {
             {mutualFunds.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {mutualFunds.map((fund, index) => (
-                  <CommonCard 
-                    key={index} 
+                  <CommonCard
+                    key={index}
                     noHeader
                     className="border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg"
                     contentClassName="p-5"
@@ -94,14 +97,16 @@ const Portfolio = () => {
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-bold line-clamp-2">{fund.name}</h3>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {fund.units.toLocaleString('en-IN', { maximumFractionDigits: 2 })} units • NAV ₹{fund.nav.toFixed(2)}
+                            {fund.units.toLocaleString("en-IN", { maximumFractionDigits: 2 })} units
+                            • NAV ₹{fund.nav.toFixed(2)}
                           </p>
                         </div>
-                        <Badge 
+                        <Badge
                           variant={fund.returns >= 0 ? "default" : "destructive"}
                           className="text-xs font-bold flex-shrink-0"
                         >
-                          {fund.returns >= 0 ? '+' : ''}{fund.returnPercent.toFixed(1)}%
+                          {fund.returns >= 0 ? "+" : ""}
+                          {fund.returnPercent.toFixed(1)}%
                         </Badge>
                       </div>
 
@@ -109,11 +114,15 @@ const Portfolio = () => {
                       <div className="grid grid-cols-2 gap-3 border-t pt-3">
                         <div>
                           <p className="text-xs text-muted-foreground">Invested</p>
-                          <p className="text-base font-bold">₹{(fund.invested / 1000).toFixed(1)}K</p>
+                          <p className="text-base font-bold">
+                            ₹{(fund.invested / 1000).toFixed(1)}K
+                          </p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Current Value</p>
-                          <p className="text-base font-bold text-primary">₹{(fund.value / 1000).toFixed(1)}K</p>
+                          <p className="text-base font-bold text-primary">
+                            ₹{(fund.value / 1000).toFixed(1)}K
+                          </p>
                         </div>
                       </div>
 
@@ -121,13 +130,15 @@ const Portfolio = () => {
                       <div className="space-y-1.5 border-t pt-3">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">Total Returns</span>
-                          <span className={`font-semibold ${fund.returns >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {fund.returns >= 0 ? '+' : ''}₹{(fund.returns / 1000).toFixed(1)}K
+                          <span
+                            className={`font-semibold ${fund.returns >= 0 ? "text-success" : "text-destructive"}`}
+                          >
+                            {fund.returns >= 0 ? "+" : ""}₹{(fund.returns / 1000).toFixed(1)}K
                           </span>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${fund.returns >= 0 ? 'bg-success' : 'bg-destructive'}`}
+                          <div
+                            className={`h-full rounded-full ${fund.returns >= 0 ? "bg-success" : "bg-destructive"}`}
                             style={{ width: `${Math.min(Math.abs(fund.returnPercent), 100)}%` }}
                           />
                         </div>
@@ -139,8 +150,12 @@ const Portfolio = () => {
             ) : (
               <CommonCard noHeader>
                 <div className="py-12 text-center">
-                  <p className="text-muted-foreground">No mutual fund holdings found for the selected investor.</p>
-                  <p className="text-sm text-muted-foreground mt-2">Transaction data will appear here once loaded.</p>
+                  <p className="text-muted-foreground">
+                    No mutual fund holdings found for the selected investor.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Transaction data will appear here once loaded.
+                  </p>
                 </div>
               </CommonCard>
             )}

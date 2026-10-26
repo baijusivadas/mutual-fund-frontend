@@ -1,7 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNetWorthData } from "@/hooks/useNetWorthData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Building, Home, Coins, Car, MapPin, CreditCard, Wallet, ArrowUpRight } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Building,
+  Home,
+  Coins,
+  Car,
+  MapPin,
+  CreditCard,
+  Wallet,
+  ArrowUpRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const formatCurrency = (value: number) => {
@@ -35,12 +46,42 @@ export function NetWorthChart() {
   if (!data) return null;
 
   const assets = [
-    { label: "Portfolio", value: data.portfolio, icon: Wallet, color: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
-    { label: "Rental Properties", value: data.rentalProperties, icon: Building, color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" },
-    { label: "Flats", value: data.flats, icon: Home, color: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
-    { label: "Gold", value: data.gold, icon: Coins, color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
-    { label: "Cars", value: data.cars, icon: Car, color: "bg-slate-500/10 text-slate-600 dark:text-slate-400" },
-    { label: "Real Estate", value: data.realEstate, icon: MapPin, color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+    {
+      label: "Portfolio",
+      value: data.portfolio,
+      icon: Wallet,
+      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    },
+    {
+      label: "Rental Properties",
+      value: data.rentalProperties,
+      icon: Building,
+      color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+    },
+    {
+      label: "Flats",
+      value: data.flats,
+      icon: Home,
+      color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    },
+    {
+      label: "Gold",
+      value: data.gold,
+      icon: Coins,
+      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    },
+    {
+      label: "Cars",
+      value: data.cars,
+      icon: Car,
+      color: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+    },
+    {
+      label: "Real Estate",
+      value: data.realEstate,
+      icon: MapPin,
+      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    },
   ];
 
   const grossAssets = data.totalAssets;
@@ -132,7 +173,12 @@ export function NetWorthChart() {
                   className="p-3.5 rounded-2xl bg-muted/40 hover:bg-muted/70 transition-all border border-border/40 hover:border-primary/30 group/item space-y-2"
                 >
                   <div className="flex items-center gap-2">
-                    <div className={cn("p-2 rounded-xl shrink-0 transition-transform group-hover/item:scale-110", asset.color)}>
+                    <div
+                      className={cn(
+                        "p-2 rounded-xl shrink-0 transition-transform group-hover/item:scale-110",
+                        asset.color
+                      )}
+                    >
                       <asset.icon className="h-4 w-4" />
                     </div>
                     <span className="text-[11px] font-bold truncate text-muted-foreground">

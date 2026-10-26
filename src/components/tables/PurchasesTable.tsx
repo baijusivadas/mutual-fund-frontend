@@ -38,12 +38,12 @@ export const PurchasesTable = ({ purchases }: PurchasesTableProps) => {
               </thead>
               <tbody>
                 {displayedPurchases.map((purchase, index) => (
-                  <tr 
-                    key={index} 
+                  <tr
+                    key={index}
                     className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors"
                   >
                     <td className="py-3 text-sm text-foreground whitespace-nowrap">
-                      {new Date(purchase.investmentDate).toLocaleDateString('en-IN')}
+                      {new Date(purchase.investmentDate).toLocaleDateString("en-IN")}
                     </td>
                     <td className="py-3 text-sm font-medium text-foreground">
                       {purchase.investorName}
@@ -52,34 +52,29 @@ export const PurchasesTable = ({ purchases }: PurchasesTableProps) => {
                       {purchase.schemeName}
                     </td>
                     <td className="py-3">
-                      <Badge 
-                        variant={purchase.category === 'systematic' ? 'default' : 'secondary'}
-                      >
+                      <Badge variant={purchase.category === "systematic" ? "default" : "secondary"}>
                         {purchase.category}
                       </Badge>
                     </td>
                     <td className="py-3 text-right text-sm text-foreground">
-                      {purchase.units.toLocaleString('en-IN', { maximumFractionDigits: 4 })}
+                      {purchase.units.toLocaleString("en-IN", { maximumFractionDigits: 4 })}
                     </td>
                     <td className="py-3 text-right text-sm text-muted-foreground">
-                      ₹{purchase.nav.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      ₹{purchase.nav.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </td>
                     <td className="py-3 text-right text-sm font-medium text-green-600 dark:text-green-400">
-                      ₹{purchase.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{purchase.value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          
+
           {purchases.length > 50 && (
             <div className="flex justify-center pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowAll(!showAll)}
-              >
-                {showAll ? 'Show Less' : `Show All ${purchases.length} Transactions`}
+              <Button variant="outline" onClick={() => setShowAll(!showAll)}>
+                {showAll ? "Show Less" : `Show All ${purchases.length} Transactions`}
               </Button>
             </div>
           )}

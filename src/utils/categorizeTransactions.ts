@@ -10,11 +10,11 @@ export interface UserSummary {
 }
 
 export interface PurchaseTransaction extends TransactionData {
-  category: 'purchase' | 'systematic';
+  category: "purchase" | "systematic";
 }
 
 export interface RedeemTransaction extends TransactionData {
-  category: 'redeem' | 'switchout';
+  category: "redeem" | "switchout";
 }
 
 export interface MutualFundSummary {
@@ -35,7 +35,7 @@ export function categorizeUsers(transactions: TransactionData[]): UserSummary[] 
     if (!userName) return;
 
     const existing = userMap.get(userName);
-    
+
     const investment = t.isSell ? 0 : t.value;
     const redemption = t.isSell ? t.value : 0;
 
@@ -66,9 +66,7 @@ export function categorizeUsers(transactions: TransactionData[]): UserSummary[] 
     user.schemesInvested = userSchemes.size;
   });
 
-  return Array.from(userMap.values()).sort((a, b) => 
-    b.netInvestment - a.netInvestment
-  );
+  return Array.from(userMap.values()).sort((a, b) => b.netInvestment - a.netInvestment);
 }
 
 export function categorizePurchases(transactions: TransactionData[]): PurchaseTransaction[] {
@@ -76,9 +74,9 @@ export function categorizePurchases(transactions: TransactionData[]): PurchaseTr
     .filter((t) => !t.isSell)
     .map((t) => ({
       ...t,
-      category: (t.transactionType.toLowerCase().includes('systematic') 
-        ? 'systematic' 
-        : 'purchase') as 'purchase' | 'systematic',
+      category: (t.transactionType.toLowerCase().includes("systematic")
+        ? "systematic"
+        : "purchase") as "purchase" | "systematic",
     }))
     .sort((a, b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime());
 }
@@ -88,9 +86,9 @@ export function categorizeRedemptions(transactions: TransactionData[]): RedeemTr
     .filter((t) => t.isSell)
     .map((t) => ({
       ...t,
-      category: (t.transactionType.toLowerCase().includes('switchout') 
-        ? 'switchout' 
-        : 'redeem') as 'redeem' | 'switchout',
+      category: (t.transactionType.toLowerCase().includes("switchout") ? "switchout" : "redeem") as
+        | "redeem"
+        | "switchout",
     }))
     .sort((a, b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime());
 }
@@ -103,7 +101,7 @@ export function categorizeMutualFunds(transactions: TransactionData[]): MutualFu
     if (!schemeName) return;
 
     const existing = fundMap.get(schemeName);
-    
+
     const investment = t.isSell ? 0 : t.value;
     const redemption = t.isSell ? t.value : 0;
     const units = t.isSell ? -t.units : t.units;
@@ -138,7 +136,5 @@ export function categorizeMutualFunds(transactions: TransactionData[]): MutualFu
     fund.totalInvestors = fundInvestors.size;
   });
 
-  return Array.from(fundMap.values()).sort((a, b) => 
-    b.netInvestment - a.netInvestment
-  );
+  return Array.from(fundMap.values()).sort((a, b) => b.netInvestment - a.netInvestment);
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,17 +42,17 @@ export const EditUserDialog = ({ user, open, onOpenChange }: EditUserDialogProps
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({
         title: "User updated",
         description: "User profile has been successfully updated.",
       });
       onOpenChange(false);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error updating user",
-        description: error.message,
+        description: getErrorMessage(error, "Failed to update user"),
         variant: "destructive",
       });
     },
@@ -68,20 +69,13 @@ export const EditUserDialog = ({ user, open, onOpenChange }: EditUserDialogProps
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>
-            Update user profile information
-          </DialogDescription>
+          <DialogDescription>Update user profile information</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                value={user?.email || ""}
-                disabled
-                className="bg-muted"
-              />
+              <Input id="email" value={user?.email || ""} disabled className="bg-muted" />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="fullName">Full Name</Label>

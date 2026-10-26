@@ -18,32 +18,29 @@ const TransactionReports = () => {
   const { filteredTransactions } = useInvestor();
 
   const users = useMemo(() => categorizeUsers(filteredTransactions), [filteredTransactions]);
-  const purchases = useMemo(() => categorizePurchases(filteredTransactions), [filteredTransactions]);
-  const redemptions = useMemo(() => categorizeRedemptions(filteredTransactions), [filteredTransactions]);
+  const purchases = useMemo(
+    () => categorizePurchases(filteredTransactions),
+    [filteredTransactions]
+  );
+  const redemptions = useMemo(
+    () => categorizeRedemptions(filteredTransactions),
+    [filteredTransactions]
+  );
   const funds = useMemo(() => categorizeMutualFunds(filteredTransactions), [filteredTransactions]);
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Transaction Reports" 
-        description="Comprehensive view of investors, purchases, redemptions, and mutual funds" 
+      <PageHeader
+        title="Transaction Reports"
+        description="Comprehensive view of investors, purchases, redemptions, and mutual funds"
       />
       <div className="space-y-6">
-
         <Tabs defaultValue="users" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="users">
-              Investors ({users.length})
-            </TabsTrigger>
-            <TabsTrigger value="purchases">
-              Purchases ({purchases.length})
-            </TabsTrigger>
-            <TabsTrigger value="redemptions">
-              Redemptions ({redemptions.length})
-            </TabsTrigger>
-            <TabsTrigger value="funds">
-              Mutual Funds ({funds.length})
-            </TabsTrigger>
+            <TabsTrigger value="users">Investors ({users.length})</TabsTrigger>
+            <TabsTrigger value="purchases">Purchases ({purchases.length})</TabsTrigger>
+            <TabsTrigger value="redemptions">Redemptions ({redemptions.length})</TabsTrigger>
+            <TabsTrigger value="funds">Mutual Funds ({funds.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="space-y-4">

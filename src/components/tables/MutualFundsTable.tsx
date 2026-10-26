@@ -25,9 +25,15 @@ export const MutualFundsTable = ({ funds }: MutualFundsTableProps) => {
                 <th className="pb-3 text-center font-medium text-muted-foreground">Investors</th>
                 <th className="pb-3 text-right font-medium text-muted-foreground">Total Units</th>
                 <th className="pb-3 text-right font-medium text-muted-foreground">Latest NAV</th>
-                <th className="pb-3 text-right font-medium text-muted-foreground">Total Investment</th>
-                <th className="pb-3 text-right font-medium text-muted-foreground">Total Redemption</th>
-                <th className="pb-3 text-right font-medium text-muted-foreground">Net Investment</th>
+                <th className="pb-3 text-right font-medium text-muted-foreground">
+                  Total Investment
+                </th>
+                <th className="pb-3 text-right font-medium text-muted-foreground">
+                  Total Redemption
+                </th>
+                <th className="pb-3 text-right font-medium text-muted-foreground">
+                  Net Investment
+                </th>
                 <th className="pb-3 text-right font-medium text-muted-foreground">Current Value</th>
               </tr>
             </thead>
@@ -35,52 +41,52 @@ export const MutualFundsTable = ({ funds }: MutualFundsTableProps) => {
               {funds.map((fund, index) => {
                 const currentValue = fund.totalUnits * fund.latestNav;
                 const returns = currentValue - fund.netInvestment;
-                const returnPercent = fund.netInvestment > 0 
-                  ? ((returns / fund.netInvestment) * 100) 
-                  : 0;
+                const returnPercent =
+                  fund.netInvestment > 0 ? (returns / fund.netInvestment) * 100 : 0;
 
                 return (
-                  <tr 
-                    key={index} 
+                  <tr
+                    key={index}
                     className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors"
                   >
                     <td className="py-4 text-sm font-medium text-foreground max-w-md">
                       {fund.schemeName}
                     </td>
                     <td className="py-4 text-center">
-                      <Badge variant="outline">
-                        {fund.totalInvestors}
-                      </Badge>
+                      <Badge variant="outline">{fund.totalInvestors}</Badge>
                     </td>
                     <td className="py-4 text-right text-sm text-foreground">
-                      {fund.totalUnits.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      {fund.totalUnits.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </td>
                     <td className="py-4 text-right text-sm text-muted-foreground">
-                      ₹{fund.latestNav.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      ₹{fund.latestNav.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </td>
                     <td className="py-4 text-right text-sm text-foreground">
-                      ₹{fund.totalInvestment.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{fund.totalInvestment.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                     </td>
                     <td className="py-4 text-right text-sm text-muted-foreground">
-                      ₹{fund.totalRedemption.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{fund.totalRedemption.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                     </td>
                     <td className="py-4 text-right text-sm font-medium text-foreground">
-                      ₹{fund.netInvestment.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{fund.netInvestment.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                     </td>
                     <td className="py-4 text-right">
                       <div className="flex flex-col items-end gap-1">
-                        <span className={`text-sm font-medium ${
-                          returns >= 0 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : 'text-red-600 dark:text-red-400'
-                        }`}>
-                          ₹{currentValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        <span
+                          className={`text-sm font-medium ${
+                            returns >= 0
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-red-600 dark:text-red-400"
+                          }`}
+                        >
+                          ₹{currentValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                         </span>
-                        <Badge 
-                          variant={returns >= 0 ? 'default' : 'destructive'}
+                        <Badge
+                          variant={returns >= 0 ? "default" : "destructive"}
                           className="text-xs"
                         >
-                          {returns >= 0 ? '+' : ''}{returnPercent.toFixed(2)}%
+                          {returns >= 0 ? "+" : ""}
+                          {returnPercent.toFixed(2)}%
                         </Badge>
                       </div>
                     </td>

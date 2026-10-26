@@ -3,7 +3,13 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { DataManager } from "@/components/shared/DataManager";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { realEstateStatusFilters, propertyTypeFilters } from "@/data/filterOptions";
 import { ColumnConfig, StatusBadge } from "@/components/shared/CommonTable";
@@ -24,10 +30,30 @@ const RealEstate = () => {
   const columns: ColumnConfig<RealEstateItem>[] = [
     { key: "property_name", label: "Property Name", sortable: true, className: "font-medium" },
     { key: "location", label: "Location", sortable: true },
-    { key: "property_type", label: "Type", sortable: true, render: (item) => <span className="capitalize">{item.property_type}</span> },
-    { key: "price", label: "Price", sortable: true, render: (item) => `₹${Number(item.price).toLocaleString('en-IN')}` },
-    { key: "area", label: "Area", sortable: true, render: (item) => `${Number(item.area).toLocaleString()} sq ft` },
-    { key: "status", label: "Status", sortable: true, render: (item) => <StatusBadge status={item.status} /> },
+    {
+      key: "property_type",
+      label: "Type",
+      sortable: true,
+      render: (item) => <span className="capitalize">{item.property_type}</span>,
+    },
+    {
+      key: "price",
+      label: "Price",
+      sortable: true,
+      render: (item) => `₹${Number(item.price).toLocaleString("en-IN")}`,
+    },
+    {
+      key: "area",
+      label: "Area",
+      sortable: true,
+      render: (item) => `${Number(item.area).toLocaleString()} sq ft`,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (item) => <StatusBadge status={item.status} />,
+    },
   ];
 
   const defaultFormData = {
@@ -40,7 +66,10 @@ const RealEstate = () => {
     description: "",
   };
 
-  const renderForm = (formData: any, setFormData: (data: any) => void) => (
+  const renderForm = (
+    formData: typeof defaultFormData,
+    setFormData: (data: typeof defaultFormData) => void
+  ) => (
     <div className="grid gap-4">
       <div className="grid gap-2">
         <Label htmlFor="property_name">Property Name *</Label>
@@ -89,12 +118,18 @@ const RealEstate = () => {
             value={formData.property_type}
             onValueChange={(value) => setFormData({ ...formData, property_type: value })}
           >
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="residential">Residential</SelectItem>
-              {propertyTypeFilters.filter(f => f.value !== 'all').map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
+              {propertyTypeFilters
+                .filter((f) => f.value !== "all")
+                .map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -104,11 +139,17 @@ const RealEstate = () => {
             value={formData.status}
             onValueChange={(value) => setFormData({ ...formData, status: value })}
           >
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {realEstateStatusFilters.filter(f => f.value !== 'all').map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
+              {realEstateStatusFilters
+                .filter((f) => f.value !== "all")
+                .map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -128,7 +169,7 @@ const RealEstate = () => {
 
   return (
     <DashboardLayout>
-      <DataManager<RealEstateItem>
+      <DataManager<RealEstateItem, typeof defaultFormData>
         entity="real_estate"
         title="Real Estate Management"
         description="Manage your real estate properties inventory"
@@ -151,4 +192,3 @@ const RealEstate = () => {
 };
 
 export default RealEstate;
-

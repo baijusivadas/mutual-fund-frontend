@@ -15,12 +15,8 @@ const CapitalGains = () => {
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Capital Gains" 
-        description="Tax calculation and gains analysis" 
-      />
+      <PageHeader title="Capital Gains" description="Tax calculation and gains analysis" />
       <div className="space-y-6">
-
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             title="Short Term Capital Gains"
@@ -61,7 +57,12 @@ const CapitalGains = () => {
           <TabsContent value="shortterm" className="mt-6">
             <div className="space-y-4">
               {shortTermGains.map((trade, index) => (
-                <TradeCard key={index} trade={trade} taxRate={TAX_RATES.shortTerm} variant="shortTerm" />
+                <TradeCard
+                  key={index}
+                  trade={trade}
+                  taxRate={TAX_RATES.shortTerm}
+                  variant="shortTerm"
+                />
               ))}
               <TotalSummaryCard
                 totalGains={totalShortTerm}
@@ -75,7 +76,12 @@ const CapitalGains = () => {
           <TabsContent value="longterm" className="mt-6">
             <div className="space-y-4">
               {longTermGains.map((trade, index) => (
-                <TradeCard key={index} trade={trade} taxRate={TAX_RATES.longTerm} variant="longTerm" />
+                <TradeCard
+                  key={index}
+                  trade={trade}
+                  taxRate={TAX_RATES.longTerm}
+                  variant="longTerm"
+                />
               ))}
               <TotalSummaryCard
                 totalGains={totalLongTerm}

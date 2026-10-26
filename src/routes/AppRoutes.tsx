@@ -1,4 +1,3 @@
-
 import { lazy, Suspense } from "react";
 import { Routes, Route, Outlet } from "react-router-dom";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
@@ -41,7 +40,7 @@ const FullPageLoader = () => (
   <div className="flex h-screen w-full items-center justify-center bg-background">
     <div className="flex flex-col items-center gap-3">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-sm font-medium text-muted-foreground">Loading FinSight...</p>
+      <p className="text-sm font-medium text-muted-foreground">Loading BrickWealth...</p>
     </div>
   </div>
 );

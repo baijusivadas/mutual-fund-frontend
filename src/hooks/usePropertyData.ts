@@ -3,10 +3,7 @@ import api from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { propertyQueryConfig } from "./useQueryConfig";
 
-export const usePropertyData = <T extends Record<string, any>>(
-  tableName: string,
-  queryKey: string
-) => {
+export const usePropertyData = <T extends object>(tableName: string, queryKey: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -39,7 +36,7 @@ export const usePropertyData = <T extends Record<string, any>>(
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      await Promise.all(ids.map(id => api.delete(`/advanced/${tableName}/${id}`)));
+      await Promise.all(ids.map((id) => api.delete(`/advanced/${tableName}/${id}`)));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] as const });
@@ -56,7 +53,7 @@ export const usePropertyData = <T extends Record<string, any>>(
 
   const bulkStatusUpdateMutation = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
-      await Promise.all(ids.map(id => api.put(`/advanced/${tableName}/${id}`, { status })));
+      await Promise.all(ids.map((id) => api.put(`/advanced/${tableName}/${id}`, { status })));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] as const });

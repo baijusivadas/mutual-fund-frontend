@@ -1,7 +1,15 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { stockPriceData, stockDetails, StockPriceDataKey } from "@/data/stockData";
 import { TOOLTIP_STYLE } from "@/data/chartColors";
 import { StockDetailCard } from "@/components/dashboard/investments/StockDetailCard";
@@ -11,12 +19,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 const StockReports = () => {
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="Stock Reports" 
-        description="Detailed analysis of individual stocks" 
-      />
+      <PageHeader title="Stock Reports" description="Detailed analysis of individual stocks" />
       <div className="space-y-6">
-
         <Tabs defaultValue="reliance" className="w-full">
           <TabsList className="grid w-full max-w-2xl grid-cols-3">
             <TabsTrigger value="reliance">Reliance</TabsTrigger>
@@ -40,7 +44,7 @@ const StockReports = () => {
                     <LineChart data={stockPriceData[stock.dataKey as StockPriceDataKey]}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis dataKey="date" className="text-xs" />
-                      <YAxis domain={['dataMin - 10', 'dataMax + 10']} className="text-xs" />
+                      <YAxis domain={["dataMin - 10", "dataMax + 10"]} className="text-xs" />
                       <Tooltip contentStyle={TOOLTIP_STYLE} />
                       <Line
                         type="monotone"

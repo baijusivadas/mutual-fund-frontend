@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/services/api";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { getErrorMessage } from "@/lib/errors";
 
 type UserRole = "superAdmin" | "user";
 
@@ -11,17 +12,30 @@ interface User {
   name?: string;
 }
 
+type AuthResult = { error: string | null };
+
+function isUser(value: unknown): value is User {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "email" in value &&
+    typeof value.email === "string"
+  );
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   role: UserRole | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
-  verifyOTP: (email: string, otp: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<AuthResult>;
+  verifyOTP: (email: string, otp: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: any }>;
-  updatePassword: (newPassword: string) => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<AuthResult>;
+  updatePassword: (newPassword: string) => Promise<AuthResult>;
   isSuperAdmin: boolean;
 }
 
@@ -44,7 +58,8 @@ const getDecodedTokenExp = (token: string | null): number | null => {
     const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
     const jsonPayload = decodeURIComponent(
-      window.atob(base64)
+      window
+        .atob(base64)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
@@ -98,21 +113,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const savedToken = localStorage.getItem("auth_token");
     const savedUser = localStorage.getItem("auth_user");
-    const savedRole = localStorage.getItem("auth_role") as UserRole;
+    const savedRole = localStorage.getItem("auth_role");
     const loginTime = localStorage.getItem("auth_login_time");
 
-    if (savedToken && savedUser && savedRole) {
+    if (savedToken && savedUser && (savedRole === "superAdmin" || savedRole === "user")) {
       const expTime = getDecodedTokenExp(savedToken);
-      const fallbackExpiration = loginTime ? parseInt(loginTime) + 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000;
+      const fallbackExpiration = loginTime
+        ? parseInt(loginTime) + 24 * 60 * 60 * 1000
+        : Date.now() + 24 * 60 * 60 * 1000;
       const expirationTime = expTime || fallbackExpiration;
 
       if (Date.now() > expirationTime) {
         signOut();
       } else {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-        setRole(savedRole);
+        try {
+          const parsedUser: unknown = JSON.parse(savedUser);
+          if (!isUser(parsedUser)) {
+            throw new Error("Saved user data is invalid");
+          }
+          setUser(parsedUser);
+          setRole(savedRole);
+          setToken(savedToken);
+        } catch (error) {
+          console.error("Unable to restore saved user session:", error);
+          clearAuthStorage();
+        }
       }
+    } else if (savedToken || savedUser || savedRole) {
+      clearAuthStorage();
     }
     setLoading(false);
   }, [signOut]);
@@ -123,7 +151,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const interval = setInterval(() => {
       const expTime = getDecodedTokenExp(token);
       const loginTime = localStorage.getItem("auth_login_time");
-      const fallbackExpiration = loginTime ? parseInt(loginTime) + 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000;
+      const fallbackExpiration = loginTime
+        ? parseInt(loginTime) + 24 * 60 * 60 * 1000
+        : Date.now() + 24 * 60 * 60 * 1000;
       const expirationTime = expTime || fallbackExpiration;
 
       if (Date.now() > expirationTime) {
@@ -154,8 +184,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       toast({ title: "Success", description: "Logged in successfully" });
       return { error: null };
-    } catch (error: any) {
-      const message = error.response?.data?.message || error.message || "Login failed";
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "Login failed");
       toast({ title: "Error", description: message, variant: "destructive" });
       return { error: message };
     }
@@ -170,8 +200,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: "Please check your email for the verification code.",
       });
       return { error: null };
-    } catch (error: any) {
-      const message = error.response?.data?.message || error.message || "Signup failed";
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "Signup failed");
       toast({ title: "Error", description: message, variant: "destructive" });
       return { error: message };
     }
@@ -183,8 +213,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await authApi.verifyOtp({ email, otp });
       toast({ title: "Success", description: "Account verified! You can now log in." });
       return { error: null };
-    } catch (error: any) {
-      const message = error.response?.data?.message || error.message || "Verification failed";
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "Verification failed");
       toast({ title: "Error", description: message, variant: "destructive" });
       return { error: message };
     }
@@ -194,10 +224,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const resetPassword = async (email: string) => {
     try {
       await authApi.forgotPassword({ email });
-      toast({ title: "Instructions Sent", description: "Check your email for reset instructions." });
+      toast({
+        title: "Instructions Sent",
+        description: "Check your email for reset instructions.",
+      });
       return { error: null };
-    } catch (error: any) {
-      const message = error.response?.data?.message || error.message || "Request failed";
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "Request failed");
       toast({ title: "Error", description: message, variant: "destructive" });
       return { error: message };
     }
@@ -238,4 +271,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

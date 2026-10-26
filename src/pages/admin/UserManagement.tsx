@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { userRoleFilters } from "@/data/filterOptions";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { authApi } from "@/services/api";
+import { getErrorMessage } from "@/lib/errors";
 import { CommonCard } from "@/components/shared/CommonCard";
 import { CommonTable, ColumnConfig } from "@/components/shared/CommonTable";
 import { CommonSelect } from "@/components/shared/CommonSelect";
@@ -22,20 +23,24 @@ interface UserWithRole {
   id: string;
   email: string;
   full_name: string | null;
-  role: 'superAdmin' | 'user';
+  role: "superAdmin" | "user";
   created_at: string;
 }
 
 const UserManagement = () => {
   const [updating, setUpdating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
+  const [editingUser, setEditingUser] = useState<{
+    id: string;
+    email: string;
+    full_name: string | null;
+  } | null>(null);
   const { toast } = useToast();
   const { token } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading: loading } = useQuery({
-    queryKey: ['users'],
+    queryKey: ["users"],
     queryFn: async () => {
       const response = await authApi.getUsers();
       return response.data?.data ?? response.data;
@@ -45,28 +50,28 @@ const UserManagement = () => {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'superAdmin' | 'user' }) => {
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: "superAdmin" | "user" }) => {
       const response = await authApi.updateUserRole(userId, newRole);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({
         title: "Role updated",
         description: "User role has been successfully updated.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error updating role",
-        description: error.response?.data?.message || error.message,
+        description: getErrorMessage(error, "Failed to update user role"),
         variant: "destructive",
       });
     },
     onSettled: () => setUpdating(null),
   });
 
-  const handleRoleChange = (userId: string, newRole: 'superAdmin' | 'user') => {
+  const handleRoleChange = (userId: string, newRole: "superAdmin" | "user") => {
     setUpdating(userId);
     updateRoleMutation.mutate({ userId, newRole });
   };
@@ -77,16 +82,16 @@ const UserManagement = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({
         title: "User deleted",
         description: "User has been successfully deleted.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error deleting user",
-        description: error.response?.data?.message || error.message,
+        description: getErrorMessage(error, "Failed to delete user"),
         variant: "destructive",
       });
     },
@@ -99,53 +104,51 @@ const UserManagement = () => {
   };
 
   const columns: ColumnConfig<UserWithRole>[] = [
-    { 
-      key: "full_name", 
-      label: "User", 
+    {
+      key: "full_name",
+      label: "User",
       sortable: true,
       render: (user) => (
         <div className="flex items-center gap-2">
-          {user.role === 'superAdmin' ? (
+          {user.role === "superAdmin" ? (
             <Shield className="h-4 w-4 text-primary" />
           ) : (
             <UserIcon className="h-4 w-4 text-muted-foreground" />
           )}
-          {user.full_name || 'N/A'}
+          {user.full_name || "N/A"}
         </div>
-      )
+      ),
     },
     { key: "email", label: "Email", sortable: true },
-    { 
-      key: "role", 
-      label: "Role", 
+    {
+      key: "role",
+      label: "Role",
       sortable: true,
       render: (user) => (
-        <Badge variant={user.role === 'superAdmin' ? 'default' : 'secondary'}>
-          {user.role}
-        </Badge>
-      )
+        <Badge variant={user.role === "superAdmin" ? "default" : "secondary"}>{user.role}</Badge>
+      ),
     },
-    { 
-      key: "role_selector", 
-      label: "Change Role", 
+    {
+      key: "role_selector",
+      label: "Change Role",
       render: (user) => (
         <CommonSelect
           value={user.role}
-          onValueChange={(value) => handleRoleChange(user.id, value as 'superAdmin' | 'user')}
+          onValueChange={(value) => handleRoleChange(user.id, value as "superAdmin" | "user")}
           disabled={updating === user.id || deleting === user.id}
           options={[
             { value: "user", label: "User" },
-            { value: "superAdmin", label: "SuperAdmin" }
+            { value: "superAdmin", label: "SuperAdmin" },
           ]}
           className="w-[140px]"
         />
-      )
+      ),
     },
-    { 
-      key: "created_at", 
-      label: "Created", 
+    {
+      key: "created_at",
+      label: "Created",
       sortable: true,
-      render: (user) => new Date(user.created_at).toLocaleDateString()
+      render: (user) => new Date(user.created_at).toLocaleDateString(),
     },
   ];
 
@@ -159,8 +162,8 @@ const UserManagement = () => {
 
   return (
     <DashboardLayout>
-      <PageHeader 
-        title="User Management" 
+      <PageHeader
+        title="User Management"
         description="Manage user accounts and assign roles."
         actions={<AddUserDialog />}
       />
@@ -174,16 +177,18 @@ const UserManagement = () => {
             statusKey="role"
             statusFilters={userRoleFilters}
             emptyMessage="No users found"
-            onEdit={(user) => setEditingUser({ id: user.id, email: user.email, full_name: user.full_name })}
+            onEdit={(user) =>
+              setEditingUser({ id: user.id, email: user.email, full_name: user.full_name })
+            }
             onDelete={handleDeleteUser}
             deletingId={deleting}
           />
         </CommonCard>
 
-        <EditUserDialog 
-          user={editingUser} 
-          open={!!editingUser} 
-          onOpenChange={(open) => !open && setEditingUser(null)} 
+        <EditUserDialog
+          user={editingUser}
+          open={!!editingUser}
+          onOpenChange={(open) => !open && setEditingUser(null)}
         />
       </div>
     </DashboardLayout>
@@ -191,4 +196,3 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
-
