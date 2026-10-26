@@ -1,9 +1,12 @@
 import axios from "axios";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+// Use relative '/api' in development (proxied by Vite) to avoid CORS origin block across any port (8080, 8081, etc.)
+const backendEnv = import.meta.env.VITE_BACKEND_URL;
+const isDev = import.meta.env.DEV;
+const baseURL = isDev || !backendEnv ? "/api" : `${backendEnv.replace(/\/$/, "")}/api`;
 
 const api = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
+  baseURL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -19,15 +22,28 @@ api.interceptors.request.use((config) => {
 });
 
 // ── Response interceptor: handle 401 globally ─────────────────────────────────
+// Only auto-logout when the user was actually authenticated AND the failing
+// request was NOT an auth endpoint (login/signup/otp/forgot-password).
+// This prevents: a) login-failure causing a redirect loop, b) being kicked out
+// while on the /login page, c) spurious logouts from parallel background fetches.
+const AUTH_ROUTE_PREFIXES = ["/auth/login", "/auth/signup", "/auth/verify-otp", "/auth/forgot-password"];
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("auth_user");
-      localStorage.removeItem("auth_role");
-      localStorage.removeItem("auth_login_time");
-      window.location.href = "/login";
+      const requestUrl: string = error.config?.url ?? "";
+      const isAuthEndpoint = AUTH_ROUTE_PREFIXES.some((prefix) => requestUrl.includes(prefix));
+      const isAlreadyOnLogin = window.location.pathname === "/login";
+      const wasAuthenticated = !!localStorage.getItem("auth_token");
+
+      if (!isAuthEndpoint && !isAlreadyOnLogin && wasAuthenticated) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        localStorage.removeItem("auth_role");
+        localStorage.removeItem("auth_login_time");
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }

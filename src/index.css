@@ -48,19 +48,19 @@
   }
 
   .dark {
-    --background: 230 40% 4%;
+    --background: 222 47% 2%;
     --foreground: 210 40% 98%;
-    --card: 230 35% 7%;
+    --card: 222 47% 6%;
     --card-foreground: 210 40% 98%;
-    --popover: 230 35% 7%;
+    --popover: 222 47% 6%;
     --popover-foreground: 210 40% 98%;
-    --primary: 228 90% 65%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 228 47% 12%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 222 47% 10%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 228 47% 12%;
+    --muted: 222 47% 10%;
     --muted-foreground: 215 20% 65%;
-    --accent: 228 47% 12%;
+    --accent: 222 47% 10%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
@@ -68,26 +68,26 @@
     --success-foreground: 210 40% 98%;
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 11%;
-    --border: 228 30% 16%;
-    --input: 228 30% 16%;
-    --ring: 228 90% 65%;
+    --border: 217 33% 15%;
+    --input: 217 33% 15%;
+    --ring: 217 91% 60%;
 
     /* Dark Chart colors */
-    --chart-1: 228 90% 65%;
+    --chart-1: 217 91% 60%;
     --chart-2: 142 71% 48%;
     --chart-3: 38 92% 56%;
     --chart-4: 262 83% 66%;
     --chart-5: 199 89% 56%;
 
     /* Dark Sidebar colors */
-    --sidebar-background: 230 40% 5%;
+    --sidebar-background: 222 47% 4%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 228 90% 65%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 228 47% 12%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 222 47% 10%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 228 30% 16%;
-    --sidebar-ring: 228 90% 65%;
+    --sidebar-border: 217 33% 15%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -106,9 +106,8 @@
   body {
     @apply bg-background text-foreground antialiased font-sans;
     background-image:
-      radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.07) 0%, transparent 50%),
-      radial-gradient(circle at 100% 100%, hsl(var(--ring) / 0.04) 0%, transparent 40%),
-      radial-gradient(circle at 0% 50%, hsl(var(--chart-4) / 0.03) 0%, transparent 45%);
+      radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.035) 1px, transparent 0);
+    background-size: 28px 28px;
     background-attachment: fixed;
   }
 
@@ -124,14 +123,9 @@
 
 /* ── Premium Design Tokens & Utilities ────────────────────────────────────── */
 
-/* Ultra-Glass Container */
+/* Ultra-Glass Container responding dynamically to light and dark themes */
 .glass-card {
-  @apply bg-card/75 backdrop-blur-2xl border border-white/10 dark:border-white/5 shadow-xl transition-all duration-300;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
-}
-
-.dark .glass-card {
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+  @apply bg-card/85 backdrop-blur-2xl border border-border/60 shadow-xl dark:shadow-black/40 transition-all duration-300;
 }
 
 /* Hover Lift Effect */

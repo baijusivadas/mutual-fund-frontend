@@ -4,15 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Loader2, Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { Loader2, Mail, ArrowLeft, CheckCircle2, TrendingUp, Sparkles } from "lucide-react";
+
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const ForgotPassword = () => {
@@ -33,7 +26,7 @@ const ForgotPassword = () => {
 
     setIsLoading(true);
 
-    const { error: resetError } = await resetPassword(email);
+    const { error: resetError } = await resetPassword(email.trim());
 
     if (!resetError) {
       setIsEmailSent(true);
@@ -44,85 +37,111 @@ const ForgotPassword = () => {
     setIsLoading(false);
   };
 
-  if (isEmailSent) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <CheckCircle className="h-16 w-16 text-success mb-4" />
-            <h2 className="text-2xl font-bold text-center">Check Your Email</h2>
-            <p className="text-muted-foreground text-center mt-2 mb-6">
-              We've sent a password reset link to <strong>{email}</strong>
-            </p>
-            <p className="text-sm text-muted-foreground text-center mb-6">
-              Didn't receive the email? Check your spam folder or try again.
-            </p>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setIsEmailSent(false)}>
-                Try Again
-              </Button>
-              <Link to="/login">
-                <Button>Back to Login</Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-2 text-center">
-          <div className="flex justify-center mb-2">
-            <Mail className="h-12 w-12 text-primary" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Forgot Password?</CardTitle>
-          <CardDescription>
-            Enter your email address and we'll send you a link to reset your password.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setError("");
-                }}
-                required
-                disabled={isLoading}
-              />
-              {error && <p className="text-sm text-destructive">{error}</p>}
+    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-background text-foreground p-4 sm:p-6 transition-colors duration-300">
+      {/* Background Ambient Glow Accents */}
+      <div className="pointer-events-none absolute -top-40 -left-40 h-[460px] w-[460px] rounded-full bg-blue-600/15 dark:bg-blue-600/20 blur-[130px]" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-indigo-600/15 dark:bg-indigo-600/20 blur-[140px]" />
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="rounded-3xl bg-card border border-border/60 shadow-2xl dark:shadow-black/50 backdrop-blur-2xl p-6 sm:p-8">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+              <TrendingUp className="h-5 w-5" />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending Reset Link...
-                </>
-              ) : (
-                "Send Reset Link"
+            <span className="font-heading font-extrabold text-xl text-foreground">BrickWealth</span>
+          </div>
+
+          {isEmailSent ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+              <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <CheckCircle2 className="h-8 w-8" />
+              </div>
+              <h2 className="text-2xl font-heading font-bold text-foreground">Check Your Inbox</h2>
+              <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+                We've sent password reset instructions to{" "}
+                <span className="text-foreground font-semibold">{email}</span>.
+              </p>
+              <div className="flex gap-3 pt-4 w-full">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEmailSent(false)}
+                  className="flex-1 rounded-xl border-border/60 text-foreground hover:bg-muted"
+                >
+                  Resend
+                </Button>
+                <Link to="/login" className="flex-1">
+                  <Button className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
+                    Back to Login
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-2xl font-heading font-extrabold text-foreground">
+                  Reset Password
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter your email address and we'll send you a link to reset your account credentials.
+                </p>
+              </div>
+
+              {error && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400">
+                  {error}
+                </div>
               )}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <Link
-            to="/login"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Login
-          </Link>
-        </CardFooter>
-      </Card>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs font-medium text-slate-300">
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="pl-10 h-11 bg-muted/50 border-border/60 rounded-xl text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary transition-all"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending Instructions...
+                    </>
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </Button>
+
+                <div className="text-center pt-2">
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" /> Back to Login
+                  </Link>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, KeyRound, CheckCircle } from "lucide-react";
+import { Loader2, KeyRound, CheckCircle2, TrendingUp, Lock } from "lucide-react";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -17,7 +16,6 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If no user session (not coming from reset link), redirect to login
     if (!loading && !user) {
       navigate("/login");
     }
@@ -61,107 +59,111 @@ const ResetPassword = () => {
     setIsLoading(false);
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (isSuccess) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <CheckCircle className="h-16 w-16 text-success mb-4" />
-            <h2 className="text-2xl font-bold text-center">Password Updated!</h2>
-            <p className="text-muted-foreground text-center mt-2">
-              Redirecting you to the dashboard...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-2 text-center">
-          <div className="flex justify-center mb-2">
-            <KeyRound className="h-12 w-12 text-primary" />
+    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-slate-950 text-slate-100 p-4 sm:p-6">
+      {/* Background Ambient Glow Accents */}
+      <div className="pointer-events-none absolute -top-40 -left-40 h-[460px] w-[460px] rounded-full bg-blue-600/20 blur-[130px]" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-indigo-600/20 blur-[140px]" />
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="rounded-3xl bg-slate-900/80 border border-white/10 shadow-2xl shadow-black/60 backdrop-blur-2xl p-6 sm:p-8 space-y-6">
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <span className="font-heading font-extrabold text-xl text-white">BrickWealth</span>
           </div>
-          <CardTitle className="text-2xl font-bold">Reset Your Password</CardTitle>
-          <CardDescription>
-            Enter your new password below. Make sure it's strong and secure.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleResetPassword} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">New Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter new password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (e.target.value) validatePassword(e.target.value);
-                }}
-                required
-                disabled={isLoading}
-                minLength={8}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={isLoading}
-                minLength={8}
-              />
-            </div>
 
-            {errors.length > 0 && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                <ul className="list-disc list-inside space-y-1">
-                  {errors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
+          {isSuccess ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+              <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <CheckCircle2 className="h-8 w-8" />
               </div>
-            )}
-
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p className="font-medium">Password requirements:</p>
-              <ul className="list-disc list-inside space-y-0.5">
-                <li>At least 8 characters</li>
-                <li>One uppercase letter</li>
-                <li>One lowercase letter</li>
-                <li>One number</li>
-              </ul>
+              <h2 className="text-2xl font-heading font-bold text-white">Password Updated!</h2>
+              <p className="text-xs text-slate-400">
+                Your credentials have been securely updated. Redirecting to your portfolio...
+              </p>
             </div>
+          ) : (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-2xl font-heading font-extrabold text-white">
+                  Update Password
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Choose a strong, unique password to secure your wealth account.
+                </p>
+              </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating Password...
-                </>
-              ) : (
-                "Update Password"
+              {errors.length > 0 && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 space-y-1">
+                  {errors.map((err, i) => (
+                    <div key={i}>• {err}</div>
+                  ))}
+                </div>
               )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-xs font-medium text-slate-300">
+                    New Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errors.length > 0) validatePassword(e.target.value);
+                      }}
+                      required
+                      disabled={isLoading}
+                      className="pl-10 h-11 bg-slate-950/50 border-white/10 rounded-xl text-slate-100 placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPassword" className="text-xs font-medium text-slate-300">
+                    Confirm Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="pl-10 h-11 bg-slate-950/50 border-white/10 rounded-xl text-slate-100 placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating Password...
+                    </>
+                  ) : (
+                    "Confirm & Set Password"
+                  )}
+                </Button>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

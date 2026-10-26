@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="line" x1="8" y1="44" x2="56" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="bar1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded rect -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- Subtle inner glow overlay -->
+  <rect width="64" height="64" rx="14" fill="white" opacity="0.04"/>
+  <!-- Bar chart columns -->
+  <rect x="10" y="38" width="7" height="12" rx="2" fill="#3b82f6" opacity="0.7"/>
+  <rect x="20" y="30" width="7" height="20" rx="2" fill="#60a5fa" opacity="0.8"/>
+  <rect x="30" y="22" width="7" height="28" rx="2" fill="#93c5fd" opacity="0.85"/>
+  <!-- Trend arrow line -->
+  <polyline points="10,42 22,30 34,34 48,16" stroke="url(#line)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Arrow tip -->
+  <polyline points="42,13 48,16 45,22" stroke="url(#line)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

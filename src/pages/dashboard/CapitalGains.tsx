@@ -1,4 +1,4 @@
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { memo, useMemo } from "react";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { TrendingUp, Calendar, FileText, DollarSign } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,93 +8,106 @@ import { TotalSummaryCard } from "@/components/dashboard/metrics/TotalSummaryCar
 import { PageHeader } from "@/components/shared/PageHeader";
 
 const CapitalGains = () => {
-  const totalShortTerm = calculateTotals(shortTermGains);
-  const totalLongTerm = calculateTotals(longTermGains);
-  const shortTermTax = totalShortTerm * TAX_RATES.shortTerm;
-  const longTermTax = totalLongTerm * TAX_RATES.longTerm;
+  const { totalShortTerm, totalLongTerm, shortTermTax, longTermTax, totalTaxLiability } = useMemo(() => {
+    const st = calculateTotals(shortTermGains);
+    const lt = calculateTotals(longTermGains);
+    const stTax = st * TAX_RATES.shortTerm;
+    const ltTax = lt * TAX_RATES.longTerm;
+    return {
+      totalShortTerm: st,
+      totalLongTerm: lt,
+      shortTermTax: stTax,
+      longTermTax: ltTax,
+      totalTaxLiability: stTax + ltTax,
+    };
+  }, []);
 
   return (
-    <DashboardLayout>
-      <PageHeader title="Capital Gains" description="Tax calculation and gains analysis" />
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="Short Term Capital Gains"
-            value={`₹${totalShortTerm.toLocaleString()}`}
-            change="Holding < 1 year"
-            changeType="neutral"
-            icon={Calendar}
-          />
-          <MetricCard
-            title="Long Term Capital Gains"
-            value={`₹${totalLongTerm.toLocaleString()}`}
-            change="Holding > 1 year"
-            changeType="positive"
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="STCG Tax (15%)"
-            value={`₹${shortTermTax.toLocaleString()}`}
-            change="Short term liability"
-            changeType="neutral"
-            icon={FileText}
-          />
-          <MetricCard
-            title="LTCG Tax (10%)"
-            value={`₹${longTermTax.toLocaleString()}`}
-            change="Long term liability"
-            changeType="neutral"
-            icon={DollarSign}
-          />
-        </div>
+    <div className="space-y-6 animate-in">
+      <PageHeader
+        title="Capital Gains"
+        description="Comprehensive tax liability estimation and realized gains breakdown"
+      />
 
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          title="Short Term Capital Gains"
+          value={`₹${totalShortTerm.toLocaleString("en-IN")}`}
+          change="Holding < 1 year"
+          changeType="neutral"
+          icon={Calendar}
+        />
+        <MetricCard
+          title="Long Term Capital Gains"
+          value={`₹${totalLongTerm.toLocaleString("en-IN")}`}
+          change="Holding > 1 year"
+          changeType="positive"
+          icon={TrendingUp}
+        />
+        <MetricCard
+          title="STCG Tax (15%)"
+          value={`₹${shortTermTax.toLocaleString("en-IN")}`}
+          change="Short Term Liability"
+          changeType="neutral"
+          icon={FileText}
+        />
+        <MetricCard
+          title="LTCG Tax (10%)"
+          value={`₹${longTermTax.toLocaleString("en-IN")}`}
+          change="Long Term Liability"
+          changeType="neutral"
+          icon={DollarSign}
+        />
+      </div>
+
+      <div className="space-y-6">
         <Tabs defaultValue="shortterm" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="shortterm">Short Term</TabsTrigger>
-            <TabsTrigger value="longterm">Long Term</TabsTrigger>
+          <TabsList className="grid w-full max-w-sm grid-cols-2 bg-muted/60 p-1 rounded-xl border border-border/50">
+            <TabsTrigger value="shortterm" className="rounded-lg text-xs font-bold">
+              Short Term ({shortTermGains.length})
+            </TabsTrigger>
+            <TabsTrigger value="longterm" className="rounded-lg text-xs font-bold">
+              Long Term ({longTermGains.length})
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="shortterm" className="mt-6">
-            <div className="space-y-4">
-              {shortTermGains.map((trade, index) => (
-                <TradeCard
-                  key={index}
-                  trade={trade}
-                  taxRate={TAX_RATES.shortTerm}
-                  variant="shortTerm"
-                />
-              ))}
-              <TotalSummaryCard
-                totalGains={totalShortTerm}
-                totalTax={shortTermTax}
+          <TabsContent value="shortterm" className="mt-4 space-y-4">
+            {shortTermGains.map((trade, index) => (
+              <TradeCard
+                key={`${trade.stock}-${index}`}
+                trade={trade}
+                taxRate={TAX_RATES.shortTerm}
                 variant="shortTerm"
-                gainsLabel="Total Short Term Capital Gains"
               />
-            </div>
+            ))}
+            <TotalSummaryCard
+              totalGains={totalShortTerm}
+              totalTax={shortTermTax}
+              variant="shortTerm"
+              gainsLabel="Total Short Term Capital Gains"
+            />
           </TabsContent>
 
-          <TabsContent value="longterm" className="mt-6">
-            <div className="space-y-4">
-              {longTermGains.map((trade, index) => (
-                <TradeCard
-                  key={index}
-                  trade={trade}
-                  taxRate={TAX_RATES.longTerm}
-                  variant="longTerm"
-                />
-              ))}
-              <TotalSummaryCard
-                totalGains={totalLongTerm}
-                totalTax={longTermTax}
+          <TabsContent value="longterm" className="mt-4 space-y-4">
+            {longTermGains.map((trade, index) => (
+              <TradeCard
+                key={`${trade.stock}-${index}`}
+                trade={trade}
+                taxRate={TAX_RATES.longTerm}
                 variant="longTerm"
-                gainsLabel="Total Long Term Capital Gains"
               />
-            </div>
+            ))}
+            <TotalSummaryCard
+              totalGains={totalLongTerm}
+              totalTax={longTermTax}
+              variant="longTerm"
+              gainsLabel="Total Long Term Capital Gains"
+            />
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </div>
   );
 };
 
-export default CapitalGains;
+export default memo(CapitalGains);

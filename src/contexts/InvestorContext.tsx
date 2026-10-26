@@ -12,7 +12,16 @@ interface InvestorContextType {
   isNewUser: boolean;
 }
 
-const InvestorContext = createContext<InvestorContextType | undefined>(undefined);
+const defaultInvestorContext: InvestorContextType = {
+  selectedInvestor: "all",
+  setSelectedInvestor: () => {},
+  investors: [],
+  transactions: [],
+  filteredTransactions: [],
+  isNewUser: false,
+};
+
+const InvestorContext = createContext<InvestorContextType>(defaultInvestorContext);
 
 interface DbTransaction {
   transaction_type?: string | null;
@@ -87,8 +96,5 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
 
 export const useInvestor = () => {
   const context = useContext(InvestorContext);
-  if (context === undefined) {
-    throw new Error("useInvestor must be used within an InvestorProvider");
-  }
-  return context;
+  return context || defaultInvestorContext;
 };

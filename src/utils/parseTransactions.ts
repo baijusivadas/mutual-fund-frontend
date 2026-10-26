@@ -13,5 +13,5 @@ export interface TransactionData {
 export function isSellTransaction(
   transaction: Pick<TransactionData, "isSell" | "transactionType">
 ): boolean {
-  return transaction.isSell || /redeem|switch\s*out|sell/i.test(transaction.transactionType);
+  return transaction.isSell || /redeem|switch[\s-]*out|sell/i.test(transaction.transactionType);
 }

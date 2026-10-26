@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { memo, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { investorApi } from "@/services/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +13,12 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Building2, CreditCard, ShieldCheck } from "lucide-react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CommonTable, ColumnConfig } from "@/components/shared/CommonTable";
 import { CommonCard } from "@/components/shared/CommonCard";
+import { MetricCard } from "@/components/shared/MetricCard";
 import { getErrorMessage } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 
 interface Investor {
   id: string;
@@ -33,6 +33,8 @@ interface InvestorCreateData {
   [key: string]: FormDataEntryValue;
 }
 
+const SEARCH_KEYS: (keyof Investor)[] = ["full_name", "pan"];
+
 const Investors = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -41,7 +43,9 @@ const Investors = () => {
     queryKey: ["investors"],
     queryFn: async () => {
       const res = await investorApi.getAll();
-      return res.data;
+      // Backend uses sendSuccess: { status, message, data: [...] }
+      const items = res.data?.data ?? res.data;
+      return Array.isArray(items) ? items : [];
     },
   });
 
@@ -49,7 +53,7 @@ const Investors = () => {
     mutationFn: (data: InvestorCreateData) => investorApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["investors"] });
-      toast({ title: "Success", description: "Investor created successfully" });
+      toast({ title: "Success", description: "Investor registered successfully" });
     },
     onError: (error: unknown) => {
       toast({
@@ -60,44 +64,80 @@ const Investors = () => {
     },
   });
 
-  const columns: ColumnConfig<Investor>[] = [
-    { key: "full_name", label: "Investor Name", sortable: true, className: "font-medium" },
-    {
-      key: "pan",
-      label: "PAN",
-      sortable: true,
-      className: "font-mono text-sm uppercase",
-      render: (item) => item.pan || "N/A",
+  const { totalCount, verifiedCount, bankLinkedCount } = useMemo(() => {
+    let verified = 0;
+    let bankLinked = 0;
+
+    for (const inv of investors) {
+      if (inv.InvestorKyc?.kyc_status === "Verified") {
+        verified++;
+      }
+      if (inv.InvestorBankAccounts?.some((acc) => acc.is_primary)) {
+        bankLinked++;
+      }
+    }
+
+    return {
+      totalCount: investors.length,
+      verifiedCount: verified,
+      bankLinkedCount: bankLinked,
+    };
+  }, [investors]);
+
+  const columns: ColumnConfig<Investor>[] = useMemo(
+    () => [
+      { key: "full_name", label: "Investor Name", sortable: true, className: "font-semibold text-foreground" },
+      {
+        key: "pan",
+        label: "PAN",
+        sortable: true,
+        className: "font-mono text-xs uppercase font-bold",
+        render: (item) => <span className="bg-muted/60 px-2 py-0.5 rounded-md">{item.pan || "N/A"}</span>,
+      },
+      { key: "email", label: "Email", sortable: true, render: (item) => item.email || <span className="text-muted-foreground">-</span> },
+      {
+        key: "kyc_status",
+        label: "KYC Status",
+        sortable: true,
+        render: (item) => {
+          const isVerified = item.InvestorKyc?.kyc_status === "Verified";
+          return (
+            <Badge
+              variant="secondary"
+              className={cn(
+                "text-[10px] font-bold px-2 py-0.5 rounded-full border-none",
+                isVerified
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              )}
+            >
+              {item.InvestorKyc?.kyc_status || "Pending"}
+            </Badge>
+          );
+        },
+      },
+    ],
+    []
+  );
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      createInvestorMutation.mutate(Object.fromEntries(formData));
     },
-    { key: "email", label: "Email", sortable: true, render: (item) => item.email || "N/A" },
-    {
-      key: "kyc_status",
-      label: "KYC Status",
-      sortable: true,
-      render: (item) => (
-        <Badge
-          variant={item.InvestorKyc?.kyc_status === "Verified" ? "default" : "secondary"}
-          className={
-            item.InvestorKyc?.kyc_status === "Verified"
-              ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
-              : ""
-          }
-        >
-          {item.InvestorKyc?.kyc_status || "Pending"}
-        </Badge>
-      ),
-    },
-  ];
+    [createInvestorMutation]
+  );
 
   return (
-    <DashboardLayout>
+    <div className="space-y-6 animate-in">
       <PageHeader
-        title="Investors"
-        description="Manage your family member profiles and investment entities."
+        title="Investor Management"
+        description="Manage family member profiles, KYC status, and linked bank accounts"
         actions={
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-all hover:scale-105">
+              <Button className="font-bold">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add Investor
               </Button>
@@ -106,44 +146,37 @@ const Investors = () => {
               <DialogHeader>
                 <DialogTitle>Add New Investor</DialogTitle>
               </DialogHeader>
-              <form
-                className="space-y-4 py-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  createInvestorMutation.mutate(Object.fromEntries(formData));
-                }}
-              >
+              <form className="space-y-4 py-4" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Full Name</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Full Name *</label>
                   <Input name="full_name" placeholder="Enter full name" required />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">PAN</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN *</label>
                     <Input
                       name="pan"
                       placeholder="ABCDE1234F"
-                      className="uppercase"
+                      className="uppercase font-mono"
                       maxLength={10}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Date of Birth</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date of Birth *</label>
                     <Input name="date_of_birth" type="date" required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Email</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Address</label>
                   <Input name="email" type="email" placeholder="investor@example.com" />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full font-bold"
                   disabled={createInvestorMutation.isPending}
                 >
-                  {createInvestorMutation.isPending ? "Creating..." : "Create Investor"}
+                  {createInvestorMutation.isPending ? "Registering..." : "Register Investor"}
                 </Button>
               </form>
             </DialogContent>
@@ -151,57 +184,43 @@ const Investors = () => {
         }
       />
 
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-card/50 backdrop-blur-sm border-primary/10">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Investors</CardTitle>
-              <Building2 className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{investors?.length || 0}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card/50 backdrop-blur-sm border-primary/10">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">KYC Verified</CardTitle>
-              <ShieldCheck className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {investors.filter((investor) => investor.InvestorKyc?.kyc_status === "Verified")
-                  .length || 0}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card/50 backdrop-blur-sm border-primary/10">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Primary Bank Linked</CardTitle>
-              <CreditCard className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {investors.filter((investor) =>
-                  investor.InvestorBankAccounts?.some((account) => account.is_primary)
-                ).length || 0}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <CommonCard noHeader>
-          <CommonTable<Investor>
-            data={investors}
-            columns={columns}
-            isLoading={isLoading}
-            searchPlaceholder="Search by name or PAN..."
-            searchKeys={["full_name", "pan"]}
-            emptyMessage="No investors found"
-          />
-        </CommonCard>
+      {/* Summary Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <MetricCard
+          title="Total Investors"
+          value={totalCount}
+          change="Registered Profiles"
+          changeType="neutral"
+          icon={Building2}
+        />
+        <MetricCard
+          title="KYC Verified"
+          value={verifiedCount}
+          change={`${totalCount > 0 ? ((verifiedCount / totalCount) * 100).toFixed(0) : 0}% Compliance`}
+          changeType="positive"
+          icon={ShieldCheck}
+        />
+        <MetricCard
+          title="Primary Bank Linked"
+          value={bankLinkedCount}
+          change="Direct Settlement Ready"
+          changeType="neutral"
+          icon={CreditCard}
+        />
       </div>
-    </DashboardLayout>
+
+      <CommonCard noHeader className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl">
+        <CommonTable<Investor>
+          data={investors}
+          columns={columns}
+          isLoading={isLoading}
+          searchPlaceholder="Search by name or PAN..."
+          searchKeys={SEARCH_KEYS}
+          emptyMessage="No investors registered yet. Add your first investor above!"
+        />
+      </CommonCard>
+    </div>
   );
 };
 
-export default Investors;
+export default memo(Investors);

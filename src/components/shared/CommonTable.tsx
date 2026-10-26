@@ -56,6 +56,8 @@ interface MemoizedRowProps<T extends { id: string }> {
   onEdit?: (item: T) => void;
   onDelete?: (id: string) => void;
   deletingId?: string | null;
+  canDelete?: (item: T) => boolean;
+  canEdit?: (item: T) => boolean;
 }
 
 function getColumnValue(item: object, key: string): unknown {
@@ -73,78 +75,99 @@ const MemoizedRow = memo(
     onEdit,
     onDelete,
     deletingId,
-  }: MemoizedRowProps<T>) => (
-    <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
-      {showCheckboxes && (
-        <TableCell className="w-12">
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={(checked) => onSelect(item.id, checked === true)}
-          />
-        </TableCell>
-      )}
-      {columns.map((column) => (
-        <TableCell key={column.key} className={column.className}>
-          {column.render
-            ? column.render(item)
-            : getColumnValue(item, column.key) == null
-              ? "-"
-              : String(getColumnValue(item, column.key))}
-        </TableCell>
-      ))}
-      {(onEdit || onDelete) && (
-        <TableCell className="text-right">
-          <div className="flex items-center justify-end gap-2">
-            {onEdit && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onEdit(item)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            )}
-            {onDelete && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="h-8 w-8"
-                    disabled={deletingId === item.id}
-                  >
-                    {deletingId === item.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="glass-card border-none">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete this item. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => onDelete(item.id)}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+    canDelete,
+    canEdit,
+  }: MemoizedRowProps<T>) => {
+    const isDeleteAllowed = canDelete ? canDelete(item) : true;
+    const isEditAllowed = canEdit ? canEdit(item) : true;
+
+    return (
+      <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
+        {showCheckboxes && (
+          <TableCell className="w-12">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) => onSelect(item.id, checked === true)}
+            />
+          </TableCell>
+        )}
+        {columns.map((column) => (
+          <TableCell key={column.key} className={column.className}>
+            {column.render
+              ? column.render(item)
+              : getColumnValue(item, column.key) == null
+                ? "-"
+                : String(getColumnValue(item, column.key))}
+          </TableCell>
+        ))}
+        {(onEdit || onDelete) && (
+          <TableCell className="text-right">
+            <div className="flex items-center justify-end gap-2">
+              {onEdit && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => onEdit(item)}
+                  disabled={!isEditAllowed}
+                  title={!isEditAllowed ? "Editing is disabled for this record" : "Edit"}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+              {onDelete && isDeleteAllowed && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={deletingId === item.id}
+                      title="Delete"
                     >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
-        </TableCell>
-      )}
-    </TableRow>
-  )
+                      {deletingId === item.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="glass-card border-none">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete this item. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDelete(item.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {onDelete && !isDeleteAllowed && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-30 cursor-not-allowed hover:bg-transparent"
+                  disabled
+                  title="Protected: Action disabled for this item"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </TableCell>
+        )}
+      </TableRow>
+    );
+  }
 );
 
 MemoizedRow.displayName = "MemoizedRow";
@@ -154,6 +177,8 @@ interface CommonTableProps<T extends { id: string }> {
   columns: ColumnConfig<T>[];
   onEdit?: (item: T) => void;
   onDelete?: (id: string) => void;
+  canDelete?: (item: T) => boolean;
+  canEdit?: (item: T) => boolean;
   onBulkDelete?: (ids: string[]) => void;
   onBulkStatusUpdate?: (ids: string[], status: string) => void;
   searchPlaceholder?: string;
@@ -173,6 +198,8 @@ export function CommonTable<T extends { id: string }>({
   columns,
   onEdit,
   onDelete,
+  canDelete,
+  canEdit,
   onBulkDelete,
   onBulkStatusUpdate,
   searchPlaceholder = "Search...",
@@ -375,6 +402,8 @@ export function CommonTable<T extends { id: string }>({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   deletingId={deletingId}
+                  canDelete={canDelete}
+                  canEdit={canEdit}
                 />
               ))}
             </VList>
@@ -426,6 +455,8 @@ export function CommonTable<T extends { id: string }>({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     deletingId={deletingId}
+                    canDelete={canDelete}
+                    canEdit={canEdit}
                   />
                 ))
               )}

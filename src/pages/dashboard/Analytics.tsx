@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useEffect, useRef, useMemo, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -65,9 +64,9 @@ export default function Analytics() {
     enabled: !!token,
   });
 
-  const rentalProperties = data?.details?.rentalProperties || [];
-  const flats = data?.details?.flats || [];
-  const realEstate = data?.details?.realEstate || [];
+  const rentalProperties = useMemo(() => data?.details?.rentalProperties || [], [data]);
+  const flats = useMemo(() => data?.details?.flats || [], [data]);
+  const realEstate = useMemo(() => data?.details?.realEstate || [], [data]);
 
   const metrics = usePropertyMetrics(rentalProperties, flats, realEstate);
 
@@ -86,16 +85,14 @@ export default function Analytics() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
+    <div className="space-y-6 animate-in">
       <PageHeader
         title="Analytics Dashboard"
         description="Comprehensive property performance metrics and insights"
@@ -301,6 +298,6 @@ export default function Analytics() {
           </CardContent>
         </Card>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

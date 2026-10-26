@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Outlet } from "react-router-dom";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { InvestorProvider } from "@/contexts/InvestorContext";
 import { Loader2 } from "lucide-react";
 
 // Lazy-loaded pages
@@ -33,6 +34,9 @@ const OtherAssets = lazy(() => import("@/pages/assets/OtherAssets"));
 const OtherInvestments = lazy(() => import("@/pages/assets/OtherInvestments"));
 const Investors = lazy(() => import("@/pages/admin/Investors"));
 const MasterData = lazy(() => import("@/pages/admin/MasterData"));
+const PortfolioAnalysis = lazy(() => import("@/pages/dashboard/PortfolioAnalysis"));
+const BenchmarkComparison = lazy(() => import("@/pages/dashboard/BenchmarkComparison"));
+const OnlineTransactions = lazy(() => import("@/pages/dashboard/OnlineTransactions"));
 const NotFound = lazy(() => import("@/pages/errors/NotFound"));
 
 // Full-page loader (used only for initial auth page loads)
@@ -58,11 +62,13 @@ const PageContentLoader = () => (
 // Persistent Protected App Layout wrapper
 const ProtectedAppLayout = ({ requireSuperAdmin }: { requireSuperAdmin?: boolean }) => (
   <ProtectedRoute requireSuperAdmin={requireSuperAdmin}>
-    <DashboardLayout>
-      <Suspense fallback={<PageContentLoader />}>
-        <Outlet />
-      </Suspense>
-    </DashboardLayout>
+    <InvestorProvider>
+      <DashboardLayout>
+        <Suspense fallback={<PageContentLoader />}>
+          <Outlet />
+        </Suspense>
+      </DashboardLayout>
+    </InvestorProvider>
   </ProtectedRoute>
 );
 
@@ -115,6 +121,9 @@ export const AppRoutes = () => (
       <Route path="/transaction-reports" element={<TransactionReports />} />
       <Route path="/pnl" element={<PnL />} />
       <Route path="/capital-gains" element={<CapitalGains />} />
+      <Route path="/portfolio-analysis" element={<PortfolioAnalysis />} />
+      <Route path="/benchmark-comparison" element={<BenchmarkComparison />} />
+      <Route path="/online-transactions" element={<OnlineTransactions />} />
       <Route path="/stock-reports" element={<StockReports />} />
     </Route>
 

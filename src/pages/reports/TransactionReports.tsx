@@ -1,11 +1,10 @@
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { memo, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UsersTable } from "@/components/tables/UsersTable";
 import { PurchasesTable } from "@/components/tables/PurchasesTable";
 import { RedemptionsTable } from "@/components/tables/RedemptionsTable";
 import { MutualFundsTable } from "@/components/tables/MutualFundsTable";
 import { useInvestor } from "@/contexts/InvestorContext";
-import { useMemo } from "react";
 import {
   categorizeUsers,
   categorizePurchases,
@@ -29,18 +28,26 @@ const TransactionReports = () => {
   const funds = useMemo(() => categorizeMutualFunds(filteredTransactions), [filteredTransactions]);
 
   return (
-    <DashboardLayout>
+    <div className="space-y-6 animate-in">
       <PageHeader
         title="Transaction Reports"
-        description="Comprehensive view of investors, purchases, redemptions, and mutual funds"
+        description="Consolidated breakdown of active investors, buy purchases, redemptions, and mutual fund positions"
       />
       <div className="space-y-6">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="users">Investors ({users.length})</TabsTrigger>
-            <TabsTrigger value="purchases">Purchases ({purchases.length})</TabsTrigger>
-            <TabsTrigger value="redemptions">Redemptions ({redemptions.length})</TabsTrigger>
-            <TabsTrigger value="funds">Mutual Funds ({funds.length})</TabsTrigger>
+          <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 bg-muted/60 p-1 rounded-xl border border-border/50">
+            <TabsTrigger value="users" className="rounded-lg text-xs font-bold">
+              Investors ({users.length})
+            </TabsTrigger>
+            <TabsTrigger value="purchases" className="rounded-lg text-xs font-bold">
+              Purchases ({purchases.length})
+            </TabsTrigger>
+            <TabsTrigger value="redemptions" className="rounded-lg text-xs font-bold">
+              Redemptions ({redemptions.length})
+            </TabsTrigger>
+            <TabsTrigger value="funds" className="rounded-lg text-xs font-bold">
+              Funds ({funds.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="space-y-4">
@@ -60,8 +67,8 @@ const TransactionReports = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </div>
   );
 };
 
-export default TransactionReports;
+export default memo(TransactionReports);

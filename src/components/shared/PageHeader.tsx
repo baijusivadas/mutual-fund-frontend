@@ -1,5 +1,4 @@
 import { ReactNode } from "react";
-import { Breadcrumbs } from "../layout/Breadcrumbs";
 import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
@@ -7,7 +6,6 @@ interface PageHeaderProps {
   description?: string;
   actions?: ReactNode;
   className?: string;
-  showBreadcrumbs?: boolean;
 }
 
 export const PageHeader = ({
@@ -15,11 +13,9 @@ export const PageHeader = ({
   description,
   actions,
   className,
-  showBreadcrumbs = true,
 }: PageHeaderProps) => {
   return (
-    <div className={cn("space-y-4 mb-6", className)}>
-      {showBreadcrumbs && <Breadcrumbs />}
+    <div className={cn("mb-6", className)}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-2xl sm:text-3xl font-heading font-extrabold tracking-tight text-foreground">

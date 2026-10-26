@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useState, useMemo, useCallback, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { CommonCard } from "@/components/shared/CommonCard";
 import { CommonSelect } from "@/components/shared/CommonSelect";
+import { MetricCard } from "@/components/shared/MetricCard";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CommonTable, ColumnConfig } from "@/components/shared/CommonTable";
 import api from "@/services/api";
@@ -52,6 +51,8 @@ interface UserOption {
 interface PurchaseInvestor {
   investor_name?: string | null;
 }
+
+const SEARCH_KEYS: (keyof Mapping)[] = ["investor_name"];
 
 const UserInvestmentMapping = () => {
   const [selectedUser, setSelectedUser] = useState<string>("");
@@ -87,7 +88,6 @@ const UserInvestmentMapping = () => {
     queryKey: ["unique-investor-names"],
     queryFn: async () => {
       const response = await api.get("/advanced/purchases");
-      // advanced API might return { data: [], pagination: {} } or []
       const data = Array.isArray(response.data) ? response.data : response.data.data || [];
       const uniqueNames = [...new Set(data.map((d: PurchaseInvestor) => d.investor_name))].filter(
         Boolean
@@ -148,61 +148,109 @@ const UserInvestmentMapping = () => {
     },
   });
 
-  const getUserName = (userId: string) => {
-    const user = users.find((u) => u.id === userId);
-    return user?.full_name || user?.email || "Unknown User";
-  };
+  const getUserName = useCallback(
+    (userId: string) => {
+      const user = users.find((u) => u.id === userId);
+      return user?.full_name || user?.email || "Unknown User";
+    },
+    [users]
+  );
 
-  const getAssetTypeLabel = (value: string) => {
+  const getAssetTypeLabel = useCallback((value: string) => {
     return ASSET_TYPES.find((t) => t.value === value)?.label || value;
-  };
+  }, []);
 
-  const columns: ColumnConfig<Mapping>[] = [
-    {
-      key: "user_id",
-      label: "User",
-      sortable: true,
-      render: (item) => getUserName(item.user_id),
+  const columns: ColumnConfig<Mapping>[] = useMemo(
+    () => [
+      {
+        key: "user_id",
+        label: "User",
+        sortable: true,
+        className: "font-semibold text-foreground",
+        render: (item) => getUserName(item.user_id),
+      },
+      {
+        key: "asset_type",
+        label: "Asset Type",
+        sortable: true,
+        render: (item) => (
+          <Badge variant="secondary" className="text-xs font-bold px-2 py-0.5 rounded-full capitalize">
+            {getAssetTypeLabel(item.asset_type)}
+          </Badge>
+        ),
+      },
+      {
+        key: "investor_name",
+        label: "Mapped Investor",
+        sortable: true,
+        render: (item) => item.investor_name || <span className="text-muted-foreground">-</span>,
+      },
+      {
+        key: "created_at",
+        label: "Created At",
+        sortable: true,
+        render: (item) =>
+          new Date(item.created_at).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }),
+      },
+    ],
+    [getUserName, getAssetTypeLabel]
+  );
+
+  const userOptions = useMemo(
+    () =>
+      users.map((user) => ({
+        value: user.id,
+        label: user.full_name || user.email,
+      })),
+    [users]
+  );
+
+  const investorOptions = useMemo(
+    () =>
+      investorNames.map((name: string) => ({
+        value: name,
+        label: name,
+      })),
+    [investorNames]
+  );
+
+  const uniqueMappedUsersCount = useMemo(
+    () => new Set(mappings.map((m) => m.user_id)).size,
+    [mappings]
+  );
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      deleteMappingMutation.mutate(id);
     },
-    {
-      key: "asset_type",
-      label: "Asset Type",
-      sortable: true,
-      render: (item) => <Badge variant="secondary">{getAssetTypeLabel(item.asset_type)}</Badge>,
-    },
-    {
-      key: "investor_name",
-      label: "Investor Name",
-      sortable: true,
-      render: (item) => item.investor_name || "-",
-    },
-    {
-      key: "created_at",
-      label: "Created At",
-      sortable: true,
-      render: (item) => new Date(item.created_at).toLocaleDateString(),
-    },
-  ];
+    [deleteMappingMutation]
+  );
+
+  const handleCreate = useCallback(() => {
+    createMappingMutation.mutate();
+  }, [createMappingMutation]);
 
   if (loadingUsers || loadingMappings) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
+    <div className="space-y-6 animate-in">
       <PageHeader
         title="User Investment Mapping"
-        description="Assign investments and assets to specific users"
+        description="Assign investments, portfolios, and asset types to specific user logins"
         actions={
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="font-bold">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Mapping
               </Button>
@@ -210,27 +258,23 @@ const UserInvestmentMapping = () => {
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Create Investment Mapping</DialogTitle>
-                <DialogDescription>
-                  Assign an asset type to a user. For mutual funds, you can also specify the
-                  investor name.
+                <DialogDescription className="text-xs">
+                  Assign an asset type to a user. For mutual funds, you can optionally restrict to a specific investor name.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="user">User</Label>
+                  <Label htmlFor="user">Target User *</Label>
                   <CommonSelect
                     value={selectedUser}
                     onValueChange={setSelectedUser}
-                    options={users.map((user) => ({
-                      value: user.id,
-                      label: user.full_name || user.email,
-                    }))}
+                    options={userOptions}
                     placeholder="Select a user"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="asset-type">Asset Type</Label>
+                  <Label htmlFor="asset-type">Asset Type *</Label>
                   <CommonSelect
                     value={selectedAssetType}
                     onValueChange={setSelectedAssetType}
@@ -245,34 +289,22 @@ const UserInvestmentMapping = () => {
                     <CommonSelect
                       value={investorName}
                       onValueChange={setInvestorName}
-                      options={investorNames.map((name: string) => ({
-                        value: name,
-                        label: name,
-                      }))}
-                      placeholder="Select investor name"
-                    />
-                    <p className="text-xs text-muted-foreground">Or enter a custom name:</p>
-                    <Input
-                      value={investorName}
-                      onChange={(e) => setInvestorName(e.target.value)}
-                      placeholder="Enter investor name"
+                      options={investorOptions}
+                      placeholder="Map all or pick one investor"
                     />
                   </div>
                 )}
               </div>
               <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
                 <Button
-                  onClick={() => createMappingMutation.mutate()}
+                  onClick={handleCreate}
                   disabled={!selectedUser || !selectedAssetType || createMappingMutation.isPending}
+                  className="font-bold"
                 >
-                  {createMappingMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Mapping"
-                  )}
+                  {createMappingMutation.isPending ? "Creating..." : "Create Mapping"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -280,61 +312,40 @@ const UserInvestmentMapping = () => {
         }
       />
 
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <CommonCard noHeader>
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="text-2xl font-bold">{users.length}</p>
-              </div>
-            </div>
-          </CommonCard>
-          <CommonCard noHeader>
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-success/10">
-                <Link2 className="h-6 w-6 text-success" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Active Mappings</p>
-                <p className="text-2xl font-bold">{mappings.length}</p>
-              </div>
-            </div>
-          </CommonCard>
-          <CommonCard noHeader>
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-warning/10">
-                <Users className="h-6 w-6 text-warning" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Mapped Users</p>
-                <p className="text-2xl font-bold">
-                  {new Set(mappings.map((mapping) => mapping.user_id)).size}
-                </p>
-              </div>
-            </div>
-          </CommonCard>
-        </div>
-
-        <CommonCard
-          title="Investment Mappings"
-          description="View and manage user-investment assignments"
-        >
-          <CommonTable<Mapping>
-            data={mappings}
-            columns={columns}
-            searchPlaceholder="Search mappings..."
-            searchKeys={["investor_name"]}
-            onDelete={(id) => deleteMappingMutation.mutate(id)}
-            emptyMessage="No mappings created yet. Click 'Add Mapping' to get started."
-          />
-        </CommonCard>
+      {/* Summary Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <MetricCard
+          title="Active Mappings"
+          value={mappings.length}
+          change="Asset Assignments"
+          changeType="neutral"
+          icon={Link2}
+        />
+        <MetricCard
+          title="Mapped Users"
+          value={uniqueMappedUsersCount}
+          change="Distinct Portfolios Assigned"
+          changeType="positive"
+          icon={Users}
+        />
       </div>
-    </DashboardLayout>
+
+      <CommonCard
+        title="Investment Mappings Directory"
+        description="View and manage current user-to-asset allocation permissions"
+        className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl"
+      >
+        <CommonTable<Mapping>
+          data={mappings}
+          columns={columns}
+          searchPlaceholder="Search mappings by investor..."
+          searchKeys={SEARCH_KEYS}
+          onDelete={handleDelete}
+          emptyMessage="No mappings created yet. Click 'Add Mapping' to assign portfolio views to users."
+        />
+      </CommonCard>
+    </div>
   );
 };
 
-export default UserInvestmentMapping;
+export default memo(UserInvestmentMapping);

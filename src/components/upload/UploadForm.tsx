@@ -10,8 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Loader2, FileSpreadsheet } from "lucide-react";
+import { Upload, Loader2, FileSpreadsheet, Download } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import * as XLSX from "xlsx";
 
 export const ASSET_TYPES = [
   { value: "mutual_funds", label: "Mutual Funds" },
@@ -55,14 +56,65 @@ export const UploadForm = ({
   setSelectedAssetType,
   children,
 }: UploadFormProps) => {
+  const handleDownloadSample = () => {
+    const sampleData = [
+      {
+        "Date": "2024-01-15",
+        "Investor Name": "Anand Sharma",
+        "Scheme Name": "HDFC Top 100 Fund - Growth",
+        "Transaction Type": "Purchase",
+        "Units": 150.523,
+        "NAV": 664.35,
+        "Amount": 100000,
+        "Folio No": "1002345678",
+      },
+      {
+        "Date": "2024-02-15",
+        "Investor Name": "Anand Sharma",
+        "Scheme Name": "ICICI Prudential Bluechip Fund - Growth",
+        "Transaction Type": "SIP",
+        "Units": 85.241,
+        "NAV": 586.58,
+        "Amount": 50000,
+        "Folio No": "1009876543",
+      },
+      {
+        "Date": "2024-03-20",
+        "Investor Name": "Anand Sharma",
+        "Scheme Name": "SBI Small Cap Fund - Regular Growth",
+        "Transaction Type": "Purchase",
+        "Units": 120.000,
+        "NAV": 125.50,
+        "Amount": 15060,
+        "Folio No": "1005544332",
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+    XLSX.writeFile(wb, "mutual_fund_transactions_sample.xlsx");
+  };
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5" />
-          Upload Transaction File
-        </CardTitle>
-        <CardDescription>Supported formats: Excel (.xlsx, .xls) and CSV files</CardDescription>
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5" />
+            Upload Transaction File
+          </CardTitle>
+          <CardDescription>Supported formats: Excel (.xlsx, .xls) and CSV files</CardDescription>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownloadSample}
+          className="gap-1.5 text-xs font-semibold rounded-lg self-start sm:self-auto"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Sample Template (.xlsx)
+        </Button>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Asset Type Selection */}

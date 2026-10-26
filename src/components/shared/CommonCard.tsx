@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 interface CommonCardProps {
   title?: string;
+  icon?: React.ElementType;
   description?: string;
   children: ReactNode;
   headerAction?: ReactNode;
@@ -15,6 +16,7 @@ interface CommonCardProps {
 
 export const CommonCard = ({
   title,
+  icon: Icon,
   description,
   children,
   headerAction,
@@ -24,13 +26,18 @@ export const CommonCard = ({
   noHeader = false,
 }: CommonCardProps) => {
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn("overflow-hidden rounded-2xl border border-border/50 bg-card/85 backdrop-blur-xl shadow-sm hover:shadow-md transition-all duration-200", className)}>
       {!noHeader && (title || description || headerAction) && (
         <CardHeader
           className={cn("flex flex-row items-center justify-between gap-4", headerClassName)}
         >
           <div className="space-y-1">
-            {title && <CardTitle className="text-xl font-bold">{title}</CardTitle>}
+            {title && (
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                {Icon && <Icon className="h-5 w-5 text-primary" />}
+                {title}
+              </CardTitle>
+            )}
             {description && <CardDescription>{description}</CardDescription>}
           </div>
           {headerAction && <div className="flex-shrink-0">{headerAction}</div>}

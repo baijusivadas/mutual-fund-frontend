@@ -38,6 +38,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Upload: LucideIcons.Upload,
   Link2: LucideIcons.Link2,
   Database: LucideIcons.Database,
+  Target: LucideIcons.Target,
+  Globe: LucideIcons.Globe,
+  MessageCircle: LucideIcons.MessageCircle,
 };
 
 export const DynamicSidebar = () => {
@@ -62,6 +65,7 @@ export const DynamicSidebar = () => {
         icon: LucideIcons.Briefcase,
         routes: [
           "/portfolio",
+          "/portfolio-analysis",
           "/mutual-funds",
           "/derivatives",
           "/other-investments",
@@ -80,6 +84,8 @@ export const DynamicSidebar = () => {
           "/capital-gains",
           "/stock-reports",
           "/admin/analytics",
+          "/benchmark-comparison",
+          "/online-transactions",
         ],
       },
       {

@@ -1,3 +1,4 @@
+import { memo, useCallback } from "react";
 import { DataManager } from "@/components/shared/DataManager";
 import { Banknote } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ColumnConfig } from "@/components/shared/CommonTable";
 
 interface LiabilityItem {
@@ -24,7 +24,7 @@ interface LiabilityItem {
   status: string;
 }
 
-const defaultFormData = {
+const DEFAULT_FORM_DATA = {
   liability_name: "",
   liability_type: "personal",
   principal_amount: "",
@@ -38,7 +38,7 @@ const defaultFormData = {
   description: "",
 };
 
-const liabilityTypes = [
+const LIABILITY_TYPES = [
   { label: "Home Loan", value: "home" },
   { label: "Car Loan", value: "car" },
   { label: "Personal Loan", value: "personal" },
@@ -47,26 +47,29 @@ const liabilityTypes = [
   { label: "Other", value: "other" },
 ];
 
-const statusFilters = [
+const STATUS_FILTERS = [
   { label: "All Status", value: "all" },
   { label: "Active", value: "active" },
   { label: "Paid Off", value: "paid" },
   { label: "Defaulted", value: "defaulted" },
 ];
 
-const columns: ColumnConfig<LiabilityItem>[] = [
-  { key: "liability_name", label: "Liability Name", sortable: true, className: "font-medium" },
+const SEARCH_KEYS: (keyof LiabilityItem)[] = ["liability_name", "lender"];
+
+const COLUMNS: ColumnConfig<LiabilityItem>[] = [
+  { key: "liability_name", label: "Liability Name", sortable: true, className: "font-semibold text-foreground" },
   {
     key: "liability_type",
     label: "Type",
     sortable: true,
     render: (item) =>
-      liabilityTypes.find((t) => t.value === item.liability_type)?.label || item.liability_type,
+      LIABILITY_TYPES.find((t) => t.value === item.liability_type)?.label || item.liability_type,
   },
   {
     key: "outstanding_amount",
     label: "Outstanding",
     sortable: true,
+    className: "font-extrabold text-foreground",
     render: (item) => `₹${Number(item.outstanding_amount).toLocaleString("en-IN")}`,
   },
   {
@@ -77,161 +80,171 @@ const columns: ColumnConfig<LiabilityItem>[] = [
   },
   {
     key: "monthly_payment",
-    label: "EMI",
+    label: "Monthly EMI",
     sortable: true,
     render: (item) => `₹${Number(item.monthly_payment).toLocaleString("en-IN")}`,
   },
-  { key: "lender", label: "Lender", sortable: true },
+  { key: "lender", label: "Lender / Bank", sortable: true },
+  {
+    key: "status",
+    label: "Status",
+    sortable: true,
+    render: (item) => (
+      <span
+        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+          item.status === "active"
+            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+        }`}
+      >
+        {item.status.toUpperCase()}
+      </span>
+    ),
+  },
 ];
 
-export default function Liabilities() {
-  const renderForm = (
-    formData: typeof defaultFormData,
-    setFormData: (data: typeof defaultFormData) => void
-  ) => (
-    <>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label>Liability Name *</Label>
-          <Input
-            value={formData.liability_name}
-            onChange={(e) => setFormData({ ...formData, liability_name: e.target.value })}
-            placeholder="e.g. HDFC Home Loan"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Type *</Label>
-          <Select
-            value={formData.liability_type}
-            onValueChange={(v) => setFormData({ ...formData, liability_type: v })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {liabilityTypes.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label>Principal Amount (₹) *</Label>
-          <Input
-            type="number"
-            value={formData.principal_amount}
-            onChange={(e) => setFormData({ ...formData, principal_amount: e.target.value })}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Outstanding Amount (₹) *</Label>
-          <Input
-            type="number"
-            value={formData.outstanding_amount}
-            onChange={(e) => setFormData({ ...formData, outstanding_amount: e.target.value })}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label>Interest Rate (%) *</Label>
-          <Input
-            type="number"
-            step="0.1"
-            value={formData.interest_rate}
-            onChange={(e) => setFormData({ ...formData, interest_rate: e.target.value })}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Monthly EMI (₹)</Label>
-          <Input
-            type="number"
-            value={formData.monthly_payment}
-            onChange={(e) => setFormData({ ...formData, monthly_payment: e.target.value })}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label>Start Date</Label>
-          <Input
-            type="date"
-            value={formData.start_date}
-            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>End Date</Label>
-          <Input
-            type="date"
-            value={formData.end_date}
-            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label>Lender Bank/Institution</Label>
-          <Input
-            value={formData.lender}
-            onChange={(e) => setFormData({ ...formData, lender: e.target.value })}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Status</Label>
-          <Select
-            value={formData.status}
-            onValueChange={(v) => setFormData({ ...formData, status: v })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {statusFilters
-                .filter((f) => f.value !== "all")
-                .map((t) => (
+const Liabilities = () => {
+  const renderForm = useCallback(
+    (
+      formData: typeof DEFAULT_FORM_DATA,
+      setFormData: React.Dispatch<React.SetStateAction<typeof DEFAULT_FORM_DATA>>
+    ) => (
+      <div className="grid gap-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>Liability Name *</Label>
+            <Input
+              value={formData.liability_name}
+              onChange={(e) => setFormData((prev) => ({ ...prev, liability_name: e.target.value }))}
+              placeholder="e.g. HDFC Home Loan"
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Liability Type</Label>
+            <Select
+              value={formData.liability_type}
+              onValueChange={(v) => setFormData((prev) => ({ ...prev, liability_type: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LIABILITY_TYPES.map((t) => (
                   <SelectItem key={t.value} value={t.value}>
                     {t.label}
                   </SelectItem>
                 ))}
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>Principal Amount (₹) *</Label>
+            <Input
+              type="number"
+              value={formData.principal_amount}
+              onChange={(e) => setFormData((prev) => ({ ...prev, principal_amount: e.target.value }))}
+              placeholder="5000000"
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Outstanding Amount (₹) *</Label>
+            <Input
+              type="number"
+              value={formData.outstanding_amount}
+              onChange={(e) => setFormData((prev) => ({ ...prev, outstanding_amount: e.target.value }))}
+              placeholder="4200000"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>Interest Rate (% p.a.)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.interest_rate}
+              onChange={(e) => setFormData((prev) => ({ ...prev, interest_rate: e.target.value }))}
+              placeholder="8.5"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Monthly Payment / EMI (₹)</Label>
+            <Input
+              type="number"
+              value={formData.monthly_payment}
+              onChange={(e) => setFormData((prev) => ({ ...prev, monthly_payment: e.target.value }))}
+              placeholder="45000"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>Lender / Financial Institution</Label>
+            <Input
+              value={formData.lender}
+              onChange={(e) => setFormData((prev) => ({ ...prev, lender: e.target.value }))}
+              placeholder="e.g. State Bank of India"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Status</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(v) => setFormData((prev) => ({ ...prev, status: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.filter((f) => f.value !== "all").map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <Label>Description</Label>
+          <Textarea
+            value={formData.description}
+            onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+            placeholder="Loan terms, foreclosure details, or account number..."
+            rows={3}
+          />
         </div>
       </div>
-
-      <div className="grid gap-2">
-        <Label>Description</Label>
-        <Textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-        />
-      </div>
-    </>
+    ),
+    []
   );
 
   return (
-    <DashboardLayout>
+    <div className="space-y-6 animate-in">
       <DataManager
         entity="liabilities"
         title="Liabilities & Loans"
-        description="Track and manage all your liabilities including home loans, car loans, and credit cards."
-        icon={<Banknote className="h-8 w-8 text-destructive" />}
-        columns={columns}
-        searchKeys={["liability_name", "lender"]}
-        emptyMessage="No liabilities found."
-        defaultFormData={defaultFormData}
+        description="Track and manage all liabilities including home loans, auto financing, personal debts, and cards"
+        icon={<Banknote className="h-8 w-8 text-rose-500" />}
+        columns={COLUMNS}
+        searchKeys={SEARCH_KEYS}
+        emptyMessage="No liabilities found. Add your first liability!"
+        defaultFormData={DEFAULT_FORM_DATA}
         renderForm={renderForm}
         statusKey="status"
-        statusFilters={statusFilters}
+        statusFilters={STATUS_FILTERS}
       />
-    </DashboardLayout>
+    </div>
   );
-}
+};
+
+export default memo(Liabilities);

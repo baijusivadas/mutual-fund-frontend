@@ -39,7 +39,21 @@ interface AuthContextType {
   isSuperAdmin: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  token: null,
+  role: null,
+  loading: false,
+  signIn: async () => ({ error: "Auth service not ready" }),
+  signUp: async () => ({ error: "Auth service not ready" }),
+  verifyOTP: async () => ({ error: "Auth service not ready" }),
+  signOut: async () => {},
+  resetPassword: async () => ({ error: "Auth service not ready" }),
+  updatePassword: async () => ({ error: "Auth service not ready" }),
+  isSuperAdmin: false,
+};
+
+const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 /** Clear all auth keys from localStorage */
 const clearAuthStorage = () => {
@@ -49,8 +63,8 @@ const clearAuthStorage = () => {
   localStorage.removeItem("auth_login_time");
 };
 
-/** Decodes JWT token payload to extract expiration timestamp (exp) in milliseconds */
-const getDecodedTokenExp = (token: string | null): number | null => {
+/** Decodes JWT token payload */
+const getDecodedTokenPayload = (token: string | null): Record<string, unknown> | null => {
   if (!token) return null;
   try {
     const parts = token.split(".");
@@ -64,12 +78,16 @@ const getDecodedTokenExp = (token: string | null): number | null => {
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
     );
-    const decoded = JSON.parse(jsonPayload);
-    return decoded.exp ? decoded.exp * 1000 : null; // Convert seconds to milliseconds
+    return JSON.parse(jsonPayload);
   } catch (error) {
-    console.error("Error decoding JWT exp claim:", error);
     return null;
   }
+};
+
+/** Decodes JWT token payload to extract expiration timestamp (exp) in milliseconds */
+const getDecodedTokenExp = (token: string | null): number | null => {
+  const decoded = getDecodedTokenPayload(token);
+  return decoded && decoded.exp ? Number(decoded.exp) * 1000 : null;
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -94,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: "Success", description: "Logged out successfully" });
   }, [toast]);
 
-  // ── Automatic Inactivity Timeout (15 minutes of idle time) ──────────────────
+  // ── Automatic Inactivity Timeout (2 hours of idle time) ──────────────────────
   useIdleTimeout({
     onIdle: () => {
       if (token) {
@@ -106,17 +124,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signOut();
       }
     },
-    idleTime: 15 * 60 * 1000,
+    idleTime: 2 * 60 * 60 * 1000, // 2 hours
   });
 
   // ── Restore session from localStorage on mount ──────────────────────────────
   useEffect(() => {
     const savedToken = localStorage.getItem("auth_token");
     const savedUser = localStorage.getItem("auth_user");
-    const savedRole = localStorage.getItem("auth_role");
+    const savedRole = localStorage.getItem("auth_role") as UserRole | null;
     const loginTime = localStorage.getItem("auth_login_time");
 
-    if (savedToken && savedUser && (savedRole === "superAdmin" || savedRole === "user")) {
+    if (savedToken && (savedRole === "superAdmin" || savedRole === "user")) {
       const expTime = getDecodedTokenExp(savedToken);
       const fallbackExpiration = loginTime
         ? parseInt(loginTime) + 24 * 60 * 60 * 1000
@@ -124,18 +142,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const expirationTime = expTime || fallbackExpiration;
 
       if (Date.now() > expirationTime) {
-        signOut();
+        clearAuthStorage();
+        setUser(null);
+        setToken(null);
+        setRole(null);
       } else {
-        try {
-          const parsedUser: unknown = JSON.parse(savedUser);
-          if (!isUser(parsedUser)) {
-            throw new Error("Saved user data is invalid");
+        const decoded = getDecodedTokenPayload(savedToken);
+        let restoredUser: User | null = null;
+
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            if (parsed && typeof parsed === "object") {
+              const emailVal = parsed.email || (decoded?.email ? String(decoded.email) : "");
+              restoredUser = {
+                id: parsed.id || parsed.auth_user_id || (decoded?.id ? String(decoded.id) : ""),
+                email: emailVal,
+                name: parsed.name || (emailVal ? emailVal.split("@")[0] : "User"),
+              };
+            }
+          } catch {
+            // fallback
           }
-          setUser(parsedUser);
+        }
+
+        if (!restoredUser && decoded) {
+          const emailVal = decoded.email ? String(decoded.email) : "";
+          restoredUser = {
+            id: decoded.id ? String(decoded.id) : "",
+            email: emailVal,
+            name: emailVal ? emailVal.split("@")[0] : "User",
+          };
+        }
+
+        if (restoredUser && restoredUser.id) {
+          setUser(restoredUser);
           setRole(savedRole);
           setToken(savedToken);
-        } catch (error) {
-          console.error("Unable to restore saved user session:", error);
+          localStorage.setItem("auth_user", JSON.stringify(restoredUser));
+        } else {
           clearAuthStorage();
         }
       }
@@ -174,11 +219,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await authApi.login({ email, password });
       const payload = response.data?.data ?? response.data; // handles { status, message, data } wrapper
 
+      const userObj: User = {
+        id: payload.user?.auth_user_id || payload.user?.id || "",
+        email: payload.user?.email || email,
+        name: payload.user?.name || email.split("@")[0],
+      };
+
       setToken(payload.token);
-      setUser(payload.user);
+      setUser(userObj);
       setRole(payload.role);
       localStorage.setItem("auth_token", payload.token);
-      localStorage.setItem("auth_user", JSON.stringify(payload.user));
+      localStorage.setItem("auth_user", JSON.stringify(userObj));
       localStorage.setItem("auth_role", payload.role);
       localStorage.setItem("auth_login_time", Date.now().toString());
 
@@ -266,8 +317,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  return context || defaultAuthContext;
 };

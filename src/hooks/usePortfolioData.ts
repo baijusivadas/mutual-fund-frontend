@@ -98,71 +98,206 @@ export const usePortfolioData = (filteredTransactions: TransactionData[], isNewU
   }, [filteredTransactions, currentValue, isNewUser]);
 
   const performanceData = useMemo(() => {
-    if (filteredTransactions.length === 0) return [];
+    if (filteredTransactions.length === 0 || isNewUser) return [];
 
-    const dataMap = new Map<string, number>();
     const now = new Date();
+    interface TimeBucket {
+      label: string;
+      endDate: Date;
+    }
+    const buckets: TimeBucket[] = [];
 
-    const labels: string[] = [];
-
-    // Initialize labels based on time filter
     if (timeFilter === "daily") {
       // Last 14 days
       for (let i = 13; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 23, 59, 59, 999);
+        const label = d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+        buckets.push({ label, endDate: d });
       }
     } else if (timeFilter === "weekly") {
       // Last 12 weeks
       for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
-        labels.push(`Wk ${d.getDate()} ${d.toLocaleDateString("en-US", { month: "short" })}`);
+        const d = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+        d.setHours(23, 59, 59, 999);
+        const label = `Wk ${d.getDate()} ${d.toLocaleDateString("en-IN", { month: "short" })}`;
+        buckets.push({ label, endDate: d });
       }
     } else if (timeFilter === "monthly") {
       // Last 6 months
       for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        labels.push(d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }));
+        const d = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+        const effectiveDate = i === 0 ? now : d;
+        const label = d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+        buckets.push({ label, endDate: effectiveDate });
       }
     } else if (timeFilter === "yearly") {
       // Last 5 years
       for (let i = 4; i >= 0; i--) {
-        labels.push((now.getFullYear() - i).toString());
+        const d = new Date(now.getFullYear() - i, 11, 31, 23, 59, 59, 999);
+        const effectiveDate = i === 0 ? now : d;
+        const label = (now.getFullYear() - i).toString();
+        buckets.push({ label, endDate: effectiveDate });
       }
     }
 
-    labels.forEach((l) => dataMap.set(l, 0));
+    // Sort transactions oldest to newest
+    const sortedTx = [...filteredTransactions]
+      .filter((t) => t.investmentDate)
+      .sort((a, b) => new Date(a.investmentDate).getTime() - new Date(b.investmentDate).getTime());
 
-    // Optimize loop: pre-calculate keys
-    for (const t of filteredTransactions) {
-      const date = new Date(t.investmentDate);
-      let key = "";
-
-      if (timeFilter === "daily") {
-        key = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      } else if (timeFilter === "weekly") {
-        key = `Wk ${date.getDate()} ${date.toLocaleDateString("en-US", { month: "short" })}`;
-      } else if (timeFilter === "monthly") {
-        key = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-      } else if (timeFilter === "yearly") {
-        key = date.getFullYear().toString();
+    const result = buckets.map((bucket, bucketIdx) => {
+      // Is this the final current bucket?
+      const isCurrent = bucketIdx === buckets.length - 1;
+      if (isCurrent) {
+        return {
+          label: bucket.label,
+          value: Math.round(currentValue),
+          invested: Math.round(totalInvested),
+        };
       }
 
-      if (dataMap.has(key)) {
-        const currentVal = dataMap.get(key) || 0;
-        const value = isSellTransaction(t) ? -t.value : t.value;
-        dataMap.set(key, currentVal + value);
-      }
-    }
+      const txUpToBucket = sortedTx.filter(
+        (t) => new Date(t.investmentDate).getTime() <= bucket.endDate.getTime()
+      );
 
-    let cumulative = 0;
-    const result = [];
-    for (const label of labels) {
-      cumulative += dataMap.get(label) || 0;
-      result.push({ label, value: cumulative });
-    }
+      if (txUpToBucket.length === 0) {
+        return {
+          label: bucket.label,
+          value: 0,
+          invested: 0,
+        };
+      }
+
+      // Track units and invested per scheme up to this bucket
+      let bucketInvested = 0;
+      let bucketValuation = 0;
+      const schemeUnits = new Map<string, { units: number; lastNav: number }>();
+
+      for (const t of txUpToBucket) {
+        const isSell = isSellTransaction(t);
+        const val = isSell ? -t.value : t.value;
+        const units = isSell ? -t.units : t.units;
+        bucketInvested += val;
+
+        const currentScheme = schemeUnits.get(t.schemeName) || { units: 0, lastNav: t.nav };
+        currentScheme.units += units;
+        currentScheme.lastNav = t.nav;
+        schemeUnits.set(t.schemeName, currentScheme);
+      }
+
+      schemeUnits.forEach((data, schemeName) => {
+        if (data.units > 0) {
+          // If scheme matches global schemeData, interpolate NAV towards latestNav
+          const fullScheme = schemeData.find((s) => s.schemeName === schemeName);
+          const targetNav = fullScheme ? fullScheme.latestNav : data.lastNav;
+          const ratio = (bucketIdx + 1) / buckets.length;
+          const estimatedNav = data.lastNav + (targetNav - data.lastNav) * ratio;
+          bucketValuation += data.units * estimatedNav;
+        }
+      });
+
+      return {
+        label: bucket.label,
+        value: Math.max(0, Math.round(bucketValuation || bucketInvested)),
+        invested: Math.max(0, Math.round(bucketInvested)),
+      };
+    });
+
     return result;
-  }, [filteredTransactions, timeFilter]);
+  }, [filteredTransactions, isNewUser, timeFilter, currentValue, totalInvested, schemeData]);
+
+  // Monthly MIS Data (Inflows and Outflows for the last 6 calendar months)
+  const monthlyInvestmentMIS = useMemo(() => {
+    const now = new Date();
+    const misMonths: { label: string; year: number; month: number; purchases: number; redemptions: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+      misMonths.push({
+        label,
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        purchases: 0,
+        redemptions: 0,
+      });
+    }
+
+    for (const t of filteredTransactions) {
+      if (!t.investmentDate) continue;
+      const td = new Date(t.investmentDate);
+      const ty = td.getFullYear();
+      const tm = td.getMonth();
+      const found = misMonths.find((m) => m.year === ty && m.month === tm);
+      if (found) {
+        if (isSellTransaction(t)) {
+          found.redemptions += t.value;
+        } else {
+          found.purchases += t.value;
+        }
+      }
+    }
+
+    return misMonths.map((m) => ({
+      label: m.label,
+      value: Math.round(m.purchases),
+      purchases: Math.round(m.purchases),
+      redemptions: Math.round(m.redemptions),
+      net: Math.round(m.purchases - m.redemptions),
+    }));
+  }, [filteredTransactions]);
+
+  // SIP monthly trend sparkline data (last 6 months)
+  const sipMonthlyTrend = useMemo(() => {
+    const now = new Date();
+    const trends: number[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ty = d.getFullYear();
+      const tm = d.getMonth();
+      let monthSip = 0;
+      for (const t of filteredTransactions) {
+        if (!t.investmentDate) continue;
+        const td = new Date(t.investmentDate);
+        if (td.getFullYear() === ty && td.getMonth() === tm) {
+          if (t.transactionType?.toLowerCase().includes("sip")) {
+            monthSip += t.value;
+          }
+        }
+      }
+      trends.push(monthSip);
+    }
+    return trends;
+  }, [filteredTransactions]);
+
+  // Dynamic Day & MoM change figures computed from transactions & performance
+  const changeMetrics = useMemo(() => {
+    if (performanceData.length < 2 || currentValue === 0) {
+      return {
+        dayChangeStr: "₹0 (0.00%)",
+        dayPositive: true,
+        momChangeStr: "₹0 (0.00%)",
+        momPositive: true,
+      };
+    }
+    const cur = performanceData[performanceData.length - 1].value;
+    const prev = performanceData[performanceData.length - 2].value;
+    const diff = cur - prev;
+    const pct = prev > 0 ? (diff / prev) * 100 : 0;
+    const isPos = diff >= 0;
+
+    const formattedDiff = Math.abs(diff) >= 100000
+      ? `₹${(Math.abs(diff) / 100000).toFixed(2)}L`
+      : `₹${Math.abs(diff).toLocaleString("en-IN")}`;
+
+    const changeStr = `${isPos ? "+" : "-"}${formattedDiff} (${isPos ? "+" : ""}${pct.toFixed(2)}%)`;
+
+    return {
+      dayChangeStr: changeStr,
+      dayPositive: isPos,
+      momChangeStr: changeStr,
+      momPositive: isPos,
+    };
+  }, [performanceData, currentValue]);
 
   const portfolioComposition = useMemo(() => {
     const colors = [
@@ -210,6 +345,9 @@ export const usePortfolioData = (filteredTransactions: TransactionData[], isNewU
     roi,
     xirr,
     performanceData,
+    monthlyInvestmentMIS,
+    sipMonthlyTrend,
+    changeMetrics,
     portfolioComposition,
     recentTransactions,
     topPerformingFunds,

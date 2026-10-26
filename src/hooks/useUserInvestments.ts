@@ -20,9 +20,9 @@ export const useUserInvestments = () => {
       if (!user) return { mappings: [], purchases: [], redemptions: [], mappedInvestorNames: [] };
 
       const response = await api.get("/user-investments");
-      return (
-        response.data || { mappings: [], purchases: [], redemptions: [], mappedInvestorNames: [] }
-      );
+      // Handle both direct payload and sendSuccess envelope
+      const payload = response.data?.data ?? response.data;
+      return payload || { mappings: [], purchases: [], redemptions: [], mappedInvestorNames: [] };
     },
     enabled: !!user,
   });

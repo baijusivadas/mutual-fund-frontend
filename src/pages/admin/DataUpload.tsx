@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useState, useMemo, useCallback, memo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,8 +14,15 @@ interface UploadResult {
   total: number;
   purchases: number;
   redemptions: number;
-  errors: string[];
+  skipped: number;
+  mappedUsers: number;
 }
+
+const VALID_FILE_TYPES = [
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+];
 
 const DataUpload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -37,64 +43,58 @@ const DataUpload = () => {
     },
   });
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = e.target.files?.[0];
+      if (!selectedFile) return;
 
-    const validTypes = [
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel",
-      "text/csv",
-    ];
+      if (!VALID_FILE_TYPES.includes(selectedFile.type) && !selectedFile.name.match(/\.(xlsx|xls|csv)$/i)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an Excel (.xlsx, .xls) or CSV file",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (!validTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(xlsx|xls|csv)$/i)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload an Excel (.xlsx, .xls) or CSV file",
-        variant: "destructive",
-      });
-      return;
-    }
+      setFile(selectedFile);
+      setParsing(true);
 
-    setFile(selectedFile);
-    setParsing(true);
-    setParsedData([]);
-
-    try {
-      const data = await parseExcel(selectedFile);
-      setParsedData(data);
-      toast({
-        title: "File parsed successfully",
-        description: `Found ${data.length} transactions`,
-      });
-    } catch (err) {
-      toast({
-        title: "Error parsing file",
-        description: "Could not parse the file. Please check the format.",
-        variant: "destructive",
-      });
-    } finally {
-      setParsing(false);
-    }
-  };
+      try {
+        const data = await parseExcel(selectedFile);
+        setParsedData(data);
+        toast({
+          title: "File parsed successfully",
+          description: `Found ${data.length} transactions ready for ingestion.`,
+        });
+      } catch (err) {
+        toast({
+          title: "Parse error",
+          description: "Failed to read the spreadsheet. Check columns and formatting.",
+          variant: "destructive",
+        });
+      } finally {
+        setParsing(false);
+      }
+    },
+    [toast]
+  );
 
   const uploadMutation = useMutation({
-    mutationFn: async (): Promise<UploadResult> => {
-      const result: UploadResult = {
-        total: parsedData.length,
-        purchases: 0,
-        redemptions: 0,
-        errors: [],
-      };
+    mutationFn: async () => {
       if (!file) throw new Error("No file selected");
 
       const formData = new FormData();
       formData.append("file", file);
-      if (selectedUsers.length > 0 && selectedAssetType === "mutual_funds") {
+      formData.append("asset_type", selectedAssetType);
+
+      // Backend reads req.body.selectedUsers (JSON string)
+      if (selectedUsers.length > 0) {
         formData.append("selectedUsers", JSON.stringify(selectedUsers));
       }
 
-      setUploadProgress(0);
+      const result: UploadResult = { total: 0, purchases: 0, redemptions: 0, skipped: 0, mappedUsers: 0 };
+
       const response = await api.post("/transaction", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (progressEvent) => {
@@ -105,20 +105,21 @@ const DataUpload = () => {
         },
       });
 
-      // Backend returns count of inserted records
-      result.total = response.data?.count || 0;
+      result.total = response.data?.count ?? 0;
+      result.purchases = response.data?.purchases ?? 0;
+      result.redemptions = response.data?.redemptions ?? 0;
+      result.skipped = response.data?.skipped ?? 0;
+      result.mappedUsers = response.data?.mappedUsers ?? 0;
       return result;
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["purchases"] });
-      queryClient.invalidateQueries({ queryKey: ["redemptions"] });
-      queryClient.invalidateQueries({ queryKey: ["raw_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["net-worth"] });
-      queryClient.invalidateQueries({ queryKey: ["investment-mappings"] });
+    onSuccess: async (result) => {
+      // Invalidate all portfolio and transaction related queries across the application
+      await queryClient.invalidateQueries();
+      await queryClient.refetchQueries({ queryKey: ["user-investments"] });
 
       toast({
         title: "Upload complete",
-        description: `Processed ${result.total} transactions (${result.purchases} purchases, ${result.redemptions} redemptions)${result.errors.length > 0 ? `. ${result.errors.length} errors.` : ""}`,
+        description: `Successfully imported ${result.total} transactions (${result.purchases} purchases, ${result.redemptions} redemptions). The portfolio data has been updated.`,
       });
 
       setFile(null);
@@ -135,31 +136,40 @@ const DataUpload = () => {
     },
   });
 
-  const purchaseCount = parsedData.filter((t) => {
-    const type = t.transactionType.toLowerCase();
-    return !type.includes("redemption") && !type.includes("switchout");
-  }).length;
+  const { purchaseCount, redemptionCount } = useMemo(() => {
+    let p = 0;
+    for (const t of parsedData) {
+      if (!/redemption|switch[\s-]*out|sell/i.test(t.transactionType)) {
+        p++;
+      }
+    }
+    return {
+      purchaseCount: p,
+      redemptionCount: parsedData.length - p,
+    };
+  }, [parsedData]);
 
-  const redemptionCount = parsedData.length - purchaseCount;
-
-  const toggleUserSelection = (userId: string) => {
+  const toggleUserSelection = useCallback((userId: string) => {
     setSelectedUsers((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
-  };
+  }, []);
+
+  const handleUploadSubmit = useCallback(() => {
+    uploadMutation.mutate();
+  }, [uploadMutation]);
 
   return (
-    <DashboardLayout>
+    <div className="space-y-6 animate-in">
       <PageHeader
         title="Data Upload"
-        description="Upload Excel or CSV files to auto-analyze and update portfolio data"
+        description="Ingest portfolio statement spreadsheets (.xlsx, .xls, .csv) with automatic ledger parsing"
       />
       <div className="max-w-4xl mx-auto space-y-6">
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            Upload files with columns: TransactionType, InvestorName, Date, SchemeName, Units, NAV,
-            Amount, FolioNo
+        <Alert className="rounded-2xl border-border/60 bg-card/85 backdrop-blur-xl">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-xs leading-relaxed text-muted-foreground">
+            Supported columns in file: <span className="font-semibold text-foreground">TransactionType, InvestorName, Date, SchemeName, Units, NAV, Amount, FolioNo</span>
           </AlertDescription>
         </Alert>
 
@@ -167,7 +177,7 @@ const DataUpload = () => {
           parsing={parsing}
           uploadProgress={uploadProgress}
           handleFileChange={handleFileChange}
-          handleUpload={() => uploadMutation.mutate()}
+          handleUpload={handleUploadSubmit}
           isUploading={uploadMutation.isPending}
           hasParsedData={parsedData.length > 0}
           parsedDataLength={parsedData.length}
@@ -185,8 +195,8 @@ const DataUpload = () => {
           />
         </UploadForm>
       </div>
-    </DashboardLayout>
+    </div>
   );
 };
 
-export default DataUpload;
+export default memo(DataUpload);
