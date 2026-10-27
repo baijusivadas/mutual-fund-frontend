@@ -150,6 +150,8 @@ export const AIChatbot = memo(() => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -163,37 +165,107 @@ export const AIChatbot = memo(() => {
     }
   }, [isOpen, messages, scrollToBottom]);
 
+  // ── Click outside and Escape key to close chatbox ───────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (
+        chatContainerRef.current &&
+        !chatContainerRef.current.contains(target) &&
+        toggleButtonRef.current &&
+        !toggleButtonRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
   const sendMessage = useCallback(
-    (text: string) => {
-      if (!text.trim()) return;
+    async (text: string) => {
+      if (!text.trim() || isTyping) return;
+      const trimmedText = text.trim();
       const userMsg: ChatMessage = {
         id: `u-${Date.now()}`,
         role: "user",
-        content: text.trim(),
+        content: trimmedText,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, userMsg]);
+
+      const updatedHistory = [...messages, userMsg];
+      setMessages(updatedHistory);
       setInput("");
       setIsTyping(true);
 
-      // Simulate AI thinking delay
-      setTimeout(
-        () => {
-          const response = getAIResponse(text);
-          const aiMsg: ChatMessage = {
-            id: `a-${Date.now()}`,
-            role: "assistant",
-            content: response,
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, aiMsg]);
-          setIsTyping(false);
-          if (!isOpen) setUnread((n) => n + 1);
-        },
-        700 + Math.random() * 600
-      );
+      try {
+        const payloadMessages = updatedHistory
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .slice(-10)
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+          }));
+
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messages: payloadMessages,
+          }),
+        });
+
+        const data = await res.json().catch(() => null);
+
+        let aiText = "";
+        if (res.ok && data?.message) {
+          aiText = data.message;
+        } else if (data?.error && !data.error.includes("LLM_API_KEY is not configured")) {
+          aiText = data.error;
+        } else {
+          // If LLM API key not configured yet, use built-in domain intelligence
+          aiText = getAIResponse(trimmedText);
+        }
+
+        const aiMsg: ChatMessage = {
+          id: `a-${Date.now()}`,
+          role: "assistant",
+          content: aiText,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+        if (!isOpen) setUnread((n) => n + 1);
+      } catch {
+        // Graceful fallback to built-in portfolio intelligence
+        const fallbackText = getAIResponse(trimmedText);
+        const aiMsg: ChatMessage = {
+          id: `a-${Date.now()}`,
+          role: "assistant",
+          content: fallbackText,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } finally {
+        setIsTyping(false);
+      }
     },
-    [isOpen]
+    [messages, isTyping, isOpen]
   );
 
   const handleSubmit = useCallback(
@@ -223,6 +295,7 @@ export const AIChatbot = memo(() => {
       {/* Floating chat panel */}
       {isOpen && (
         <div
+          ref={chatContainerRef}
           className={cn(
             "fixed bottom-20 right-4 z-50 flex flex-col rounded-2xl border border-border/80 bg-background shadow-2xl transition-all duration-300",
             chatWidth,
@@ -337,6 +410,7 @@ export const AIChatbot = memo(() => {
 
       {/* Floating Toggle Button */}
       <button
+        ref={toggleButtonRef}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300",

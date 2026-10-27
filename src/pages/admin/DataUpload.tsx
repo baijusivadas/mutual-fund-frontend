@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, memo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +16,8 @@ interface UploadResult {
   purchases: number;
   redemptions: number;
   skipped: number;
+  duplicatesSkipped?: number;
+  alreadyUploaded?: boolean;
   mappedUsers: number;
 }
 
@@ -33,6 +36,7 @@ const DataUpload = () => {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch users for mapping
   const { data: users = [] } = useQuery({
@@ -93,7 +97,15 @@ const DataUpload = () => {
         formData.append("selectedUsers", JSON.stringify(selectedUsers));
       }
 
-      const result: UploadResult = { total: 0, purchases: 0, redemptions: 0, skipped: 0, mappedUsers: 0 };
+      const result: UploadResult = {
+        total: 0,
+        purchases: 0,
+        redemptions: 0,
+        skipped: 0,
+        duplicatesSkipped: 0,
+        alreadyUploaded: false,
+        mappedUsers: 0,
+      };
 
       const response = await api.post("/transaction", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -109,6 +121,8 @@ const DataUpload = () => {
       result.purchases = response.data?.purchases ?? 0;
       result.redemptions = response.data?.redemptions ?? 0;
       result.skipped = response.data?.skipped ?? 0;
+      result.duplicatesSkipped = response.data?.duplicatesSkipped ?? 0;
+      result.alreadyUploaded = response.data?.alreadyUploaded ?? false;
       result.mappedUsers = response.data?.mappedUsers ?? 0;
       return result;
     },
@@ -117,15 +131,27 @@ const DataUpload = () => {
       await queryClient.invalidateQueries();
       await queryClient.refetchQueries({ queryKey: ["user-investments"] });
 
-      toast({
-        title: "Upload complete",
-        description: `Successfully imported ${result.total} transactions (${result.purchases} purchases, ${result.redemptions} redemptions). The portfolio data has been updated.`,
-      });
+      if (result.total === 0 && (result.duplicatesSkipped ?? 0) > 0) {
+        toast({
+          title: "File already uploaded",
+          description: `All ${result.duplicatesSkipped} transactions in this file are already present in the database. No duplicate records were added.`,
+        });
+      } else {
+        toast({
+          title: "Upload complete",
+          description: `Successfully imported ${result.total} transactions (${result.purchases} purchases, ${result.redemptions} redemptions)${
+            (result.duplicatesSkipped ?? 0) > 0 ? `, skipped ${result.duplicatesSkipped} existing duplicates` : ""
+          }.`,
+        });
+      }
 
       setFile(null);
       setParsedData([]);
       setUploadProgress(0);
       setSelectedUsers([]);
+
+      // Automatically redirect to dashboard page upon successful upload
+      navigate("/");
     },
     onError: (err: unknown) => {
       toast({

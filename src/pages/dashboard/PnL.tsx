@@ -1,8 +1,20 @@
-import { memo, useMemo } from "react";
+﻿import { memo, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, DollarSign, Percent, BarChart3, PieChart as PieIcon, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { CommonCard } from "@/components/shared/CommonCard";
+import { cn } from "@/lib/utils";
+import { formatIndianUnits } from "@/utils/format";
+import {
+  TrendingUp,
+  DollarSign,
+  Percent,
+  BarChart3,
+  PieChart as PieIcon,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -15,9 +27,15 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { CommonCard } from "@/components/shared/CommonCard";
-import { cn } from "@/lib/utils";
+
+// ── Shared chart tooltip style (driven by CSS variables for theme support) ──
+const chartTooltipStyle = {
+  backgroundColor: "hsl(var(--card))",
+  borderColor: "hsl(var(--border))",
+  borderRadius: "12px",
+  fontSize: "12px",
+  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)",
+};
 
 const MONTHLY_PNL = [
   { month: "Jan", realized: 15000, unrealized: 8000 },
@@ -29,10 +47,10 @@ const MONTHLY_PNL = [
 ];
 
 const SECTOR_PNL = [
-  { sector: "Banking", value: 85000, color: "#3b82f6" },
-  { sector: "IT", value: 65000, color: "#8b5cf6" },
-  { sector: "Energy", value: 45000, color: "#10b981" },
-  { sector: "Auto", value: 35000, color: "#f59e0b" },
+  { sector: "Banking", value: 85000, color: "hsl(var(--chart-1))" },
+  { sector: "IT", value: 65000, color: "hsl(var(--chart-4))" },
+  { sector: "Energy", value: 45000, color: "hsl(var(--chart-2))" },
+  { sector: "Auto", value: 35000, color: "hsl(var(--chart-3))" },
 ];
 
 const STOCK_PNL = [
@@ -83,13 +101,13 @@ const StockPnLItem = memo(({ item }: { item: StockItem }) => {
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Invested</p>
             <p className="text-base font-heading font-extrabold text-foreground mt-0.5">
-              ₹{(item.invested / 1000).toFixed(0)}K
+              {formatIndianUnits(item.invested)}
             </p>
           </div>
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Current Value</p>
             <p className="text-base font-heading font-extrabold text-primary mt-0.5">
-              ₹{(item.current / 1000).toFixed(0)}K
+              {formatIndianUnits(item.current)}
             </p>
           </div>
         </div>
@@ -102,9 +120,10 @@ const StockPnLItem = memo(({ item }: { item: StockItem }) => {
               : "bg-rose-500/5 border-rose-500/20 text-rose-600 dark:text-rose-400"
           )}
         >
-          <span className="text-xs font-medium text-muted-foreground">Net P&L</span>
+          <span className="text-xs font-medium text-muted-foreground">Net P&amp;L</span>
           <span className="text-base font-heading font-extrabold">
-            {isPositive ? "+" : ""}₹{item.pnl.toLocaleString("en-IN")}
+            {isPositive ? "+" : ""}
+            {formatIndianUnits(item.pnl)}
           </span>
         </div>
       </CardContent>
@@ -114,28 +133,14 @@ const StockPnLItem = memo(({ item }: { item: StockItem }) => {
 StockPnLItem.displayName = "StockPnLItem";
 
 const PnL = () => {
-  // Memoized analytics derived from mock data
   const { totalRealized, totalUnrealized, overallReturnPct, bestStock } = useMemo(() => {
-    let realizedSum = 0;
-    let unrealizedSum = 0;
-    MONTHLY_PNL.forEach((m) => {
-      realizedSum += m.realized;
-      unrealizedSum += m.unrealized;
-    });
+    const realizedSum = MONTHLY_PNL.reduce((acc, m) => acc + m.realized, 0);
+    const unrealizedSum = MONTHLY_PNL.reduce((acc, m) => acc + m.unrealized, 0);
 
-    let totalInv = 0;
-    let totalCur = 0;
-    let best = STOCK_PNL[0];
-
-    STOCK_PNL.forEach((s) => {
-      totalInv += s.invested;
-      totalCur += s.current;
-      if (s.pnlPercent > best.pnlPercent) {
-        best = s;
-      }
-    });
-
-    const returnPct = totalInv > 0 ? ((totalCur - totalInv) / totalInv) * 100 : 0;
+    const totalInvested = STOCK_PNL.reduce((acc, s) => acc + s.invested, 0);
+    const totalCurrent = STOCK_PNL.reduce((acc, s) => acc + s.current, 0);
+    const best = STOCK_PNL.reduce((prev, curr) => (curr.pnlPercent > prev.pnlPercent ? curr : prev));
+    const returnPct = totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0;
 
     return {
       totalRealized: realizedSum,
@@ -156,14 +161,14 @@ const PnL = () => {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Total Realized P&L"
-          value={`₹${totalRealized.toLocaleString("en-IN")}`}
+          value={formatIndianUnits(totalRealized)}
           change="Booked Profits (YTD)"
           changeType="positive"
           icon={DollarSign}
         />
         <MetricCard
           title="Total Unrealized P&L"
-          value={`₹${totalUnrealized.toLocaleString("en-IN")}`}
+          value={formatIndianUnits(totalUnrealized)}
           change="Open Portfolio Gain"
           changeType="positive"
           icon={TrendingUp}
@@ -190,32 +195,31 @@ const PnL = () => {
           <CardHeader className="pb-2 pt-5 px-6">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-primary" />
-              Monthly P&L Trend
+              Monthly P&amp;L Trend
             </CardTitle>
           </CardHeader>
           <CardContent className="px-2 pb-6">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={MONTHLY_PNL} margin={{ top: 10, right: 20, left: 10, bottom: 5 }} barSize={18}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.4)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <YAxis
                   tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`}
+                  tickFormatter={(v) => formatIndianUnits(v)}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    borderColor: "hsl(var(--border))",
-                    borderRadius: "12px",
-                    fontSize: "12px",
-                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)",
-                  }}
-                  formatter={(val: number) => [`₹${val.toLocaleString("en-IN")}`, ""]}
+                  contentStyle={chartTooltipStyle}
+                  formatter={(val: number) => [formatIndianUnits(val), ""]}
                 />
-                <Bar dataKey="realized" fill="#3b82f6" name="Realized P&L" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="unrealized" fill="#10b981" name="Unrealized P&L" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="realized" fill="hsl(var(--chart-1))" name="Realized P&L" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="unrealized" fill="hsl(var(--chart-2))" name="Unrealized P&L" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -224,8 +228,8 @@ const PnL = () => {
         <Card className="lg:col-span-3 rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl shadow-sm overflow-hidden flex flex-col">
           <CardHeader className="pb-2 pt-5 px-6">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <PieIcon className="h-4 w-4 text-violet-500" />
-              Sector-wise P&L Distribution
+              <PieIcon className="h-4 w-4 text-primary" />
+              Sector-wise P&amp;L Distribution
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 flex items-center justify-center p-4">
@@ -239,20 +243,15 @@ const PnL = () => {
                   outerRadius={85}
                   paddingAngle={4}
                   dataKey="value"
-                  label={({ sector, percent }) => `${sector} ${(percent * 100).toFixed(0)}%`}
+                  label={({ sector, percent }) => `${sector} ${((percent ?? 0) * 100).toFixed(0)}%`}
                 >
                   {SECTOR_PNL.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    borderColor: "hsl(var(--border))",
-                    borderRadius: "12px",
-                    fontSize: "12px",
-                  }}
-                  formatter={(val: number) => [`₹${val.toLocaleString("en-IN")}`, "Gain"]}
+                  contentStyle={chartTooltipStyle}
+                  formatter={(val: number) => [formatIndianUnits(val), "Gain"]}
                 />
               </PieChart>
             </ResponsiveContainer>

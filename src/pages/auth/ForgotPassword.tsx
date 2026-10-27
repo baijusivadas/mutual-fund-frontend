@@ -1,10 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, ArrowLeft, CheckCircle2, TrendingUp, Sparkles } from "lucide-react";
+import { Loader2, Mail, ArrowLeft, CheckCircle2, TrendingUp } from "lucide-react";
 
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -25,7 +25,6 @@ const ForgotPassword = () => {
     }
 
     setIsLoading(true);
-
     const { error: resetError } = await resetPassword(email.trim());
 
     if (!resetError) {
@@ -45,8 +44,9 @@ const ForgotPassword = () => {
 
       <div className="relative z-10 w-full max-w-md">
         <div className="rounded-3xl bg-card border border-border/60 shadow-2xl dark:shadow-black/50 backdrop-blur-2xl p-6 sm:p-8">
+          {/* Brand */}
           <div className="flex items-center gap-2 mb-6">
-            <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
               <TrendingUp className="h-5 w-5" />
             </div>
             <span className="font-heading font-extrabold text-xl text-foreground">BrickWealth</span>
@@ -54,24 +54,24 @@ const ForgotPassword = () => {
 
           {isEmailSent ? (
             <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
-              <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+              <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center">
                 <CheckCircle2 className="h-8 w-8" />
               </div>
               <h2 className="text-2xl font-heading font-bold text-foreground">Check Your Inbox</h2>
               <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                We've sent password reset instructions to{" "}
+                We&apos;ve sent password reset instructions to{" "}
                 <span className="text-foreground font-semibold">{email}</span>.
               </p>
               <div className="flex gap-3 pt-4 w-full">
                 <Button
                   variant="outline"
                   onClick={() => setIsEmailSent(false)}
-                  className="flex-1 rounded-xl border-border/60 text-foreground hover:bg-muted"
+                  className="flex-1 rounded-xl border-border/60"
                 >
                   Resend
                 </Button>
                 <Link to="/login" className="flex-1">
-                  <Button className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
+                  <Button className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white">
                     Back to Login
                   </Button>
                 </Link>
@@ -80,11 +80,12 @@ const ForgotPassword = () => {
           ) : (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-heading font-extrabold text-foreground">
+                <h1 className="text-2xl font-heading font-extrabold text-foreground">
                   Reset Password
-                </h2>
+                </h1>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Enter your email address and we'll send you a link to reset your account credentials.
+                  Enter your email address and we&apos;ll send you a link to reset your account
+                  credentials.
                 </p>
               </div>
 
@@ -96,7 +97,7 @@ const ForgotPassword = () => {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-medium text-slate-300">
+                  <Label htmlFor="email" className="text-xs font-medium text-foreground/80">
                     Email Address
                   </Label>
                   <div className="relative">
@@ -116,7 +117,7 @@ const ForgotPassword = () => {
 
                 <Button
                   type="submit"
-                  className="w-full h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all"
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all active:scale-[0.99]"
                   disabled={isLoading}
                 >
                   {isLoading ? (

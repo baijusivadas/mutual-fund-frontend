@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, memo } from "react";
+﻿import { useEffect, useRef, useMemo, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -24,7 +24,6 @@ import {
   Loader2,
   Activity,
   PieChart as PieIcon,
-  ArrowUpRight,
 } from "lucide-react";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -34,6 +33,7 @@ import { usePropertyMetrics } from "@/hooks/usePropertyMetrics";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import api from "@/services/api";
+import { formatIndianUnits } from "@/utils/format";
 import type { Flat, RealEstateProperty, RentalProperty } from "@/types";
 
 interface PropertyMetricsResponse {
@@ -44,12 +44,17 @@ interface PropertyMetricsResponse {
   };
 }
 
-const COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--secondary))",
-  "hsl(var(--accent))",
-  "hsl(var(--muted))",
+// Chart colours driven by CSS variables for full dark/light theme support
+const CHART_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-5))",
 ];
+
+// Number of property categories (Rental, Flat, Real Estate)
+const PROPERTY_CATEGORY_COUNT = 3;
 
 export default function Analytics() {
   const { token } = useAuth();
@@ -68,14 +73,18 @@ export default function Analytics() {
   const realEstate = useMemo(() => data?.details?.realEstate || [], [data]);
 
   const metrics = usePropertyMetrics(rentalProperties, flats, realEstate);
+  const occupiedCount = rentalProperties.filter((p) => p.status === "occupied").length;
+
   const topRentalIncome = metrics.rentalRevenueData[0];
   const rentalIncomeInsight = topRentalIncome
     ? `${topRentalIncome.property} contributes the highest monthly rent (${topRentalIncome.revenue.toLocaleString("en-IN")}), ${((topRentalIncome.revenue / metrics.totalMonthlyRevenue) * 100).toFixed(1)}% of current rental income.`
     : "No occupied rental properties have recorded monthly rent.";
+
   const topStatus = [...metrics.statusDistribution].sort((a, b) => b.value - a.value)[0];
   const statusInsight = topStatus
     ? `${topStatus.name} is the most common property status (${topStatus.value} of ${metrics.totalProperties} properties).`
     : "Add property records to see a status breakdown.";
+
   const topPropertyType = [...metrics.propertyTypeData]
     .filter((item) => item.value > 0)
     .sort((a, b) => b.value - a.value)[0];
@@ -83,14 +92,14 @@ export default function Analytics() {
     ? `${topPropertyType.name} make up the largest category, with ${topPropertyType.value} of ${metrics.totalProperties} properties.`
     : "Add property records to see a category breakdown.";
 
-  // Track which lease IDs we've already toasted to avoid duplicates across re-renders
+  // Track which lease IDs we have already toasted to avoid duplicates across re-renders
   const shownLeaseIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     metrics.expiringLeases.forEach((property) => {
-      if (shownLeaseIds.current.has(property.id)) return; // already shown
+      if (shownLeaseIds.current.has(property.id)) return;
       shownLeaseIds.current.add(property.id);
-      toast.warning(`Lease Expiring Soon`, {
+      toast.warning("Lease Expiring Soon", {
         description: `${property.property_name} lease expires on ${new Date(property.lease_end_date!).toLocaleDateString()}`,
       });
     });
@@ -111,44 +120,44 @@ export default function Analytics() {
         description="Comprehensive property performance metrics and insights"
       />
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Occupancy Rate"
           value={`${metrics.occupancyRate.toFixed(1)}%`}
-          change={`${rentalProperties.filter((property) => property.status === "occupied").length} of ${rentalProperties.length} rentals occupied`}
+          change={`${occupiedCount} of ${rentalProperties.length} rentals occupied`}
           changeType="neutral"
           icon={Activity}
         />
         <MetricCard
           title="Monthly Revenue"
-          value={`₹${metrics.totalMonthlyRevenue.toLocaleString()}`}
-          change="Target: ₹10L"
+          value={formatIndianUnits(metrics.totalMonthlyRevenue)}
+          change="Rental Income"
           changeType="neutral"
           icon={DollarSign}
         />
         <MetricCard
           title="Total Properties"
           value={metrics.totalProperties}
-          change="3 categories"
+          change={`${PROPERTY_CATEGORY_COUNT} categories`}
           changeType="neutral"
           icon={Home}
         />
         <MetricCard
           title="Portfolio Value"
-          value={`₹${(metrics.totalPropertyValue / 10000000).toFixed(2)}Cr`}
+          value={formatIndianUnits(metrics.totalPropertyValue)}
           change="Market Valuation"
           changeType="positive"
           icon={TrendingUp}
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
+      <div className="grid gap-6 md:grid-cols-2">
         <ChartCard title="Monthly Rental Income by Property" icon={TrendingUp} className="glass-card">
           {metrics.rentalRevenueData.length > 0 ? (
             <ResponsiveContainer width="100%" height={350}>
               <BarChart data={metrics.rentalRevenueData} layout="vertical" margin={{ left: 16, right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => formatIndianUnits(v)} />
                 <YAxis
                   dataKey="property"
                   type="category"
@@ -160,7 +169,7 @@ export default function Analytics() {
                 />
                 <Tooltip
                   contentStyle={chartTooltipStyle}
-                  formatter={(value: number) => [`₹${value.toLocaleString("en-IN")}`, "Monthly rent"]}
+                  formatter={(value: number) => [formatIndianUnits(value), "Monthly rent"]}
                 />
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} name="Monthly rent" />
               </BarChart>
@@ -186,7 +195,7 @@ export default function Analytics() {
                 dataKey="value"
               >
                 {metrics.statusDistribution.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip contentStyle={chartTooltipStyle} />
@@ -239,39 +248,40 @@ export default function Analytics() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border/50">
-              {metrics.expiringLeases.map((property) => (
-                <div
-                  key={property.id}
-                  className="flex items-center justify-between p-6 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
-                      <Home className="h-5 w-5" />
+              {metrics.expiringLeases.map((property) => {
+                const daysLeft = Math.ceil(
+                  (new Date(property.lease_end_date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                );
+                return (
+                  <div
+                    key={property.id}
+                    className="flex items-center justify-between p-6 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
+                        <Home className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{property.property_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Tenant: {property.tenant_name || "N/A"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-foreground">{property.property_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Tenant: {property.tenant_name || "N/A"}
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-foreground">
+                        Expires {new Date(property.lease_end_date!).toLocaleDateString()}
                       </p>
+                      <Badge
+                        variant="outline"
+                        className="mt-1 border-amber-500/50 text-amber-600 bg-amber-500/5"
+                      >
+                        {daysLeft} days left
+                      </Badge>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-foreground">
-                      Expires {new Date(property.lease_end_date!).toLocaleDateString()}
-                    </p>
-                    <Badge
-                      variant="outline"
-                      className="mt-1 border-amber-500/50 text-amber-600 bg-amber-500/5"
-                    >
-                      {Math.ceil(
-                        (new Date(property.lease_end_date!).getTime() - new Date().getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      )}{" "}
-                      days left
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

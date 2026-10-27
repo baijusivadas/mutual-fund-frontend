@@ -1,9 +1,11 @@
-import axios from "axios";
+﻿import axios from "axios";
 
-// Use relative '/api' in development (proxied by Vite) to avoid CORS origin block across any port (8080, 8081, etc.)
-const backendEnv = import.meta.env.VITE_BACKEND_URL;
+// In development, Vite proxies /api → backend, so we use relative "/api".
+// In production (Vercel), VITE_BACKEND_URL must be set in the Vercel dashboard;
+// the full URL is used directly instead of a proxy.
+const backendEnv = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "");
 const isDev = import.meta.env.DEV;
-const baseURL = isDev || !backendEnv ? "/api" : `${backendEnv.replace(/\/$/, "")}/api`;
+const baseURL = isDev ? "/api" : backendEnv ? `${backendEnv}/api` : "/api";
 
 const api = axios.create({
   baseURL,
@@ -22,10 +24,9 @@ api.interceptors.request.use((config) => {
 });
 
 // ── Response interceptor: handle 401 globally ─────────────────────────────────
-// Only auto-logout when the user was actually authenticated AND the failing
-// request was NOT an auth endpoint (login/signup/otp/forgot-password).
-// This prevents: a) login-failure causing a redirect loop, b) being kicked out
-// while on the /login page, c) spurious logouts from parallel background fetches.
+// Only auto-logout when the user was authenticated AND the failing request was
+// NOT an auth endpoint (login/signup/otp/forgot-password).
+// Prevents: login-failure redirect loops, spurious logouts from parallel fetches.
 const AUTH_ROUTE_PREFIXES = ["/auth/login", "/auth/signup", "/auth/verify-otp", "/auth/forgot-password"];
 
 api.interceptors.response.use(

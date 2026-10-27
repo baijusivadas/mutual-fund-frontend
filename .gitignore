@@ -23,5 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
-# Stale Supabase integration (removed — backend is now Node.js/Express)
-supabase/
+# env files
+.env
+.env.*
+.env.local
+.env.*.local
+.env.example
