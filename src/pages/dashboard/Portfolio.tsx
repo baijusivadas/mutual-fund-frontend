@@ -1,3 +1,4 @@
+import { formatIndianUnits as formatCurrency } from "@/utils/format";
 import { memo, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -29,16 +30,6 @@ interface FundItem {
   portfolioShare: number;
 }
 
-const formatCurrency = (value: number) => {
-  const absoluteValue = Math.abs(value);
-  const formatted =
-    absoluteValue >= 10000000
-      ? `₹${(absoluteValue / 10000000).toFixed(2)} Cr`
-      : absoluteValue >= 100000
-        ? `₹${(absoluteValue / 100000).toFixed(2)} L`
-        : `₹${absoluteValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
-  return value < 0 ? `-${formatted}` : formatted;
-};
 
 const PortfolioFundCard = memo(({ fund }: { fund: FundItem }) => {
   const isPositive = fund.returns >= 0;
@@ -46,7 +37,7 @@ const PortfolioFundCard = memo(({ fund }: { fund: FundItem }) => {
   return (
     <CommonCard
       noHeader
-      className="rounded-xl border border-border/70 bg-card transition-all duration-200 hover:border-primary/40 hover:shadow-sm group"
+      className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 group"
       contentClassName="p-5"
     >
       <div className="space-y-4">
@@ -162,6 +153,7 @@ const Portfolio = () => {
           change={`${mutualFunds.length} Active Schemes`}
           changeType="neutral"
           icon={Wallet}
+          tone="blue"
         />
         <DashboardMetricCard
           title="Total Invested"
@@ -169,6 +161,7 @@ const Portfolio = () => {
           change="Net Capital Deployed"
           changeType="neutral"
           icon={Layers}
+          tone="green"
         />
         <DashboardMetricCard
           title="Value vs. Net Invested"
@@ -176,6 +169,7 @@ const Portfolio = () => {
           change={`${isPositiveReturns ? "+" : ""}${Number(roi).toFixed(2)}% vs. net invested`}
           changeType={isPositiveReturns ? "positive" : "negative"}
           icon={isPositiveReturns ? TrendingUp : TrendingDown}
+          tone={isPositiveReturns ? "amber" : "rose"}
         />
         <DashboardMetricCard
           title="Active Holdings"
@@ -183,6 +177,7 @@ const Portfolio = () => {
           change={`${positiveHoldings} above net invested`}
           changeType="neutral"
           icon={PieChart}
+          tone="blue"
         />
       </div>
 
@@ -191,8 +186,11 @@ const Portfolio = () => {
       <div className="space-y-6">
         <Tabs defaultValue="mutualfunds" className="w-full">
           <div className="flex items-center justify-between pb-2">
-            <TabsList className="grid w-full max-w-xs grid-cols-1 bg-muted/60 p-1 rounded-xl border border-border/50">
-              <TabsTrigger value="mutualfunds" className="rounded-lg text-xs font-bold">
+            <TabsList className="grid w-full max-w-xs grid-cols-1 bg-muted p-1 rounded-lg">
+              <TabsTrigger
+                value="mutualfunds"
+                className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+              >
                 Mutual Funds Holdings ({mutualFunds.length})
               </TabsTrigger>
             </TabsList>
@@ -223,3 +221,4 @@ const Portfolio = () => {
 };
 
 export default memo(Portfolio);
+

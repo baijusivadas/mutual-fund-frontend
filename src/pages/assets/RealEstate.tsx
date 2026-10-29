@@ -1,4 +1,4 @@
-import { memo, useMemo, useCallback } from "react";
+import { memo, useCallback } from "react";
 import { Building2 } from "lucide-react";
 import { DataManager } from "@/components/shared/DataManager";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { realEstateStatusFilters, propertyTypeFilters } from "@/data/filterOptions";
+import { realEstateStatusFilters, propertyTypeOptions } from "@/data/filterOptions";
 import { ColumnConfig, StatusBadge } from "@/components/shared/CommonTable";
 
 interface RealEstateItem {
@@ -132,14 +132,11 @@ const RealEstate = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="residential">Residential</SelectItem>
-                {propertyTypeFilters
-                  .filter((f) => f.value !== "all")
-                  .map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
+                {propertyTypeOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

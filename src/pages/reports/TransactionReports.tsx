@@ -35,17 +35,17 @@ const TransactionReports = () => {
       />
       <div className="space-y-6">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 bg-muted/60 p-1 rounded-xl border border-border/50">
-            <TabsTrigger value="users" className="rounded-lg text-xs font-bold">
+          <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 bg-muted p-1 rounded-lg">
+            <TabsTrigger value="users" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Investors ({users.length})
             </TabsTrigger>
-            <TabsTrigger value="purchases" className="rounded-lg text-xs font-bold">
+            <TabsTrigger value="purchases" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Purchases ({purchases.length})
             </TabsTrigger>
-            <TabsTrigger value="redemptions" className="rounded-lg text-xs font-bold">
+            <TabsTrigger value="redemptions" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Redemptions ({redemptions.length})
             </TabsTrigger>
-            <TabsTrigger value="funds" className="rounded-lg text-xs font-bold">
+            <TabsTrigger value="funds" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Funds ({funds.length})
             </TabsTrigger>
           </TabsList>

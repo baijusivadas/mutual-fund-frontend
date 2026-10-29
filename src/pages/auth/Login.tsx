@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
@@ -155,10 +155,14 @@ const Login = () => {
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
               <span>Institutional Grade</span>
             </div>
-            <div>•</div>
-            <div>Instant Portfolio Sync</div>
-            <div>•</div>
-            <div>Automated P&L</div>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Instant Portfolio Sync</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Automated P&L</span>
+            </div>
           </div>
         </div>
 
@@ -381,3 +385,4 @@ const Login = () => {
 };
 
 export default Login;
+

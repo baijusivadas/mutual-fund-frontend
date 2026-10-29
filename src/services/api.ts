@@ -1,4 +1,5 @@
-﻿import axios from "axios";
+import axios from "axios";
+import { AUTH_STORAGE_KEYS, AUTH_ROUTE_PREFIXES } from "@/lib/constants";
 
 // In development, Vite proxies /api → backend, so we use relative "/api".
 // In production (Vercel), VITE_BACKEND_URL must be set in the Vercel dashboard;
@@ -16,7 +17,7 @@ const api = axios.create({
 
 // ── Request interceptor: attach auth token ────────────────────────────────────
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("auth_token");
+  const token = localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -27,8 +28,6 @@ api.interceptors.request.use((config) => {
 // Only auto-logout when the user was authenticated AND the failing request was
 // NOT an auth endpoint (login/signup/otp/forgot-password).
 // Prevents: login-failure redirect loops, spurious logouts from parallel fetches.
-const AUTH_ROUTE_PREFIXES = ["/auth/login", "/auth/signup", "/auth/verify-otp", "/auth/forgot-password"];
-
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -36,13 +35,10 @@ api.interceptors.response.use(
       const requestUrl: string = error.config?.url ?? "";
       const isAuthEndpoint = AUTH_ROUTE_PREFIXES.some((prefix) => requestUrl.includes(prefix));
       const isAlreadyOnLogin = window.location.pathname === "/login";
-      const wasAuthenticated = !!localStorage.getItem("auth_token");
+      const wasAuthenticated = !!localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
 
       if (!isAuthEndpoint && !isAlreadyOnLogin && wasAuthenticated) {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
-        localStorage.removeItem("auth_role");
-        localStorage.removeItem("auth_login_time");
+        Object.values(AUTH_STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
         window.location.href = "/login";
       }
     }

@@ -15,7 +15,7 @@ export const PageHeader = ({
   className,
 }: PageHeaderProps) => {
   return (
-    <header className={cn("mb-5 sm:mb-6 border-b border-border/60 pb-4", className)}>
+    <header className={cn("mb-5 sm:mb-6 border-b border-border pb-4", className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
         <div className="min-w-0 space-y-1">
           <h1 className="text-xl sm:text-2xl font-heading font-bold tracking-tight text-foreground">

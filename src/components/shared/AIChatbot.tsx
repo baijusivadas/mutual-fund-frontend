@@ -1,7 +1,17 @@
-import { useState, useRef, useEffect, useCallback, memo } from "react";
+
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  memo,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
 import {
   MessageCircle,
   X,
@@ -12,12 +22,19 @@ import {
   RotateCcw,
   Minimize2,
   Maximize2,
-  Sparkles,
   ChevronDown,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 
-/* ─── Types ─────────────────────────────────────────────────── */
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  fetchLiveIndices,
+  type MarketIndex,
+} from "@/services/marketService";
+
+/* ============================================================
+   TYPES
+============================================================ */
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -25,125 +42,497 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-/* ─── Suggested Quick Questions ─────────────────────────────── */
+interface ChatApiResponse {
+  message?: string;
+  error?: string;
+}
+
+interface ChatApiMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/* ============================================================
+   CONFIGURATION
+============================================================ */
+
 const QUICK_QUESTIONS = [
+  "Give me the current Nifty levels",
   "What is my total portfolio value?",
   "Show me top performing funds",
   "How to upload transaction data?",
   "What is XIRR?",
-  "How to add a new investor?",
   "Explain SIP vs Lumpsum",
 ];
 
-/* ─── AI Response Logic (local rule-based) ─────────────────── */
+const MAX_HISTORY_MESSAGES = 10;
+
+const CHAT_API_URL = "/api/chat";
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+/**
+ * Creates a unique ID for each message.
+ */
+function createMessageId(role: "user" | "assistant"): string {
+  return `${role}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 9)}`;
+}
+
+/**
+ * Identifies questions about current market indices.
+ */
+function isMarketQuery(question: string): boolean {
+  const q = question.toLowerCase();
+
+  const mentionsIndex =
+    q.includes("nifty") ||
+    q.includes("sensex") ||
+    q.includes("banknifty") ||
+    /\bnifty\b/.test(q) ||
+    /\bsensex\b/.test(q) ||
+    /\bbank\s*nifty\b/.test(q) ||
+    /\bindices\b/.test(q) ||
+    /\bindex\s+levels?\b/.test(q);
+
+  const mentionsMarketStatus =
+    /\bmarket\b/.test(q) &&
+    /\b(level|levels|today|current|status|update|index|indices|price|prices)\b/.test(
+      q
+    );
+
+  return mentionsIndex || mentionsMarketStatus;
+}
+
+/**
+ * Formats live market indices into readable chat content.
+ */
+function formatMarketCard(indices: MarketIndex[]): string {
+  if (!indices.length) {
+    return "Live market data is currently unavailable. Please try again shortly.";
+  }
+
+  const nifty = indices.find((i) => i.code === "NIFTY");
+  const sensex = indices.find((i) => i.code === "SENSEX");
+  const bankNifty = indices.find((i) => i.code === "BANKNIFTY");
+
+  const lines: string[] = [
+    "**Current Market Levels**",
+    "",
+  ];
+
+  const formatIndex = (
+    name: string,
+    index: MarketIndex
+  ): string => {
+    const sign = index.pointChange > 0 ? "+" : "";
+    const direction = index.isPositive ? "🟢 ▲" : "🔴 ▼";
+
+    return (
+      `- **${name}:** ${index.value.toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}\n` +
+      `  Change: ${sign}${index.pointChange} points ` +
+      `(${sign}${index.percentChange}%) ${direction}`
+    );
+  };
+
+  if (nifty) {
+    lines.push(formatIndex("NIFTY 50", nifty));
+  }
+
+  if (sensex) {
+    lines.push(formatIndex("BSE SENSEX", sensex));
+  }
+
+  if (bankNifty) {
+    lines.push(formatIndex("NIFTY BANK", bankNifty));
+  }
+
+  if (!nifty && !sensex && !bankNifty) {
+    return "No recognized market indices were returned by the market service.";
+  }
+
+  const marketStatus = nifty?.marketStatus ?? "Unavailable";
+
+  lines.push(
+    "",
+    `Market status: ${marketStatus}`,
+    `Data retrieved: ${new Date().toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Kolkata",
+    })} IST`,
+    "",
+    "Please verify prices with the official exchange before making investment decisions."
+  );
+
+  return lines.join("\n");
+}
+
+/* ============================================================
+   LOCAL FALLBACK RESPONSES
+============================================================ */
+
+/**
+ * Provides basic BrickWealth guidance when the AI API
+ * cannot be reached or is not configured.
+ */
 function getAIResponse(question: string): string {
   const q = question.toLowerCase();
 
-  if (q.includes("portfolio") && (q.includes("value") || q.includes("total"))) {
-    return "Your total portfolio value is calculated from all your mutual fund holdings, real estate, gold, and other investments. Navigate to the **Dashboard** to see your consolidated net worth with real-time valuations.";
+  if (
+    q.includes("portfolio") &&
+    (q.includes("value") || q.includes("total") || q.includes("worth"))
+  ) {
+    return (
+      "**Your portfolio value**\n\n" +
+      "Your consolidated portfolio value should be calculated from your actual holdings and current valuations.\n\n" +
+      "Open the **Dashboard** to review your investments. " +
+      "I cannot retrieve your personal portfolio value unless the authenticated portfolio API is connected."
+    );
   }
+
   if (q.includes("xirr")) {
-    return "**XIRR (Extended Internal Rate of Return)** measures your actual annualized returns considering the exact timing and amount of each cash flow. Unlike simple returns, XIRR accounts for SIP installments at different dates, giving a more accurate picture of your investment performance.";
+    return (
+      "**What is XIRR?**\n\n" +
+      "XIRR (Extended Internal Rate of Return) calculates an annualized return when cash flows occur on different dates.\n\n" +
+      "- Useful for evaluating SIP investments.\n" +
+      "- Accounts for the timing and amount of each investment.\n" +
+      "- Helps compare portfolio performance over time.\n\n" +
+      "XIRR is a historical return measure and does not guarantee future performance."
+    );
   }
-  if (q.includes("sip") && q.includes("lump")) {
-    return "**SIP (Systematic Investment Plan)** invests a fixed amount monthly — great for averaging costs and building discipline. **Lumpsum** invests a large amount at once — better when markets are low. For long-term wealth creation, SIP is generally recommended for retail investors.";
+
+  if (
+    q.includes("sip") &&
+    (q.includes("lump") || q.includes("lumpsum") || q.includes("lump sum"))
+  ) {
+    return (
+      "**SIP vs Lumpsum**\n\n" +
+      "**SIP:** Invest a fixed amount at regular intervals. " +
+      "It can help build a disciplined investment habit.\n\n" +
+      "**Lumpsum:** Invest a larger amount at one time. " +
+      "Returns depend on the investment timing and subsequent market performance.\n\n" +
+      "Neither approach guarantees higher returns. Choose based on your financial goals, risk tolerance, and available funds."
+    );
   }
-  if (q.includes("upload") || q.includes("transaction") && q.includes("data")) {
-    return "To upload transactions:\n1. Go to **Admin → Data Upload**\n2. Download the sample Excel/CSV template\n3. Fill in investor name, scheme, units, NAV, date\n4. Upload the file\n\nThe system will auto-map investors and reflect data in 2–3 seconds.";
+
+  if (
+    q.includes("upload") ||
+    (q.includes("transaction") && q.includes("data"))
+  ) {
+    return (
+      "**How to upload transaction data**\n\n" +
+      "1. Open **Admin → Data Upload**, if available in your account.\n" +
+      "2. Download the application's supported CSV or Excel template.\n" +
+      "3. Fill in the required transaction fields.\n" +
+      "4. Upload the file and review any validation errors.\n" +
+      "5. Confirm that the imported transactions appear correctly.\n\n" +
+      "The exact menu and required columns depend on your configured BrickWealth application."
+    );
   }
-  if (q.includes("top") && (q.includes("fund") || q.includes("performing"))) {
-    return "Your top performing funds are visible on the **Dashboard** under the KPI cards and the **Portfolio Analysis** page. Funds are ranked by XIRR (annualized return). Navigate to **Benchmark Comparison** to see which funds beat their index.";
+
+  if (
+    q.includes("top") &&
+    (q.includes("fund") || q.includes("perform"))
+  ) {
+    return (
+      "**Finding your top-performing funds**\n\n" +
+      "Open **Portfolio Analysis** or the **Dashboard**, if available, to review fund performance.\n\n" +
+      "Compare returns over consistent periods, expense ratios, risk, and appropriate benchmarks. " +
+      "Past performance does not guarantee future returns."
+    );
   }
-  if (q.includes("investor") && (q.includes("add") || q.includes("new"))) {
-    return "To add a new investor:\n1. Go to **Admin → Investors**\n2. Click **+ Add Investor**\n3. Fill in KYC details (name, PAN, mobile)\n4. Link their folios via **User Investment Mapping**\n\nOnce mapped, the investor can log in and view their own portfolio.";
+
+  if (
+    q.includes("investor") &&
+    (q.includes("add") || q.includes("new") || q.includes("create"))
+  ) {
+    return (
+      "**Adding a new investor**\n\n" +
+      "1. Open the investor administration section.\n" +
+      "2. Select the add-investor option, if available.\n" +
+      "3. Enter the required details and validate them.\n" +
+      "4. Map the investor to the appropriate investment accounts or folios.\n\n" +
+      "Menu names and permissions depend on your application configuration."
+    );
   }
-  if (q.includes("benchmark")) {
-    return "The **Benchmark Comparison** page compares your fund's XIRR against its index (e.g., Nifty 50, Nifty Midcap 150). A positive Alpha means the fund outperformed its benchmark. Navigate to **Benchmark Comparison** from the sidebar.";
+
+  if (q.includes("benchmark") || q.includes("alpha")) {
+    return (
+      "**Benchmark comparison**\n\n" +
+      "A benchmark provides a reference for evaluating an investment's performance.\n\n" +
+      "- Compare equivalent periods.\n" +
+      "- Consider the appropriate index and total returns.\n" +
+      "- Account for risk, expenses, and cash-flow timing.\n\n" +
+      "Alpha depends on the benchmark and methodology used; it is not simply the difference between any two annualized returns."
+    );
   }
-  if (q.includes("transaction") && (q.includes("online") || q.includes("nse") || q.includes("bse") || q.includes("mfu"))) {
-    return "BrickWealth supports online transactions via **NSE StAR MF**, **BSE StAR MF**, and **MFU Platform**. You can:\n- Purchase, switch, transfer, and redeem funds\n- Start/modify SIP mandates\n- Onboard multiple clients quickly\n\nNavigate to **Online Transactions** from the sidebar.";
+
+  if (
+    q.includes("capital gain") ||
+    q.includes("capital gains") ||
+    q.includes("tax on mutual fund")
+  ) {
+    return (
+      "**Capital gains on mutual funds**\n\n" +
+      "Capital gains are generally calculated when investment units are sold or redeemed.\n\n" +
+      "Tax treatment depends on the fund category, acquisition and sale dates, applicable exemptions, and tax rules for the relevant financial year.\n\n" +
+      "Use the **Capital Gains** report, if available, and confirm your tax calculation with a qualified tax professional."
+    );
   }
-  if (q.includes("capital gain")) {
-    return "**Capital Gains** are profits from selling mutual fund units:\n- **Short Term** (held < 1 year): Taxed at 15%\n- **Long Term** (held ≥ 1 year): Taxed at 10% above ₹1 lakh exemption\n\nView your detailed capital gains breakdown in the **Capital Gains** page.";
+
+  if (
+    q.includes("transaction") &&
+    (q.includes("online") ||
+      q.includes("nse") ||
+      q.includes("bse") ||
+      q.includes("mfu"))
+  ) {
+    return (
+      "**Online mutual fund transactions**\n\n" +
+      "Your available transaction options depend on the platforms and integrations enabled in BrickWealth.\n\n" +
+      "Check the transaction section of your application or contact your administrator to confirm supported purchase, redemption, switch, and SIP operations."
+    );
   }
-  if (q.includes("hello") || q.includes("hi") || q.includes("hey")) {
-    return "Hello! 👋 I'm your BrickWealth AI assistant. I can help you with:\n- Portfolio queries\n- Fund performance analysis\n- Data upload guidance\n- Transaction support\n- Software navigation\n\nWhat would you like to know?";
+
+  if (
+    /\b(hello|hi|hey|good morning|good afternoon|good evening)\b/.test(q)
+  ) {
+    return (
+      "Hello! 👋 Welcome to BrickWealth.\n\n" +
+      "I can help you with:\n" +
+      "- Current market indices\n" +
+      "- Portfolio and investment concepts\n" +
+      "- Mutual fund performance\n" +
+      "- XIRR and SIP calculations\n" +
+      "- Transaction upload guidance\n\n" +
+      "What would you like to know?"
+    );
   }
-  if (q.includes("report") || q.includes("export") || q.includes("download")) {
-    return "BrickWealth supports multiple reports:\n- **Transaction Reports**: Full history with filters\n- **P&L Statement**: Realized and unrealized gains\n- **Capital Gains**: Short-term and long-term\n- **Portfolio Analysis**: Allocation, XIRR, MIS\n\nAll reports can be exported to Excel or PDF from the respective pages.";
+
+  if (
+    q.includes("report") ||
+    q.includes("export") ||
+    q.includes("download")
+  ) {
+    return (
+      "**Reports and exports**\n\n" +
+      "Depending on your application's configuration, available reports may include:\n" +
+      "- Transaction history\n" +
+      "- Portfolio analysis\n" +
+      "- Profit and loss\n" +
+      "- Capital gains\n\n" +
+      "Open the relevant report page and check for its export options."
+    );
   }
+
   if (q.includes("folio") || q.includes("not found")) {
-    return "If a folio is not found, please check:\n1. The folio number is correctly entered\n2. The investor mapping is set up in **Admin → User Investment Mapping**\n3. The transaction data includes the correct folio number\n\nContact support if the issue persists.";
+    return (
+      "**Troubleshooting a missing folio**\n\n" +
+      "1. Verify the folio number.\n" +
+      "2. Check the investor-to-folio mapping.\n" +
+      "3. Confirm the transaction data was imported successfully.\n" +
+      "4. Verify that your account has permission to access the folio.\n\n" +
+      "Contact your administrator if the problem continues."
+    );
   }
-
-  return "I'm here to help with your BrickWealth queries! Could you be more specific? For example:\n- \"What is my portfolio value?\"\n- \"How to upload transactions?\"\n- \"Explain XIRR\"\n- \"Show top performing funds\"\n\nOr type your question and I'll do my best to assist! 🤖";
-}
-
-/* ─── Chat Bubble ────────────────────────────────────────────── */
-const ChatBubble = memo(({ message }: { message: ChatMessage }) => {
-  const isUser = message.role === "user";
 
   return (
-    <div className={cn("flex items-start gap-2.5", isUser && "flex-row-reverse")}>
-      {/* Avatar */}
-      <div
-        className={cn(
-          "h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-          isUser
-            ? "bg-blue-600 text-white"
-            : "bg-gradient-to-br from-violet-600 to-blue-600 text-white"
-        )}
-      >
-        {isUser ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
-      </div>
+    "I'm here to help with BrickWealth! 🤖\n\n" +
+    "Try asking me:\n" +
+    "- What are the current Nifty levels?\n" +
+    "- What is XIRR?\n" +
+    "- Explain SIP vs Lumpsum.\n" +
+    "- How do I upload transactions?\n" +
+    "- How can I analyze mutual fund performance?\n\n" +
+    "For account-specific information, I need access to the relevant authenticated backend API."
+  );
+}
 
-      {/* Bubble */}
-      <div
-        className={cn(
-          "max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed",
-          isUser
-            ? "bg-blue-600 text-white rounded-tr-sm"
-            : "bg-muted border border-border/60 text-foreground rounded-tl-sm"
-        )}
-      >
-        {/* Render line breaks and bold */}
-        {message.content.split("\n").map((line, i) => {
-          const parts = line.split(/\*\*(.*?)\*\*/g);
+/* ============================================================
+   SIMPLE MARKDOWN RENDERER
+============================================================ */
+
+function renderInlineMarkdown(
+  text: string,
+  isUser: boolean
+): ReactNode[] {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong
+          key={index}
+          className={cn(
+            "font-semibold",
+            isUser ? "text-white" : "text-foreground"
+          )}
+        >
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    return <span key={index}>{part}</span>;
+  });
+}
+
+function renderMessageContent(
+  content: string,
+  isUser: boolean
+): ReactNode {
+  const lines = content.split("\n");
+
+  return (
+    <div className="space-y-1">
+      {lines.map((line, index) => {
+        const trimmed = line.trim();
+
+        if (!trimmed) {
+          return <div key={index} className="h-1" />;
+        }
+
+        const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
+        const numberedMatch = trimmed.match(/^\d+[.)]\s+(.+)$/);
+
+        if (bulletMatch) {
           return (
-            <p key={i} className={i > 0 ? "mt-1" : ""}>
-              {parts.map((part, j) =>
-                j % 2 === 1 ? (
-                  <strong key={j} className={isUser ? "text-white" : "text-foreground"}>
-                    {part}
-                  </strong>
-                ) : (
-                  <span key={j}>{part}</span>
-                )
-              )}
-            </p>
+            <div
+              key={index}
+              className="flex items-start gap-2 pl-1"
+            >
+              <span className="mt-0.5" aria-hidden="true">
+                •
+              </span>
+              <div className="min-w-0 flex-1">
+                {renderInlineMarkdown(bulletMatch[1], isUser)}
+              </div>
+            </div>
           );
-        })}
-        <p className={cn("text-[10px] mt-1.5 opacity-60")}>
-          {message.timestamp.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-        </p>
-      </div>
+        }
+
+        if (numberedMatch) {
+          const number = trimmed.match(/^(\d+)[.)]/)?.[1];
+
+          return (
+            <div
+              key={index}
+              className="flex items-start gap-2 pl-1"
+            >
+              <span className="shrink-0">{number}.</span>
+              <div className="min-w-0 flex-1">
+                {renderInlineMarkdown(numberedMatch[1], isUser)}
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <p key={index} className="break-words">
+            {renderInlineMarkdown(trimmed, isUser)}
+          </p>
+        );
+      })}
     </div>
   );
-});
+}
 
-/* ─── AI Chatbot Widget ─────────────────────────────────────── */
+/* ============================================================
+   CHAT BUBBLE
+============================================================ */
+
+const ChatBubble = memo(
+  ({ message }: { message: ChatMessage }) => {
+    const isUser = message.role === "user";
+
+    return (
+      <div
+        className={cn(
+          "flex items-start gap-2.5",
+          isUser && "flex-row-reverse"
+        )}
+      >
+        {/* Avatar */}
+        <div
+          className={cn(
+            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-xs",
+            isUser
+              ? "bg-blue-600 text-white"
+              : "border border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-400"
+          )}
+        >
+          {isUser ? (
+            <User
+              className="h-3.5 w-3.5"
+              aria-hidden="true"
+            />
+          ) : (
+            <Bot
+              className="h-3.5 w-3.5"
+              aria-hidden="true"
+            />
+          )}
+        </div>
+
+        {/* Message bubble */}
+        <div
+          className={cn(
+            "min-w-0 max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed shadow-xs",
+            isUser
+              ? "rounded-tr-sm bg-blue-600 text-white"
+              : "rounded-tl-sm border border-border bg-card text-foreground"
+          )}
+        >
+          {renderMessageContent(message.content, isUser)}
+
+          <p
+            className={cn(
+              "mt-1.5 text-right text-[10px] opacity-60"
+            )}
+          >
+            {message.timestamp.toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+              timeZone: "Asia/Kolkata",
+            })}
+          </p>
+        </div>
+      </div>
+    );
+  }
+);
+
+ChatBubble.displayName = "ChatBubble";
+
+/* ============================================================
+   AI CHATBOT
+============================================================ */
+
 export const AIChatbot = memo(() => {
   const { user } = useAuth();
+
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [unread, setUnread] = useState(1);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       role: "assistant",
-      content: `Hello ${user?.name || "there"}! 👋 I'm your BrickWealth AI assistant. I can help with portfolio queries, fund analysis, data uploads, and software navigation. How can I help you today?`,
+      content:
+        `Hello ${user?.name || "there"}! 👋 I'm your BrickWealth AI assistant.\n\n` +
+        "I can help with market indices, mutual funds, XIRR, portfolio concepts, and application guidance.\n\nHow can I help you today?",
       timestamp: new Date(),
     },
   ]);
@@ -153,36 +542,68 @@ export const AIChatbot = memo(() => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Keep the latest conversation available to asynchronous requests.
+  const messagesRef = useRef<ChatMessage[]>(messages);
+
+  // Prevent overlapping submissions, including quick-question clicks.
+  const sendingRef = useRef(false);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  /* ----------------------------------------------------------
+     SCROLL AND FOCUS
+  ---------------------------------------------------------- */
+
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      scrollToBottom();
-      setUnread(0);
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (!isOpen) return;
+
+    scrollToBottom();
+    setUnread(0);
+
+    const timeoutId = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+
+    return () => window.clearTimeout(timeoutId);
   }, [isOpen, messages, scrollToBottom]);
 
-  // ── Click outside and Escape key to close chatbox ───────────────────────────
+  /* ----------------------------------------------------------
+     CLICK OUTSIDE AND ESCAPE
+  ---------------------------------------------------------- */
+
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node;
-      if (
-        chatContainerRef.current &&
-        !chatContainerRef.current.contains(target) &&
-        toggleButtonRef.current &&
-        !toggleButtonRef.current.contains(target)
-      ) {
+      const target = event.target;
+
+      if (!(target instanceof Node)) return;
+
+      const insideChat =
+        chatContainerRef.current?.contains(target);
+
+      const insideToggle =
+        toggleButtonRef.current?.contains(target);
+
+      if (!insideChat && !insideToggle) {
         setIsOpen(false);
       }
     };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        toggleButtonRef.current?.focus();
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -190,173 +611,314 @@ export const AIChatbot = memo(() => {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+      document.removeEventListener(
+        "touchstart",
+        handleClickOutside
+      );
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
 
+  /* ----------------------------------------------------------
+     SEND MESSAGE
+  ---------------------------------------------------------- */
+
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!text.trim() || isTyping) return;
       const trimmedText = text.trim();
-      const userMsg: ChatMessage = {
-        id: `u-${Date.now()}`,
+
+      if (!trimmedText || sendingRef.current) return;
+
+      sendingRef.current = true;
+      setIsTyping(true);
+
+      const userMessage: ChatMessage = {
+        id: createMessageId("user"),
         role: "user",
         content: trimmedText,
         timestamp: new Date(),
       };
 
-      const updatedHistory = [...messages, userMsg];
+      const updatedHistory = [
+        ...messagesRef.current,
+        userMessage,
+      ];
+
+      // Update the ref immediately to prevent stale history.
+      messagesRef.current = updatedHistory;
       setMessages(updatedHistory);
       setInput("");
-      setIsTyping(true);
+
+      let assistantText = "";
 
       try {
-        const payloadMessages = updatedHistory
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .slice(-10)
-          .map((m) => ({
-            role: m.role,
-            content: m.content,
-          }));
+        /* First: fetch live market data for market questions. */
+        if (isMarketQuery(trimmedText)) {
+          try {
+            const liveIndices = await fetchLiveIndices();
 
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messages: payloadMessages,
-          }),
-        });
-
-        const data = await res.json().catch(() => null);
-
-        let aiText = "";
-        if (res.ok && data?.message) {
-          aiText = data.message;
-        } else if (data?.error && !data.error.includes("LLM_API_KEY is not configured")) {
-          aiText = data.error;
-        } else {
-          // If LLM API key not configured yet, use built-in domain intelligence
-          aiText = getAIResponse(trimmedText);
+            if (liveIndices.length > 0) {
+              assistantText = formatMarketCard(liveIndices);
+            }
+          } catch (error) {
+            console.warn(
+              "Live market data unavailable; trying the chat API.",
+              error
+            );
+          }
         }
 
-        const aiMsg: ChatMessage = {
-          id: `a-${Date.now()}`,
-          role: "assistant",
-          content: aiText,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-        if (!isOpen) setUnread((n) => n + 1);
-      } catch {
-        // Graceful fallback to built-in portfolio intelligence
-        const fallbackText = getAIResponse(trimmedText);
-        const aiMsg: ChatMessage = {
-          id: `a-${Date.now()}`,
-          role: "assistant",
-          content: fallbackText,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, aiMsg]);
+        /* Second: query the AI backend if needed. */
+        if (!assistantText) {
+          const payloadMessages: ChatApiMessage[] =
+            updatedHistory
+              .slice(-MAX_HISTORY_MESSAGES)
+              .map((message) => ({
+                role: message.role,
+                content: message.content,
+              }));
+
+          const response = await fetch(CHAT_API_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              messages: payloadMessages,
+            }),
+          });
+
+          const data = (await response
+            .json()
+            .catch(() => null)) as ChatApiResponse | null;
+
+          if (
+            response.ok &&
+            typeof data?.message === "string" &&
+            data.message.trim()
+          ) {
+            assistantText = data.message.trim();
+          } else {
+            const errorMessage =
+              typeof data?.error === "string"
+                ? data.error
+                : "";
+
+            if (
+              !response.ok ||
+              errorMessage.includes("LLM_API_KEY") ||
+              errorMessage.includes("429") ||
+              errorMessage.includes("quota") ||
+              errorMessage.includes("exhausted") ||
+              errorMessage.includes("Resource has been") ||
+              errorMessage.includes("failed") ||
+              response.status === 404 ||
+              response.status === 503 ||
+              !errorMessage
+            ) {
+              assistantText = getAIResponse(trimmedText);
+            } else {
+              assistantText = errorMessage;
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Chat request failed:", error);
+
+        // The built-in responses are a fallback, not live AI.
+        assistantText = getAIResponse(trimmedText);
       } finally {
+        const assistantMessage: ChatMessage = {
+          id: createMessageId("assistant"),
+          role: "assistant",
+          content:
+            assistantText ||
+            "I couldn't generate a response. Please try again.",
+          timestamp: new Date(),
+        };
+
+        const finalHistory = [
+          ...messagesRef.current,
+          assistantMessage,
+        ];
+
+        messagesRef.current = finalHistory;
+        setMessages(finalHistory);
+
+        if (!isOpen) {
+          setUnread((count) => count + 1);
+        }
+
+        sendingRef.current = false;
         setIsTyping(false);
       }
     },
-    [messages, isTyping, isOpen]
+    [isOpen]
   );
 
+  /* ----------------------------------------------------------
+     FORM SUBMIT
+  ---------------------------------------------------------- */
+
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      sendMessage(input);
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      void sendMessage(input);
     },
     [input, sendMessage]
   );
 
+  /* ----------------------------------------------------------
+     RESET CHAT
+  ---------------------------------------------------------- */
+
   const handleReset = useCallback(() => {
-    setMessages([
-      {
-        id: "welcome-reset",
-        role: "assistant",
-        content: `Chat cleared! How can I help you today, ${user?.name || "there"}?`,
-        timestamp: new Date(),
-      },
-    ]);
+    // Avoid clearing the conversation while a request is running.
+    if (sendingRef.current) return;
+
+    const welcomeMessage: ChatMessage = {
+      id: createMessageId("assistant"),
+      role: "assistant",
+      content:
+        `Chat cleared! How can I help you today, ${user?.name || "there"}?`,
+      timestamp: new Date(),
+    };
+
+    messagesRef.current = [welcomeMessage];
+    setMessages([welcomeMessage]);
+    setInput("");
+    setUnread(0);
   }, [user?.name]);
 
-  const chatHeight = isExpanded ? "h-[560px]" : "h-[420px]";
-  const chatWidth = isExpanded ? "w-[440px]" : "w-[360px]";
+  /* ----------------------------------------------------------
+     RESPONSIVE DIMENSIONS
+  ---------------------------------------------------------- */
+
+  const chatHeight = isExpanded
+    ? "h-[min(560px,calc(100dvh-6rem))]"
+    : "h-[min(450px,calc(100dvh-6rem))]";
+
+  const chatWidth = isExpanded
+    ? "w-[min(460px,calc(100vw-2rem))]"
+    : "w-[min(380px,calc(100vw-2rem))]";
+
+  /* ----------------------------------------------------------
+     RENDER
+  ---------------------------------------------------------- */
 
   return (
     <>
       {/* Floating chat panel */}
       {isOpen && (
-        <div
+        <section
           ref={chatContainerRef}
+          role="dialog"
+          aria-modal="false"
+          aria-label="BrickWealth AI assistant"
           className={cn(
-            "fixed bottom-20 right-4 z-50 flex flex-col rounded-2xl border border-border/80 bg-background shadow-2xl transition-all duration-300",
+            "fixed bottom-20 right-4 z-50 flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl transition-all duration-200",
             chatWidth,
             chatHeight
           )}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl bg-gradient-to-r from-blue-600 to-violet-600 text-white">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+          <header className="flex shrink-0 items-center justify-between border-b border-border bg-card px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
                 <Bot className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-sm font-bold leading-tight">BrickWealth AI</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <p className="text-[10px] opacity-80">Online · 24/7 Support</p>
+
+              <div className="min-w-0">
+                <p className="text-sm font-bold leading-tight text-foreground">
+                  BrickWealth AI
+                </p>
+
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+
+                  <p className="truncate text-[10px] font-medium text-muted-foreground">
+                    Market &amp; Wealth Assistant
+                  </p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+
+            <div className="ml-2 flex shrink-0 items-center gap-1">
               <button
+                type="button"
                 onClick={handleReset}
-                className="h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                disabled={isTyping}
+                aria-label="Reset conversation"
                 title="Reset chat"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
+
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                type="button"
+                onClick={() => setIsExpanded((value) => !value)}
+                aria-label={isExpanded ? "Shrink chat" : "Expand chat"}
                 title={isExpanded ? "Shrink" : "Expand"}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                {isExpanded ? (
+                  <Minimize2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Maximize2 className="h-3.5 w-3.5" />
+                )}
               </button>
+
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
-                className="h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                aria-label="Close chat"
                 title="Close"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
-          </div>
+          </header>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-background/95">
-            {messages.map((msg) => (
-              <ChatBubble key={msg.id} message={msg} />
+          <div
+            className="flex-1 space-y-3 overflow-y-auto bg-muted/20 p-3.5"
+            aria-live="polite"
+            aria-relevant="additions text"
+          >
+            {messages.map((message) => (
+              <ChatBubble
+                key={message.id}
+                message={message}
+              />
             ))}
 
+            {/* Typing indicator */}
             {isTyping && (
               <div className="flex items-start gap-2.5">
-                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shrink-0">
-                  <Bot className="h-3.5 w-3.5 text-white" />
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-400">
+                  <Bot className="h-3.5 w-3.5" />
                 </div>
-                <div className="bg-muted border border-border/60 rounded-2xl rounded-tl-sm px-3.5 py-2.5">
+
+                <div
+                  className="rounded-xl rounded-tl-sm border border-border bg-card px-3.5 py-3 shadow-xs"
+                  aria-label="Assistant is typing"
+                >
                   <div className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+                    {[0, 150, 300].map((delay) => (
+                      <span
+                        key={delay}
+                        className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600"
+                        style={{
+                          animationDelay: `${delay}ms`,
+                        }}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -365,16 +927,22 @@ export const AIChatbot = memo(() => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Questions */}
-          <div className="px-3 py-2 border-t border-border/40 bg-muted/30">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-              {QUICK_QUESTIONS.map((q) => (
+          {/* Quick questions */}
+          <div className="shrink-0 border-t border-border bg-card px-3 py-2">
+            <p className="mb-1.5 text-[10px] font-semibold text-muted-foreground">
+              SUGGESTED QUESTIONS
+            </p>
+
+            <div className="scrollbar-none flex items-center gap-1.5 overflow-x-auto pb-1">
+              {QUICK_QUESTIONS.map((question) => (
                 <button
-                  key={q}
-                  onClick={() => sendMessage(q)}
-                  className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full bg-background border border-border/70 text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors whitespace-nowrap"
+                  key={question}
+                  type="button"
+                  disabled={isTyping}
+                  onClick={() => void sendMessage(question)}
+                  className="shrink-0 whitespace-nowrap rounded-full border border-border bg-muted/60 px-2.5 py-1.5 text-[10px] font-semibold text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {q}
+                  {question}
                 </button>
               ))}
             </div>
@@ -383,20 +951,27 @@ export const AIChatbot = memo(() => {
           {/* Input */}
           <form
             onSubmit={handleSubmit}
-            className="flex items-center gap-2 px-3 py-3 border-t border-border/40 bg-background rounded-b-2xl"
+            className="flex shrink-0 items-center gap-2 border-t border-border bg-card px-3 py-2.5"
           >
             <input
               ref={inputRef}
+              type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me anything..."
-              className="flex-1 h-9 px-3 text-xs rounded-xl border border-border/70 bg-muted/30 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all"
+              onChange={(event) => setInput(event.target.value)}
+              disabled={isTyping}
+              maxLength={4000}
+              autoComplete="off"
+              aria-label="Message to BrickWealth AI"
+              placeholder="Ask about Nifty, portfolio, or funds..."
+              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-xs text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
             />
+
             <Button
               type="submit"
               size="icon"
+              aria-label="Send message"
               disabled={!input.trim() || isTyping}
-              className="h-9 w-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+              className="h-9 w-9 shrink-0 rounded-lg bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
             >
               {isTyping ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -405,18 +980,18 @@ export const AIChatbot = memo(() => {
               )}
             </Button>
           </form>
-        </div>
+        </section>
       )}
 
-      {/* Floating Toggle Button */}
+      {/* Floating toggle button */}
       <button
         ref={toggleButtonRef}
-        onClick={() => setIsOpen(!isOpen)}
+        type="button"
+        onClick={() => setIsOpen((value) => !value)}
+        aria-label={isOpen ? "Minimize BrickWealth AI" : "Open BrickWealth AI"}
+        aria-expanded={isOpen}
         className={cn(
-          "fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300",
-          "bg-gradient-to-br from-blue-600 to-violet-600 text-white",
-          "hover:scale-110 active:scale-95",
-          isOpen && "rotate-0"
+          "fixed bottom-5 right-5 z-50 flex h-13 w-13 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform duration-200 hover:scale-105 hover:bg-primary/90 active:scale-95"
         )}
       >
         {isOpen ? (
@@ -424,9 +999,10 @@ export const AIChatbot = memo(() => {
         ) : (
           <>
             <MessageCircle className="h-6 w-6" />
+
             {unread > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-background">
-                {unread}
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-rose-500 px-1 text-[10px] font-bold text-white">
+                {unread > 9 ? "9+" : unread}
               </span>
             )}
           </>
@@ -435,5 +1011,7 @@ export const AIChatbot = memo(() => {
     </>
   );
 });
+
+AIChatbot.displayName = "AIChatbot";
 
 export default AIChatbot;

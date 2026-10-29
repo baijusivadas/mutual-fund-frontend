@@ -13,6 +13,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { goldStatusFilters, purityOptions } from "@/data/filterOptions";
 import { ColumnConfig, StatusBadge } from "@/components/shared/CommonTable";
+import { formatCurrency } from "@/utils/format";
 
 interface Gold {
   id: string;
@@ -47,7 +48,7 @@ const COLUMNS: ColumnConfig<Gold>[] = [
     label: "Price",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (item) => `₹${Number(item.price).toLocaleString("en-IN")}`,
+    render: (item) => formatCurrency(Number(item.price)),
   },
   {
     key: "purchase_date",

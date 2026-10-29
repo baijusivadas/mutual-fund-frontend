@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Download, UploadCloud, FileText } from "lucide-react";
@@ -19,8 +19,23 @@ import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/services/api";
 import { getErrorMessage } from "@/lib/errors";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { getAdvancedQueryKey } from "@/hooks/useAdvancedPortfolio";
+import { propertyQueryConfig } from "@/hooks/useQueryConfig";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+/**
+ * Resolve the backend origin for constructing absolute document URLs.
+ * In development the Vite proxy handles /api so we use localhost.
+ * In production the VITE_BACKEND_URL env var must be set.
+ */
+const resolveBackendOrigin = (): string => {
+  const env = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "");
+  if (env) return env;
+  if (import.meta.env.DEV) return "http://localhost:3000";
+  return "";
+};
+
+const BACKEND_ORIGIN = resolveBackendOrigin();
 
 export interface DataManagerRow {
   id: string;
@@ -46,10 +61,6 @@ interface DataManagerProps<T, TForm extends Record<string, unknown>> {
   hideHeader?: boolean;
   dashboardStyle?: boolean;
 }
-
-import { PageHeader } from "@/components/shared/PageHeader";
-import { getAdvancedQueryKey } from "@/hooks/useAdvancedPortfolio";
-import { propertyQueryConfig } from "@/hooks/useQueryConfig";
 
 export function DataManager<
   T extends { id: string },
@@ -190,6 +201,11 @@ export function DataManager<
     }
   };
 
+  const documentUrl =
+    formData.document_url && BACKEND_ORIGIN
+      ? `${BACKEND_ORIGIN}${formData.document_url}`
+      : undefined;
+
   const renderDialogContent = () => (
     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
@@ -210,9 +226,9 @@ export function DataManager<
                   Upload invoice or loan paper (PDF/Img)
                 </p>
               </div>
-              {formData.document_url && (
+              {documentUrl && (
                 <a
-                  href={`${BACKEND_URL}${formData.document_url}`}
+                  href={documentUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="text-xs flex items-center gap-1 text-primary hover:underline"
@@ -290,9 +306,17 @@ export function DataManager<
       )}
 
       {hideHeader && (
-        <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 ${dashboardStyle ? "border-b border-border/40 pb-4" : ""}`}>
+        <div
+          className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 ${dashboardStyle ? "border-b border-border/40 pb-4" : ""}`}
+        >
           <div>
-            <h2 className={dashboardStyle ? "text-base font-heading font-bold tracking-tight text-foreground" : "text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent"}>
+            <h2
+              className={
+                dashboardStyle
+                  ? "text-base font-heading font-bold tracking-tight text-foreground"
+                  : "text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent"
+              }
+            >
               {title}
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
@@ -319,8 +343,8 @@ export function DataManager<
         </div>
       )}
 
-      <Card className={dashboardStyle ? "bg-card border border-border/70 rounded-xl shadow-xs" : "glass-card border-none shadow-lg"}>
-        <CardContent className="pt-6">
+      <Card className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+        <CardContent className="p-4 sm:p-6">
           <CommonTable<T>
             data={items}
             columns={columns}
@@ -338,3 +362,4 @@ export function DataManager<
     </div>
   );
 }
+

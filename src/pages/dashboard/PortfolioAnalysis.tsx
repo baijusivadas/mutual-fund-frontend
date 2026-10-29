@@ -82,7 +82,7 @@ const SchemeCard = memo(({ scheme, rank, totalValue }: SchemeCardProps) => {
   }, [scheme.transactions, scheme.currentValue]);
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card hover:border-primary/40 hover:shadow-sm transition-all duration-200 p-4 space-y-3">
+    <div className="rounded-xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3 min-w-0">
           <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary text-sm font-extrabold">
@@ -318,7 +318,7 @@ const PortfolioAnalysis = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CommonCard title="Asset Allocation" icon={PieIcon} className="bg-card border border-border/70 rounded-xl shadow-xs" titleClassName="text-base">
+        <CommonCard title="Asset Allocation" icon={PieIcon} className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200" titleClassName="text-base">
           {totalPortfolioValue > 0 ? (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row items-center gap-5">
@@ -378,7 +378,7 @@ const PortfolioAnalysis = () => {
           )}
         </CommonCard>
 
-        <CommonCard title="SIP vs Lump Sum" icon={Calendar} className="bg-card border border-border/70 rounded-xl shadow-xs" titleClassName="text-base">
+        <CommonCard title="SIP vs Lump Sum" icon={Calendar} className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200" titleClassName="text-base">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="overflow-hidden rounded-xl border border-blue-500/15 bg-gradient-to-br from-blue-500/[0.08] to-card p-3 sm:p-4">
@@ -418,7 +418,7 @@ const PortfolioAnalysis = () => {
       </div>
 
       {monthlyData.some((month) => month.invested > 0 || month.redeemed > 0) && (
-        <CommonCard title="Monthly Investment Activity" icon={BarChart3} className="bg-card border border-border/70 rounded-xl shadow-xs" titleClassName="text-base">
+        <CommonCard title="Monthly Investment Activity" icon={BarChart3} className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200" titleClassName="text-base">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={monthlyData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
@@ -452,7 +452,7 @@ const PortfolioAnalysis = () => {
         </CommonCard>
       )}
 
-      <CommonCard title="Scheme-Level Analysis" icon={BarChart3} className="bg-card border border-border/70 rounded-xl shadow-xs">
+      <CommonCard title="Scheme-Level Analysis" icon={BarChart3} className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200">
         {hasData ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -477,7 +477,7 @@ const PortfolioAnalysis = () => {
       </CommonCard>
 
       {totalNetWorth > 0 && (
-        <CommonCard title="Net Worth Breakdown" icon={Target} className="bg-card border border-border/70 rounded-xl shadow-xs">
+        <CommonCard title="Net Worth Breakdown" icon={Target} className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { label: "Mutual Funds", value: currentValue, color: "text-primary" },

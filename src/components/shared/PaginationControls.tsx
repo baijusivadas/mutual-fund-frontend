@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { PAGE_SIZE_OPTIONS } from "@/lib/constants";
 
 interface PaginationControlsProps {
   currentPage: number;
@@ -44,9 +45,11 @@ export const PaginationControls = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="25">25</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <SelectItem key={size} value={size.toString()}>
+                  {size}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -58,6 +61,7 @@ export const PaginationControls = ({
           size="icon"
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
+          title="First page"
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
@@ -66,6 +70,7 @@ export const PaginationControls = ({
           size="icon"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
+          title="Previous page"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -77,6 +82,7 @@ export const PaginationControls = ({
           size="icon"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
+          title="Next page"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -85,6 +91,7 @@ export const PaginationControls = ({
           size="icon"
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
+          title="Last page"
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>

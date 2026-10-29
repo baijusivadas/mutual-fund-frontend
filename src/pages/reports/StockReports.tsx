@@ -25,10 +25,10 @@ const StockReports = () => {
       />
       <div className="space-y-6">
         <Tabs defaultValue="reliance" className="w-full">
-          <TabsList className="grid w-full max-w-xl grid-cols-3 bg-muted/60 p-1 rounded-xl border border-border/50">
-            <TabsTrigger value="reliance" className="rounded-lg text-xs font-bold">Reliance</TabsTrigger>
-            <TabsTrigger value="hdfc" className="rounded-lg text-xs font-bold">HDFC Bank</TabsTrigger>
-            <TabsTrigger value="infosys" className="rounded-lg text-xs font-bold">Infosys</TabsTrigger>
+          <TabsList className="grid w-full max-w-xl grid-cols-3 bg-muted p-1 rounded-lg">
+            <TabsTrigger value="reliance" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Reliance</TabsTrigger>
+            <TabsTrigger value="hdfc" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">HDFC Bank</TabsTrigger>
+            <TabsTrigger value="infosys" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Infosys</TabsTrigger>
           </TabsList>
 
           {stockDetails.map((stock) => (
@@ -38,7 +38,7 @@ const StockReports = () => {
                 <StockPnLCard stock={stock} />
               </div>
 
-              <Card className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl shadow-sm overflow-hidden">
+              <Card className="rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 overflow-hidden">
                 <CardHeader className="pb-2 pt-5 px-6">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <Activity className="h-4 w-4 text-primary" />

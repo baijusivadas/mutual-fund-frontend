@@ -3,6 +3,12 @@ import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/services/api";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { getErrorMessage } from "@/lib/errors";
+import {
+  AUTH_STORAGE_KEYS,
+  IDLE_TIMEOUT_MS,
+  TOKEN_LIFETIME_MS,
+  TOKEN_CHECK_INTERVAL_MS,
+} from "@/lib/constants";
 
 type UserRole = "superAdmin" | "user";
 
@@ -57,10 +63,7 @@ const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 /** Clear all auth keys from localStorage */
 const clearAuthStorage = () => {
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("auth_user");
-  localStorage.removeItem("auth_role");
-  localStorage.removeItem("auth_login_time");
+  Object.values(AUTH_STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
 };
 
 /** Decodes JWT token payload */
@@ -79,12 +82,12 @@ const getDecodedTokenPayload = (token: string | null): Record<string, unknown> |
         .join("")
     );
     return JSON.parse(jsonPayload);
-  } catch (error) {
+  } catch {
     return null;
   }
 };
 
-/** Decodes JWT token payload to extract expiration timestamp (exp) in milliseconds */
+/** Extracts the token expiry timestamp (exp) in milliseconds */
 const getDecodedTokenExp = (token: string | null): number | null => {
   const decoded = getDecodedTokenPayload(token);
   return decoded && decoded.exp ? Number(decoded.exp) * 1000 : null;
@@ -112,7 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: "Success", description: "Logged out successfully" });
   }, [toast]);
 
-  // ── Automatic Inactivity Timeout (2 hours of idle time) ──────────────────────
+  // ── Automatic Inactivity Timeout ──────────────────────────────────────────
   useIdleTimeout({
     onIdle: () => {
       if (token) {
@@ -124,21 +127,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signOut();
       }
     },
-    idleTime: 2 * 60 * 60 * 1000, // 2 hours
+    idleTime: IDLE_TIMEOUT_MS,
   });
 
   // ── Restore session from localStorage on mount ──────────────────────────────
   useEffect(() => {
-    const savedToken = localStorage.getItem("auth_token");
-    const savedUser = localStorage.getItem("auth_user");
-    const savedRole = localStorage.getItem("auth_role") as UserRole | null;
-    const loginTime = localStorage.getItem("auth_login_time");
+    const savedToken = localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
+    const savedUser = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+    const savedRole = localStorage.getItem(AUTH_STORAGE_KEYS.ROLE) as UserRole | null;
+    const loginTime = localStorage.getItem(AUTH_STORAGE_KEYS.LOGIN_TIME);
 
     if (savedToken && (savedRole === "superAdmin" || savedRole === "user")) {
       const expTime = getDecodedTokenExp(savedToken);
       const fallbackExpiration = loginTime
-        ? parseInt(loginTime) + 24 * 60 * 60 * 1000
-        : Date.now() + 24 * 60 * 60 * 1000;
+        ? parseInt(loginTime) + TOKEN_LIFETIME_MS
+        : Date.now() + TOKEN_LIFETIME_MS;
       const expirationTime = expTime || fallbackExpiration;
 
       if (Date.now() > expirationTime) {
@@ -162,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               };
             }
           } catch {
-            // fallback
+            // fallback handled below
           }
         }
 
@@ -179,7 +182,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(restoredUser);
           setRole(savedRole);
           setToken(savedToken);
-          localStorage.setItem("auth_user", JSON.stringify(restoredUser));
+          localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(restoredUser));
         } else {
           clearAuthStorage();
         }
@@ -190,15 +193,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, [signOut]);
 
-  // ── Periodic token expiration check (every minute) ──────────────────────────
+  // ── Periodic token expiration check ──────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
     const interval = setInterval(() => {
       const expTime = getDecodedTokenExp(token);
-      const loginTime = localStorage.getItem("auth_login_time");
+      const loginTime = localStorage.getItem(AUTH_STORAGE_KEYS.LOGIN_TIME);
       const fallbackExpiration = loginTime
-        ? parseInt(loginTime) + 24 * 60 * 60 * 1000
-        : Date.now() + 24 * 60 * 60 * 1000;
+        ? parseInt(loginTime) + TOKEN_LIFETIME_MS
+        : Date.now() + TOKEN_LIFETIME_MS;
       const expirationTime = expTime || fallbackExpiration;
 
       if (Date.now() > expirationTime) {
@@ -209,7 +212,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         signOut();
       }
-    }, 60_000);
+    }, TOKEN_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [token, signOut, toast]);
 
@@ -228,10 +231,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(payload.token);
       setUser(userObj);
       setRole(payload.role);
-      localStorage.setItem("auth_token", payload.token);
-      localStorage.setItem("auth_user", JSON.stringify(userObj));
-      localStorage.setItem("auth_role", payload.role);
-      localStorage.setItem("auth_login_time", Date.now().toString());
+      localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN, payload.token);
+      localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(userObj));
+      localStorage.setItem(AUTH_STORAGE_KEYS.ROLE, payload.role);
+      localStorage.setItem(AUTH_STORAGE_KEYS.LOGIN_TIME, Date.now().toString());
 
       toast({ title: "Success", description: "Logged in successfully" });
       return { error: null };
