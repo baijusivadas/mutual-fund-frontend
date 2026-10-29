@@ -209,7 +209,7 @@ const Investors = () => {
         />
       </div>
 
-      <CommonCard noHeader className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl">
+      <CommonCard noHeader className="rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all duration-200">
         <CommonTable<Investor>
           data={investors}
           columns={columns}

@@ -33,6 +33,8 @@ import {
 import { PaginationControls } from "./PaginationControls";
 import { BulkActionBar } from "./BulkActionBar";
 import { VList } from "virtua";
+import { cn } from "@/lib/utils";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 export interface ColumnConfig<T> {
   key: string;
@@ -132,7 +134,7 @@ const MemoizedRow = memo(
                       )}
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent className="glass-card border-none">
+                  <AlertDialogContent className="bg-card border border-border rounded-xl shadow-lg">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                       <AlertDialogDescription>
@@ -217,7 +219,7 @@ export function CommonTable<T extends { id: string }>({
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -310,7 +312,7 @@ export function CommonTable<T extends { id: string }>({
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-10 glass-card border-none"
+              className="pl-10 bg-card border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary shadow-sm"
             />
           </div>
         )}
@@ -323,10 +325,10 @@ export function CommonTable<T extends { id: string }>({
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-full md:w-[180px] glass-card border-none">
+            <SelectTrigger className="w-full md:w-[180px] bg-card border border-border rounded-xl shadow-sm">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
-            <SelectContent className="glass-card border-none">
+            <SelectContent className="bg-popover border border-border rounded-xl shadow-lg">
               {statusFilters.map((filter) => (
                 <SelectItem key={filter.value} value={filter.value} className="focus:bg-primary/10">
                   {filter.label}
@@ -347,9 +349,9 @@ export function CommonTable<T extends { id: string }>({
         />
       )}
 
-      <div className="rounded-3xl border border-border/50 bg-card/30 backdrop-blur-md overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-muted/40 border-b border-border/60">
             <TableRow className="hover:bg-transparent">
               {showCheckboxes && (
                 <TableHead className="w-12">
@@ -480,10 +482,6 @@ export function CommonTable<T extends { id: string }>({
       )}
     </div>
   );
-}
-
-function cn(...classes: (string | undefined | false)[]) {
-  return classes.filter(Boolean).join(" ");
 }
 
 export function getBadgeVariant(

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ColumnConfig } from "@/components/shared/CommonTable";
+import { formatCurrency } from "@/utils/format";
 
 interface LiabilityItem {
   id: string;
@@ -70,7 +71,7 @@ const COLUMNS: ColumnConfig<LiabilityItem>[] = [
     label: "Outstanding",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (item) => `₹${Number(item.outstanding_amount).toLocaleString("en-IN")}`,
+    render: (item) => formatCurrency(Number(item.outstanding_amount)),
   },
   {
     key: "interest_rate",
@@ -82,7 +83,7 @@ const COLUMNS: ColumnConfig<LiabilityItem>[] = [
     key: "monthly_payment",
     label: "Monthly EMI",
     sortable: true,
-    render: (item) => `₹${Number(item.monthly_payment).toLocaleString("en-IN")}`,
+    render: (item) => formatCurrency(Number(item.monthly_payment)),
   },
   { key: "lender", label: "Lender / Bank", sortable: true },
   {

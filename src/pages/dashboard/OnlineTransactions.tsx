@@ -1,3 +1,5 @@
+import { useInvestor } from "@/contexts/InvestorContext";
+import { isSellTransaction } from "@/utils/parseTransactions";
 import { memo, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +18,6 @@ import {
   Filter,
   Download,
   ChevronRight,
-  Info,
   Building2,
   Layers,
   Globe,
@@ -259,11 +260,11 @@ const OnlineTransactions = () => {
   }, [search, exchangeFilter, statusFilter]);
 
   const summary = useMemo(() => {
-    const total = MOCK_TRANSACTIONS.length;
-    const success = MOCK_TRANSACTIONS.filter((t) => t.status === "success").length;
-    const pending = MOCK_TRANSACTIONS.filter((t) => t.status === "pending" || t.status === "processing").length;
-    const failed = MOCK_TRANSACTIONS.filter((t) => t.status === "failed").length;
-    const totalAmount = MOCK_TRANSACTIONS.reduce((s, t) => s + t.amount, 0);
+    const total = transactionsList.length;
+    const success = transactionsList.filter((t) => t.status === "success").length;
+    const pending = transactionsList.filter((t) => t.status === "pending" || t.status === "processing").length;
+    const failed = transactionsList.filter((t) => t.status === "failed").length;
+    const totalAmount = transactionsList.reduce((s, t) => s + t.amount, 0);
     return { total, success, pending, failed, totalAmount };
   }, []);
 

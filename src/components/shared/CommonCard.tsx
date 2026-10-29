@@ -28,24 +28,41 @@ export const CommonCard = ({
   noHeader = false,
 }: CommonCardProps) => {
   return (
-    <Card className={cn("overflow-hidden rounded-2xl border border-border/50 bg-card/85 backdrop-blur-xl shadow-sm hover:shadow-md transition-all duration-200", className)}>
+    <Card
+      className={cn(
+        "bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 overflow-hidden",
+        className
+      )}
+    >
       {!noHeader && (title || description || headerAction) && (
         <CardHeader
-          className={cn("flex flex-row items-center justify-between gap-4", headerClassName)}
+          className={cn(
+            "flex flex-row items-center justify-between gap-4 p-5 pb-3 border-b border-border/50",
+            headerClassName
+          )}
         >
-          <div className="space-y-1">
+          <div className="space-y-0.5 min-w-0">
             {title && (
-              <CardTitle className={cn("text-xl font-bold flex items-center gap-2", titleClassName)}>
-                {Icon && <Icon className="h-5 w-5 text-primary" />}
-                {title}
+              <CardTitle
+                className={cn(
+                  "text-base font-heading font-bold tracking-tight flex items-center gap-2 text-foreground",
+                  titleClassName
+                )}
+              >
+                {Icon && <Icon className="h-4 w-4 text-primary shrink-0" />}
+                <span className="truncate">{title}</span>
               </CardTitle>
             )}
-            {description && <CardDescription>{description}</CardDescription>}
+            {description && (
+              <CardDescription className="text-xs text-muted-foreground">
+                {description}
+              </CardDescription>
+            )}
           </div>
           {headerAction && <div className="flex-shrink-0">{headerAction}</div>}
         </CardHeader>
       )}
-      <CardContent className={cn("p-6 pt-0", noHeader && "pt-6", contentClassName)}>
+      <CardContent className={cn("p-5", !noHeader && "pt-4", contentClassName)}>
         {children}
       </CardContent>
     </Card>

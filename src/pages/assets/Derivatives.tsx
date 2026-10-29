@@ -1,3 +1,4 @@
+import { formatCurrency, formatIndianUnits } from "@/utils/format";
 import { memo, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
@@ -70,8 +71,6 @@ const calculateValue = (pos: DerivativePosition) => {
   return pos.ltp * pos.qty * pos.lot_size;
 };
 
-const formatCurrency = (value: number) =>
-  `${value < 0 ? "-" : ""}₹${Math.abs(value).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 const transformPayload = (data: typeof DEFAULT_FORM_DATA) => ({
   ...data,
@@ -109,7 +108,7 @@ const COLUMNS: ColumnConfig<DerivativePosition>[] = [
     label: "LTP",
     sortable: true,
     className: "font-semibold",
-    render: (item) => `₹${item.ltp.toLocaleString("en-IN")}`,
+    render: (item) => formatCurrency(item.ltp),
   },
   {
     key: "pnl",
@@ -124,7 +123,7 @@ const COLUMNS: ColumnConfig<DerivativePosition>[] = [
             isPos ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
           }`}
         >
-          {isPos ? "+" : ""}₹{pnl.toLocaleString("en-IN")}
+          {isPos ? "+" : ""}{formatCurrency(Math.abs(pnl))}
         </span>
       );
     },
@@ -200,7 +199,7 @@ const Derivatives = () => {
         .map((position) => ({
           contract:
             position.contract_name.length > 18
-              ? `${position.contract_name.slice(0, 18)}…`
+              ? `${position.contract_name.slice(0, 18)}...`
               : position.contract_name,
           pnl: calculatePnL(position),
         })),
@@ -344,10 +343,11 @@ const Derivatives = () => {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <DashboardMetricCard
           title="Total Position Value"
-          value={isLoading ? "..." : `₹${(totalPositionValue / 100000).toFixed(2)}L`}
+          value={isLoading ? "..." : formatIndianUnits(totalPositionValue)}
           change="Combined F&O Notional"
           changeType="neutral"
           icon={Activity}
+          tone="blue"
         />
         <DashboardMetricCard
           title="Futures P&L"
@@ -359,24 +359,27 @@ const Derivatives = () => {
           }
           changeType={totalFuturesPnL >= 0 ? "positive" : "negative"}
           icon={totalFuturesPnL >= 0 ? TrendingUp : TrendingDown}
+          tone="green"
         />
         <DashboardMetricCard
           title="Options P&L"
           value={isLoading ? "..." : formatCurrency(totalOptionsPnL)}
-          change={`Premium: ₹${totalPremiumPaid.toLocaleString("en-IN")}`}
+          change={`Premium: ${formatCurrency(totalPremiumPaid)}`}
           changeType={totalOptionsPnL >= 0 ? "positive" : "negative"}
           icon={totalOptionsPnL >= 0 ? TrendingUp : TrendingDown}
+          tone={totalOptionsPnL >= 0 ? "amber" : "rose"}
         />
         <DashboardMetricCard
           title="Total Margin Used"
-          value={isLoading ? "..." : `₹${(totalFuturesMargin / 100000).toFixed(2)}L`}
+          value={isLoading ? "..." : formatIndianUnits(totalFuturesMargin)}
           change="Futures Margin"
           changeType="neutral"
           icon={AlertCircle}
+          tone="blue"
         />
       </div>
 
-      <Card className="bg-card border border-border/70 rounded-xl shadow-xs">
+      <Card className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <BarChart3 className="h-4 w-4 text-primary" />
@@ -386,7 +389,7 @@ const Derivatives = () => {
         <CardContent className="space-y-4">
           {isLoading ? (
             <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
-              Loading positions…
+              Loading positions...
             </div>
           ) : positionChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
@@ -399,7 +402,7 @@ const Derivatives = () => {
                 <XAxis
                   type="number"
                   tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                  tickFormatter={(value) => `₹${Number(value).toLocaleString("en-IN")}`}
+                  tickFormatter={(value) => formatIndianUnits(Number(value))}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -418,7 +421,7 @@ const Derivatives = () => {
                     borderRadius: "8px",
                     fontSize: "11px",
                   }}
-                  formatter={(value: number) => [`₹${value.toLocaleString("en-IN")}`, "P&L"]}
+                  formatter={(value: number) => [formatCurrency(value), "P&L"]}
                 />
                 <ReferenceLine x={0} stroke="hsl(var(--border))" />
                 <Bar
@@ -465,3 +468,4 @@ const Derivatives = () => {
 };
 
 export default memo(Derivatives);
+

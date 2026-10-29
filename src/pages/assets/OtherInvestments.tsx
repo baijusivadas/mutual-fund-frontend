@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { formatCurrency } from "@/utils/format";
 
 /* ── Crypto Config ───────────────────────────────────────────────── */
 const CRYPTO_DEFAULT_FORM = {
@@ -27,7 +28,7 @@ const CRYPTO_COLUMNS: ColumnConfig<DataManagerRow>[] = [
     label: "Avg Price",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (i) => `₹${(Number(i.average_price) || 0).toLocaleString("en-IN")}`,
+    render: (i) => formatCurrency(Number(i.average_price) || 0),
   },
 ];
 
@@ -264,7 +265,7 @@ const ETF_COLUMNS: ColumnConfig<DataManagerRow>[] = [
     label: "Purchase Price",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (i) => `₹${(Number(i.purchase_price) || 0).toLocaleString("en-IN")}`,
+    render: (i) => formatCurrency(Number(i.purchase_price) || 0),
   },
 ];
 
@@ -355,7 +356,7 @@ const NPS_COLUMNS: ColumnConfig<DataManagerRow>[] = [
     label: "Total Invested",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (i) => `₹${(Number(i.amount_invested) || 0).toLocaleString("en-IN")}`,
+    render: (i) => formatCurrency(Number(i.amount_invested) || 0),
   },
 ];
 
@@ -424,11 +425,11 @@ export default function OtherInvestments() {
       />
       <div className="space-y-6">
         <Tabs defaultValue="crypto" className="w-full">
-          <TabsList className="grid w-full sm:max-w-xl grid-cols-2 sm:grid-cols-4 bg-muted/60 p-1 rounded-xl border border-border/50">
-            <TabsTrigger value="crypto" className="rounded-lg text-xs font-bold">Cryptocurrency</TabsTrigger>
-            <TabsTrigger value="bonds" className="rounded-lg text-xs font-bold">Bonds</TabsTrigger>
-            <TabsTrigger value="etfs" className="rounded-lg text-xs font-bold">ETFs</TabsTrigger>
-            <TabsTrigger value="nps" className="rounded-lg text-xs font-bold">NPS</TabsTrigger>
+          <TabsList className="grid w-full sm:max-w-xl grid-cols-2 sm:grid-cols-4 bg-muted p-1 rounded-lg">
+            <TabsTrigger value="crypto" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Cryptocurrency</TabsTrigger>
+            <TabsTrigger value="bonds" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Bonds</TabsTrigger>
+            <TabsTrigger value="etfs" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">ETFs</TabsTrigger>
+            <TabsTrigger value="nps" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">NPS</TabsTrigger>
           </TabsList>
 
           <TabsContent value="crypto" className="mt-4">

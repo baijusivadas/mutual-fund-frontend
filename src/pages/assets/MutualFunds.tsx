@@ -22,13 +22,7 @@ import { cn } from "@/lib/utils";
 import { ChartInsight } from "@/components/charts/ChartInsight";
 import type { TransactionData } from "@/utils/parseTransactions";
 
-const formatCurrency = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
-const formatCompactCurrency = (value: number) => {
-  if (Math.abs(value) >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
-  if (Math.abs(value) >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
-  if (Math.abs(value) >= 1000) return `₹${(value / 1000).toFixed(0)}k`;
-  return `₹${value}`;
-};
+import { formatCurrency, formatCompactCurrency } from "@/utils/format";
 
 interface SchemeHolding {
   id: string;
@@ -89,23 +83,21 @@ const MutualFunds = () => {
         label: "NAV",
         sortable: true,
         className: "text-right font-medium",
-        render: (item) => `₹${item.latestNav.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`,
+        render: (item) => formatCurrency(item.latestNav),
       },
       {
         key: "totalInvested",
         label: "Invested",
         sortable: true,
         className: "text-right font-medium",
-        render: (item) =>
-          `₹${item.totalInvested.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
+        render: (item) => formatCurrency(item.totalInvested),
       },
       {
         key: "currentValue",
         label: "Current Value",
         sortable: true,
         className: "text-right font-extrabold text-foreground",
-        render: (item) =>
-          `₹${(item.totalUnits * item.latestNav).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
+        render: (item) => formatCurrency(item.totalUnits * item.latestNav),
       },
       {
         key: "returns",
@@ -123,7 +115,7 @@ const MutualFunds = () => {
               )}
             >
               {isPos ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-              {isPos ? "+" : ""}₹{returns.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+              {isPos ? "+" : ""}{formatCurrency(Math.abs(returns))}
             </div>
           );
         },
@@ -202,7 +194,7 @@ const MutualFunds = () => {
         />
       </div>
 
-      <CommonCard title="Portfolio Valuation Trend" className="bg-card border border-border/70 rounded-xl shadow-xs" titleClassName="text-base">
+      <CommonCard title="Portfolio Valuation Trend" className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200" titleClassName="text-base">
         <div className="h-[280px] w-full pt-2">
           {performanceData.length > 0 ? <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={performanceData} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
@@ -267,7 +259,7 @@ const MutualFunds = () => {
         <ChartInsight>{portfolioInsight}</ChartInsight>
       </CommonCard>
 
-      <CommonCard title="Scheme Holdings" className="bg-card border border-border/70 rounded-xl shadow-xs" titleClassName="text-base">
+      <CommonCard title="Scheme Holdings" className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200" titleClassName="text-base">
         <CommonTable<SchemeHolding>
           data={schemeData}
           columns={columns}

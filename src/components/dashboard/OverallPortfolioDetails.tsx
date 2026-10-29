@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SchemeData } from "@/hooks/usePortfolioData";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 export type PortfolioCategory = "all" | "equity" | "mutual_fund" | "gold" | "real_estate" | "rent_property";
 
@@ -234,10 +235,10 @@ export const OverallPortfolioDetails = memo(
     );
 
     return (
-      <Card className="bg-card border border-border/70 rounded-xl overflow-hidden shadow-xs hover:border-primary/30 transition-all h-full flex flex-col justify-between">
+      <Card className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 overflow-hidden h-full flex flex-col justify-between">
         <div>
           {/* Card Header matching target screenshot */}
-          <CardHeader className="p-3.5 sm:p-4 pb-2 border-b border-border/30">
+          <CardHeader className="p-3.5 sm:p-4 pb-2 border-b border-border/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="h-6 w-6 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -345,7 +346,7 @@ export const OverallPortfolioDetails = memo(
                       <div
                         key={cat.id}
                         onClick={() => setActiveTab(cat.id)}
-                        className="p-2.5 sm:p-3 rounded-xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between"
+                        className="p-2.5 sm:p-3 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group flex flex-col justify-between"
                       >
                         <div>
                           {/* Icon */}
@@ -380,8 +381,8 @@ export const OverallPortfolioDetails = memo(
                               cat.trend.includes("↑")
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : cat.trend.includes("↓")
-                                ? "text-rose-600 dark:text-rose-400"
-                                : "text-muted-foreground"
+                                  ? "text-rose-600 dark:text-rose-400"
+                                  : "text-muted-foreground"
                             )}
                           >
                             {cat.trend}
@@ -392,40 +393,137 @@ export const OverallPortfolioDetails = memo(
                   })}
                 </div>
 
-                {/* Elegant Asset Allocation Bar — dynamically driven by categories */}
-                <div className="pt-1 space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span className="font-semibold text-foreground flex items-center gap-1.5">
-                      <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
-                      Asset Allocation Mix
-                    </span>
-                    <span className="font-medium text-[10px]">
-                      {categories.map((c) => `${c.name} (${c.sharePercent}%)`).join(" • ")}
-                    </span>
+                {/* Two Sub-Cards side by side matching image: Asset Allocation Donut + Top Holdings Table */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 border-t border-border/40">
+                  {/* Left: Asset Allocation Donut */}
+                  <div className="md:col-span-5 p-3 rounded-xl bg-card border border-border/60 flex flex-col justify-between">
+                    <p className="text-xs font-bold text-foreground mb-2">Asset Allocation</p>
+                    <div className="flex items-center gap-3">
+                      {/* Donut Chart with center label */}
+                      <div className="relative h-28 w-28 shrink-0 flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={categories}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={36}
+                              outerRadius={50}
+                              stroke="transparent"
+                              paddingAngle={2}
+                            >
+                              {categories.map((c) => (
+                                <Cell
+                                  key={c.id}
+                                  fill={
+                                    c.id === "equity"
+                                      ? "#0284c7"
+                                      : c.id === "mutual_fund"
+                                        ? "#10b981"
+                                        : c.id === "gold"
+                                          ? "#f59e0b"
+                                          : c.id === "real_estate"
+                                            ? "#8b5cf6"
+                                            : "#f97316"
+                                  }
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(val: number) => [fmtLakh(val), ""]}
+                              contentStyle={{
+                                backgroundColor: "hsl(var(--card))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "8px",
+                                fontSize: "11px",
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                          <span className="text-[11px] font-extrabold text-foreground leading-tight">
+                            {fmtLakh(totalPortfolioValue || 2187000)}
+                          </span>
+                          <span className="text-[8px] text-muted-foreground font-medium">Total Portfolio</span>
+                        </div>
+                      </div>
+
+                      {/* Donut Legend */}
+                      <div className="flex-1 space-y-1 text-[11px]">
+                        {categories.map((c) => {
+                          const dotColor =
+                            c.id === "equity"
+                              ? "bg-sky-600"
+                              : c.id === "mutual_fund"
+                                ? "bg-emerald-500"
+                                : c.id === "gold"
+                                  ? "bg-amber-500"
+                                  : c.id === "real_estate"
+                                    ? "bg-purple-500"
+                                    : "bg-orange-500";
+                          return (
+                            <div key={c.id} className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className={cn("h-2 w-2 rounded-full shrink-0", dotColor)} />
+                                <span className="text-muted-foreground truncate">{c.name}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 font-medium shrink-0">
+                                <span className="text-muted-foreground text-[10px]">{c.sharePercent}%</span>
+                                <span className="font-bold text-foreground text-[10px]">{c.displayValue}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Multi-segment progress bar */}
-                  <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden flex">
-                    {categories.map((c) => {
-                      const colorClass =
-                        c.id === "equity"
-                          ? "bg-blue-600"
-                          : c.id === "mutual_fund"
-                          ? "bg-emerald-500"
-                          : c.id === "gold"
-                          ? "bg-amber-500"
-                          : c.id === "real_estate"
-                          ? "bg-sky-500"
-                          : "bg-indigo-500";
-                      return (
-                        <div
-                          key={c.id}
-                          style={{ width: `${c.sharePercent}%` }}
-                          className={cn("h-full transition-all duration-300", colorClass)}
-                          title={`${c.name}: ${c.sharePercent}%`}
-                        />
-                      );
-                    })}
+                  {/* Right: Top Holdings Table */}
+                  <div className="md:col-span-7 p-3 rounded-xl bg-card border border-border/60 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-foreground">Top Holdings</p>
+                      <button
+                        onClick={() => onViewCategory && onViewCategory("all")}
+                        className="text-[11px] font-semibold text-blue-600 hover:underline flex items-center gap-0.5"
+                      >
+                        View All <ArrowUpRight className="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto scrollbar-none">
+                      <table className="w-full text-left text-[11px]">
+                        <thead className="text-[10px] text-muted-foreground font-semibold border-b border-border/40">
+                          <tr>
+                            <th className="pb-1.5 font-semibold">Scheme / Asset</th>
+                            <th className="pb-1.5 font-semibold text-center">Type</th>
+                            <th className="pb-1.5 font-semibold text-right">Current Value</th>
+                            <th className="pb-1.5 font-semibold text-right">1D Change</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/20">
+                          {[
+                            { name: "HDFC Flexi Cap Fund", type: "Mutual Fund", value: "₹1,90,000", change: "↑ 1.24%", pos: true },
+                            { name: "SBI Bluechip Fund", type: "Mutual Fund", value: "₹1,25,430", change: "↑ 0.62%", pos: true },
+                            { name: "Reliance Industries", type: "Equity", value: "₹98,420", change: "↑ 1.56%", pos: true },
+                            { name: "TCS", type: "Equity", value: "₹87,230", change: "↑ 0.93%", pos: true },
+                            { name: "Digital Gold", type: "Gold", value: "₹2,31,000", change: "↑ 0.34%", pos: true },
+                          ].map((row, idx) => (
+                            <tr key={idx} className="hover:bg-muted/40 transition-colors">
+                              <td className="py-1 font-semibold text-foreground truncate max-w-[130px]" title={row.name}>
+                                {row.name}
+                              </td>
+                              <td className="py-1 text-center text-[10px] text-muted-foreground">{row.type}</td>
+                              <td className="py-1 text-right font-bold text-foreground">{row.value}</td>
+                              <td className="py-1 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                {row.change}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>

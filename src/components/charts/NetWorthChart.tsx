@@ -1,28 +1,18 @@
+import { formatIndianUnits as formatCurrency } from "@/utils/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNetWorthData } from "@/hooks/useNetWorthData";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  TrendingUp,
-  TrendingDown,
   Building,
   Home,
   Coins,
   Car,
   MapPin,
-  CreditCard,
   Wallet,
   ArrowUpRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const formatCurrency = (value: number) => {
-  if (Math.abs(value) >= 10000000) {
-    return `₹${(value / 10000000).toFixed(2)} Cr`;
-  } else if (Math.abs(value) >= 100000) {
-    return `₹${(value / 100000).toFixed(2)} L`;
-  }
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
-};
 
 export function NetWorthChart() {
   const { data, isLoading } = useNetWorthData();

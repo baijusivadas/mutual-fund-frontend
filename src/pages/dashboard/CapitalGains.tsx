@@ -6,13 +6,15 @@ import { shortTermGains, longTermGains, TAX_RATES, calculateTotals } from "@/dat
 import { TradeCard } from "@/components/dashboard/investments/TradeCard";
 import { TotalSummaryCard } from "@/components/dashboard/metrics/TotalSummaryCard";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ChartInsight } from "@/components/charts/ChartInsight";
+import { formatCurrency } from "@/utils/format";
 
 const CapitalGains = () => {
   const { totalShortTerm, totalLongTerm, shortTermTax, longTermTax, totalTaxLiability } = useMemo(() => {
     const st = calculateTotals(shortTermGains);
     const lt = calculateTotals(longTermGains);
-    const stTax = st * TAX_RATES.shortTerm;
-    const ltTax = lt * TAX_RATES.longTerm;
+    const stTax = Math.round(st * TAX_RATES.shortTerm);
+    const ltTax = Math.round(lt * TAX_RATES.longTerm);
     return {
       totalShortTerm: st,
       totalLongTerm: lt,
@@ -21,6 +23,11 @@ const CapitalGains = () => {
       totalTaxLiability: stTax + ltTax,
     };
   }, []);
+
+  const stcgRateLabel = `${(TAX_RATES.shortTerm * 100).toFixed(0)}%`;
+  const ltcgRateLabel = `${(TAX_RATES.longTerm * 100).toFixed(1)}%`;
+
+  const insightText = `Estimated combined capital gains tax liability is ${formatCurrency(totalTaxLiability)} (${formatCurrency(shortTermTax)} STCG at ${stcgRateLabel} + ${formatCurrency(longTermTax)} LTCG at ${ltcgRateLabel}). Consult your tax advisor for official filing.`;
 
   return (
     <div className="space-y-6 animate-in">
@@ -32,33 +39,35 @@ const CapitalGains = () => {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Short Term Capital Gains"
-          value={`₹${totalShortTerm.toLocaleString("en-IN")}`}
+          value={formatCurrency(totalShortTerm)}
           change="Holding < 1 year"
           changeType="neutral"
           icon={Calendar}
         />
         <MetricCard
           title="Long Term Capital Gains"
-          value={`₹${totalLongTerm.toLocaleString("en-IN")}`}
+          value={formatCurrency(totalLongTerm)}
           change="Holding > 1 year"
           changeType="positive"
           icon={TrendingUp}
         />
         <MetricCard
-          title="STCG Tax (15%)"
-          value={`₹${shortTermTax.toLocaleString("en-IN")}`}
+          title={`STCG Tax (${stcgRateLabel})`}
+          value={formatCurrency(shortTermTax)}
           change="Short Term Liability"
           changeType="neutral"
           icon={FileText}
         />
         <MetricCard
-          title="LTCG Tax (10%)"
-          value={`₹${longTermTax.toLocaleString("en-IN")}`}
+          title={`LTCG Tax (${ltcgRateLabel})`}
+          value={formatCurrency(longTermTax)}
           change="Long Term Liability"
           changeType="neutral"
           icon={DollarSign}
         />
       </div>
+
+      <ChartInsight>{insightText}</ChartInsight>
 
       <div className="space-y-6">
         <Tabs defaultValue="shortterm" className="w-full">

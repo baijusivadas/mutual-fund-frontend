@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, User as UserIcon } from "lucide-react";
+import { Shield, User as UserIcon, Users, UserCheck } from "lucide-react";
+import { MetricCard } from "@/components/shared/MetricCard";
 import { EditUserDialog } from "@/components/admin/EditUserDialog";
 import { AddUserDialog } from "@/components/admin/AddUserDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -207,7 +208,7 @@ const UserManagement = () => {
         actions={<AddUserDialog />}
       />
       <div className="space-y-6">
-        <CommonCard noHeader className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl">
+        <CommonCard noHeader className="rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all duration-200">
           <CommonTable<UserWithRole>
             data={users}
             columns={columns}

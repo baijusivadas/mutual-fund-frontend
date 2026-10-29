@@ -153,9 +153,9 @@ const RolesManagement = () => {
       />
 
       <div className="space-y-6">
-        <Card className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl shadow-sm">
+        <Card className="rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all duration-200">
           <CardContent className="pt-6">
-            <div className="rounded-xl border border-border/50 bg-background/50 overflow-hidden">
+            <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
               {roleHierarchy.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground space-y-3">
                   <Shield className="h-12 w-12 mx-auto opacity-30 text-primary" />

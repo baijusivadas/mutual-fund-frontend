@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { AssetDepreciationCalculator } from "@/components/shared/AssetDepreciationCalculator";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { formatCurrency } from "@/utils/format";
 
 /* ── Bank Account Config ─────────────────────────────────────────── */
 const BANK_DEFAULT_FORM = {
@@ -39,7 +40,7 @@ const BANK_COLUMNS: ColumnConfig<DataManagerRow>[] = [
     label: "Balance",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (i) => `₹${(Number(i.current_balance) || 0).toLocaleString("en-IN")}`,
+    render: (i) => formatCurrency(Number(i.current_balance) || 0),
   },
   {
     key: "interest_rate",
@@ -162,13 +163,13 @@ const PF_COLUMNS: ColumnConfig<DataManagerRow>[] = [
     label: "Current Accumulated Value",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (i) => `₹${(Number(i.current_value) || 0).toLocaleString("en-IN")}`,
+    render: (i) => formatCurrency(Number(i.current_value) || 0),
   },
   {
     key: "monthly_contribution",
     label: "Monthly Contribution",
     sortable: true,
-    render: (i) => `₹${(Number(i.monthly_contribution) || 0).toLocaleString("en-IN")}`,
+    render: (i) => formatCurrency(Number(i.monthly_contribution) || 0),
   },
 ];
 
@@ -269,14 +270,14 @@ const CUSTOM_COLUMNS: ColumnConfig<DataManagerRow>[] = [
     key: "purchase_price",
     label: "Purchase Price",
     sortable: true,
-    render: (i) => `₹${(Number(i.purchase_price) || 0).toLocaleString("en-IN")}`,
+    render: (i) => formatCurrency(Number(i.purchase_price) || 0),
   },
   {
     key: "current_value",
     label: "Current Value",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (i) => `₹${(Number(i.current_value) || 0).toLocaleString("en-IN")}`,
+    render: (i) => formatCurrency(Number(i.current_value) || 0),
   },
   {
     key: "appreciation",
@@ -290,7 +291,7 @@ const CUSTOM_COLUMNS: ColumnConfig<DataManagerRow>[] = [
       const isPositive = diff >= 0;
       return (
         <span className={`font-bold ${isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-          {isPositive ? "+" : ""}₹{Math.abs(diff).toLocaleString("en-IN")}
+          {isPositive ? "+" : ""}{formatCurrency(Math.abs(diff))}
           <span className="text-xs ml-1 opacity-80">({percent}%)</span>
         </span>
       );
@@ -405,10 +406,10 @@ export default function OtherAssets() {
       />
       <div className="space-y-6">
         <Tabs defaultValue="bank" className="w-full">
-          <TabsList className="grid w-full sm:max-w-md grid-cols-3 bg-muted/60 p-1 rounded-xl border border-border/50">
-            <TabsTrigger value="bank" className="rounded-lg text-xs font-bold">Bank & FDs</TabsTrigger>
-            <TabsTrigger value="provident" className="rounded-lg text-xs font-bold">Provident Funds</TabsTrigger>
-            <TabsTrigger value="custom" className="rounded-lg text-xs font-bold">Custom Assets</TabsTrigger>
+          <TabsList className="grid w-full sm:max-w-md grid-cols-3 bg-muted p-1 rounded-lg">
+            <TabsTrigger value="bank" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Bank & FDs</TabsTrigger>
+            <TabsTrigger value="provident" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Provident Funds</TabsTrigger>
+            <TabsTrigger value="custom" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Custom Assets</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bank" className="mt-4">

@@ -13,6 +13,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { rentalStatusFilters } from "@/data/filterOptions";
 import { ColumnConfig, StatusBadge } from "@/components/shared/CommonTable";
+import { formatCurrency } from "@/utils/format";
 
 interface RentalProperty {
   id: string;
@@ -61,7 +62,7 @@ const COLUMNS: ColumnConfig<RentalProperty>[] = [
     label: "Monthly Rent",
     sortable: true,
     className: "font-extrabold text-foreground",
-    render: (item) => `₹${Number(item.monthly_rent).toLocaleString("en-IN")}/mo`,
+    render: (item) => `${formatCurrency(Number(item.monthly_rent))}/mo`,
   },
   {
     key: "tenant_name",

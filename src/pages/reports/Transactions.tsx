@@ -44,7 +44,7 @@ const TransactionCard = memo(({ transaction }: { transaction: TransactionData })
   const Icon = txType.icon;
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl hover:border-primary/40 shadow-sm hover:shadow-md transition-all duration-200 p-4 group">
+    <div className="rounded-xl border border-border bg-card hover:border-primary/40 shadow-sm hover:shadow-md transition-all duration-200 p-4 group">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         {/* Left Section */}
         <div className="flex-1 min-w-0">
