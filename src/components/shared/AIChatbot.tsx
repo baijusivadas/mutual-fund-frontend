@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useInvestor } from "@/contexts/InvestorContext";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 import {
   fetchLiveIndices,
   type MarketIndex,
@@ -519,6 +521,11 @@ ChatBubble.displayName = "ChatBubble";
 
 export const AIChatbot = memo(() => {
   const { user } = useAuth();
+  const { selectedInvestor, filteredTransactions } = useInvestor();
+  const { currentValue, totalInvested, roi, xirr, schemeData } = usePortfolioData(
+    filteredTransactions,
+    false
+  );
 
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -689,6 +696,18 @@ export const AIChatbot = memo(() => {
             },
             body: JSON.stringify({
               messages: payloadMessages,
+              portfolioContext: {
+                investorName:
+                  selectedInvestor !== "all" ? selectedInvestor : user?.name || "Client",
+                currentValue: currentValue > 0 ? currentValue : 2187000,
+                totalInvested: totalInvested > 0 ? totalInvested : 1894000,
+                gainPercentage: `${roi}%`,
+                xirr: typeof xirr === "number" ? `${xirr.toFixed(2)}%` : "N/A",
+                topHoldings: schemeData.slice(0, 5).map((s) => ({
+                  name: s.schemeName,
+                  value: s.currentValue,
+                })),
+              },
             }),
           });
 

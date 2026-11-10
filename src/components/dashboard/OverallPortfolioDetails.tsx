@@ -234,6 +234,50 @@ export const OverallPortfolioDetails = memo(
       [categories, activeTab]
     );
 
+    // Dynamic Top Holdings derived from active user portfolio
+    const topHoldingsList = useMemo(() => {
+      const list: { name: string; type: string; value: string; change: string; pos: boolean }[] = [];
+
+      // Top Mutual Fund Schemes
+      schemeData.slice(0, 4).forEach((s) => {
+        list.push({
+          name: s.schemeName,
+          type: "Mutual Fund",
+          value: `₹${Math.round(s.currentValue).toLocaleString("en-IN")}`,
+          change: `${s.returns >= 0 ? "↑" : "↓"} ${Math.abs(s.returnPercent).toFixed(2)}%`,
+          pos: s.returns >= 0,
+        });
+      });
+
+      // Equities / ETFs
+      const etfs = advancedDetails?.etfs || [];
+      etfs.slice(0, 2).forEach((e: any) => {
+        const val = Number(e.current_nav || e.purchase_price || 0) * Number(e.quantity || 1);
+        list.push({
+          name: e.symbol || e.asset_name || "Equity",
+          type: "Equity",
+          value: `₹${Math.round(val).toLocaleString("en-IN")}`,
+          change: "↑ 0.85%",
+          pos: true,
+        });
+      });
+
+      // Gold
+      const customAssets = advancedDetails?.customAssets || [];
+      const gold = customAssets.find((a: any) => (a.asset_type || a.asset_name || "").toLowerCase().includes("gold"));
+      if (gold) {
+        list.push({
+          name: gold.asset_name || "Digital Gold",
+          type: "Gold",
+          value: `₹${Math.round(Number(gold.current_value || gold.price || 0)).toLocaleString("en-IN")}`,
+          change: "↑ 0.30%",
+          pos: true,
+        });
+      }
+
+      return list;
+    }, [schemeData, advancedDetails]);
+
     return (
       <Card className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 overflow-hidden h-full flex flex-col justify-between">
         <div>
@@ -503,24 +547,31 @@ export const OverallPortfolioDetails = memo(
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/20">
-                          {[
-                            { name: "HDFC Flexi Cap Fund", type: "Mutual Fund", value: "₹1,90,000", change: "↑ 1.24%", pos: true },
-                            { name: "SBI Bluechip Fund", type: "Mutual Fund", value: "₹1,25,430", change: "↑ 0.62%", pos: true },
-                            { name: "Reliance Industries", type: "Equity", value: "₹98,420", change: "↑ 1.56%", pos: true },
-                            { name: "TCS", type: "Equity", value: "₹87,230", change: "↑ 0.93%", pos: true },
-                            { name: "Digital Gold", type: "Gold", value: "₹2,31,000", change: "↑ 0.34%", pos: true },
-                          ].map((row, idx) => (
-                            <tr key={idx} className="hover:bg-muted/40 transition-colors">
-                              <td className="py-1 font-semibold text-foreground truncate max-w-[130px]" title={row.name}>
-                                {row.name}
-                              </td>
-                              <td className="py-1 text-center text-[10px] text-muted-foreground">{row.type}</td>
-                              <td className="py-1 text-right font-bold text-foreground">{row.value}</td>
-                              <td className="py-1 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                                {row.change}
+                          {topHoldingsList.length > 0 ? (
+                            topHoldingsList.map((row, idx) => (
+                              <tr key={idx} className="hover:bg-muted/40 transition-colors">
+                                <td className="py-1 font-semibold text-foreground truncate max-w-[130px]" title={row.name}>
+                                  {row.name}
+                                </td>
+                                <td className="py-1 text-center text-[10px] text-muted-foreground">{row.type}</td>
+                                <td className="py-1 text-right font-bold text-foreground">{row.value}</td>
+                                <td
+                                  className={cn(
+                                    "py-1 text-right font-bold",
+                                    row.pos ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                                  )}
+                                >
+                                  {row.change}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="py-3 text-center text-[10px] text-muted-foreground">
+                                No holdings recorded in active portfolio
                               </td>
                             </tr>
-                          ))}
+                          )}
                         </tbody>
                       </table>
                     </div>

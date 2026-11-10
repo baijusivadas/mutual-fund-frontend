@@ -15,6 +15,7 @@ export interface MarketIndex {
   marketStatus: "OPEN" | "CLOSED";
   source: string;
   timestamp: string;
+  isStale?: boolean;
 }
 
 export interface MarketNewsItem {
@@ -40,7 +41,7 @@ export interface MarketNewsResponse {
   source: string;
 }
 
-// Fallback authentic reference data matching user dashboard specification
+// Fallback reference data (clearly marked as offline/stale)
 export const DEFAULT_INDICES: MarketIndex[] = [
   {
     name: "NIFTY 50",
@@ -50,9 +51,10 @@ export const DEFAULT_INDICES: MarketIndex[] = [
     pointChange: 281.45,
     percentChange: 1.12,
     isPositive: true,
-    marketStatus: "OPEN",
-    source: "NSE India",
+    marketStatus: "CLOSED",
+    source: "Sample Reference (Offline)",
     timestamp: new Date().toISOString(),
+    isStale: true,
   },
   {
     name: "BSE SENSEX",
@@ -62,9 +64,10 @@ export const DEFAULT_INDICES: MarketIndex[] = [
     pointChange: 732.10,
     percentChange: 0.88,
     isPositive: true,
-    marketStatus: "OPEN",
-    source: "BSE India",
+    marketStatus: "CLOSED",
+    source: "Sample Reference (Offline)",
     timestamp: new Date().toISOString(),
+    isStale: true,
   },
   {
     name: "NIFTY BANK",
@@ -74,9 +77,10 @@ export const DEFAULT_INDICES: MarketIndex[] = [
     pointChange: -14.30,
     percentChange: -0.03,
     isPositive: false,
-    marketStatus: "OPEN",
-    source: "NSE India",
+    marketStatus: "CLOSED",
+    source: "Sample Reference (Offline)",
     timestamp: new Date().toISOString(),
+    isStale: true,
   },
 ];
 
@@ -93,7 +97,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Market Indices",
       ticker: "NIFTY",
-      isLive: true,
+      isLive: false,
     },
     {
       id: "nse-2",
@@ -106,7 +110,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Market Indices",
       ticker: "SENSEX",
-      isLive: true,
+      isLive: false,
     },
     {
       id: "nse-3",
@@ -119,7 +123,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "flat",
       category: "Economy",
       ticker: null,
-      isLive: true,
+      isLive: false,
     },
     {
       id: "nse-4",
@@ -132,7 +136,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Corporate Results",
       ticker: "INFY",
-      isLive: true,
+      isLive: false,
     },
     {
       id: "nse-5",
@@ -145,7 +149,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Company Announcements",
       ticker: "TCS",
-      isLive: true,
+      isLive: false,
     },
   ],
   bse: [
@@ -160,7 +164,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Market Indices",
       ticker: "SENSEX",
-      isLive: true,
+      isLive: false,
     },
     {
       id: "bse-2",
@@ -173,7 +177,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "flat",
       category: "Regulatory",
       ticker: null,
-      isLive: true,
+      isLive: false,
     },
     {
       id: "bse-3",
@@ -186,7 +190,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Company Announcements",
       ticker: "RELIANCE",
-      isLive: true,
+      isLive: false,
     },
     {
       id: "bse-4",
@@ -199,7 +203,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Corporate Results",
       ticker: "HDFCBANK",
-      isLive: true,
+      isLive: false,
     },
     {
       id: "bse-5",
@@ -212,7 +216,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Company Announcements",
       ticker: "TATAMOTORS",
-      isLive: true,
+      isLive: false,
     },
   ],
   market: [
@@ -227,7 +231,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Corporate Results",
       ticker: null,
-      isLive: true,
+      isLive: false,
     },
     {
       id: "mkt-2",
@@ -240,7 +244,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Economy",
       ticker: null,
-      isLive: true,
+      isLive: false,
     },
     {
       id: "mkt-3",
@@ -253,7 +257,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "flat",
       category: "Commodities",
       ticker: "GOLD",
-      isLive: true,
+      isLive: false,
     },
     {
       id: "mkt-4",
@@ -266,7 +270,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Mutual Funds",
       ticker: null,
-      isLive: true,
+      isLive: false,
     },
     {
       id: "mkt-5",
@@ -279,7 +283,7 @@ export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNe
       direction: "up",
       category: "Economy",
       ticker: null,
-      isLive: true,
+      isLive: false,
     },
   ],
 };
@@ -364,7 +368,9 @@ export const fetchMarketNews = async (
     news: items,
     category,
     cached: true,
+    isStale: true,
     lastUpdated: new Date(now).toISOString(),
-    source: "Exchange Announcement Feed",
+    source: "Sample Reference Data (Offline)",
   };
 };
+

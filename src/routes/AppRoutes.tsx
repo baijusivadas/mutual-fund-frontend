@@ -20,6 +20,7 @@ const CapitalGains = lazy(() => import("@/pages/dashboard/CapitalGains"));
 const StockReports = lazy(() => import("@/pages/reports/StockReports"));
 const TransactionReports = lazy(() => import("@/pages/reports/TransactionReports"));
 const UserManagement = lazy(() => import("@/pages/admin/UserManagement"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const RolesManagement = lazy(() => import("@/pages/admin/RolesManagement"));
 const RealEstate = lazy(() => import("@/pages/assets/RealEstate"));
 const Gold = lazy(() => import("@/pages/assets/Gold"));
@@ -129,6 +130,7 @@ export const AppRoutes = () => (
 
     {/* Protected Admin Routes (Persistent Sidebar & Header Layout) */}
     <Route element={<ProtectedAppLayout requireSuperAdmin={true} />}>
+      <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/admin/users" element={<UserManagement />} />
       <Route path="/admin/roles" element={<RolesManagement />} />
       <Route path="/admin/real-estate" element={<RealEstate />} />

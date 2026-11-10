@@ -10,6 +10,7 @@ const baseURL = isDev ? "/api" : backendEnv ? `${backendEnv}/api` : "/api";
 
 const api = axios.create({
   baseURL,
+  withCredentials: true, // Secure HttpOnly cookie sessions
   headers: {
     "Content-Type": "application/json",
   },
@@ -17,8 +18,12 @@ const api = axios.create({
 
 // ── Request interceptor: attach auth token ────────────────────────────────────
 api.interceptors.request.use((config) => {
+  // Always include credentials for cross-origin and same-origin cookie sessions
+  config.withCredentials = true;
+
+  // Fallback to Bearer authorization header if token is stored locally
   const token = localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
-  if (token) {
+  if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

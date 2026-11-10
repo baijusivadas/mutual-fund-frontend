@@ -1,8 +1,7 @@
 import { formatCurrency, formatIndianUnits } from "@/utils/format";
 import { memo, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
-import { TrendingUp, TrendingDown, Activity, AlertCircle, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity, AlertCircle, BarChart3, DollarSign, Layers, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +29,93 @@ import {
   XAxis,
   YAxis,
   ReferenceLine,
+  AreaChart,
+  Area,
 } from "recharts";
+import { cn } from "@/lib/utils";
+
+const SPARKLINE_HEIGHT = 44;
+
+/* ── Smooth Sparkline ────────────────────────────────────────── */
+const Sparkline = memo(({ data, color = "#2563eb" }: { data: number[]; color?: string }) => {
+  const chartData = useMemo(() => {
+    const safe = data && data.length > 0 ? data : [10, 15, 20, 25, 30];
+    return safe.map((v, i) => ({ i, v }));
+  }, [data]);
+
+  const gradId = `deriv-spk-${color.replace("#", "")}`;
+
+  return (
+    <ResponsiveContainer width="100%" height={SPARKLINE_HEIGHT}>
+      <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
+            <stop offset="95%" stopColor={color} stopOpacity={0.0} />
+          </linearGradient>
+        </defs>
+        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2.2} fill={`url(#${gradId})`} dot={false} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+});
+Sparkline.displayName = "Sparkline";
+
+/* ── KPI Metric Card ─────────────────────────────────────────── */
+interface ModernDerivKpiCardProps {
+  title: string;
+  value: string;
+  subValue?: string;
+  tag?: string;
+  isPositive?: boolean;
+  sparkData: number[];
+  sparkColor: string;
+  icon: React.ReactNode;
+}
+
+const ModernDerivKpiCard = memo(
+  ({ title, value, subValue, tag, isPositive = true, sparkData, sparkColor, icon }: ModernDerivKpiCardProps) => (
+    <Card className="relative overflow-hidden bg-card border border-border/80 rounded-2xl shadow-xs hover:shadow-md hover:border-primary/30 transition-all duration-200 group flex flex-col justify-between">
+      <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full">
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted-foreground">{title}</span>
+            <div className="h-7 w-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              {icon}
+            </div>
+          </div>
+
+          <div className="flex items-baseline justify-between mt-2.5 gap-2">
+            <div>
+              <p className="text-2xl font-heading font-extrabold text-foreground tracking-tight">{value}</p>
+              {subValue && (
+                <p className={cn("text-xs font-bold mt-0.5", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                  {subValue}
+                </p>
+              )}
+            </div>
+            <div className="w-[95px] shrink-0">
+              <Sparkline data={sparkData} color={sparkColor} />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>Live Contract Position</span>
+          {tag && (
+            <Badge
+              variant="outline"
+              className={cn("text-[9px] font-bold px-1.5 py-0 rounded border-none", isPositive ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}
+            >
+              {tag}
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+);
+ModernDerivKpiCard.displayName = "ModernDerivKpiCard";
 
 interface DerivativePosition {
   id: string;
@@ -70,7 +155,6 @@ const calculatePnL = (pos: DerivativePosition) => {
 const calculateValue = (pos: DerivativePosition) => {
   return pos.ltp * pos.qty * pos.lot_size;
 };
-
 
 const transformPayload = (data: typeof DEFAULT_FORM_DATA) => ({
   ...data,
@@ -248,25 +332,7 @@ const Derivatives = () => {
             />
           </div>
           <div className="grid gap-2">
-            <Label>Lot Size</Label>
-            <Input
-              type="number"
-              value={formData.lot_size}
-              onChange={(e) => setFormData((prev) => ({ ...prev, lot_size: e.target.value }))}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Expiry Date</Label>
-            <Input
-              type="date"
-              value={formData.expiry_date}
-              onChange={(e) => setFormData((prev) => ({ ...prev, expiry_date: e.target.value }))}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid gap-2">
-            <Label>Buy Price</Label>
+            <Label>Buy / Strike Price</Label>
             <Input
               type="number"
               value={formData.buy_price}
@@ -274,7 +340,7 @@ const Derivatives = () => {
             />
           </div>
           <div className="grid gap-2">
-            <Label>LTP (Current Price)</Label>
+            <Label>LTP (Live Price)</Label>
             <Input
               type="number"
               value={formData.ltp}
@@ -334,65 +400,104 @@ const Derivatives = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in">
-      <PageHeader
-        title="Derivatives Trading"
-        description="Futures & Options contracts monitoring, strike valuation, and margin analysis"
-      />
+    <div className="space-y-5 animate-in">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25">
+              <Activity className="h-4 w-4" />
+            </div>
+            <h1 className="text-lg sm:text-xl font-heading font-extrabold text-foreground">
+              Derivatives & F&O Portfolio
+            </h1>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Futures & Options positions monitoring, strike valuation, and margin utilization.
+          </p>
+        </div>
 
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <DashboardMetricCard
-          title="Total Position Value"
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-muted/40">
+            {positions.length} Active Positions
+          </Badge>
+        </div>
+      </div>
+
+      {/* ── Top 4 Modern KPI Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <ModernDerivKpiCard
+          title="Total Notional Value"
           value={isLoading ? "..." : formatIndianUnits(totalPositionValue)}
-          change="Combined F&O Notional"
-          changeType="neutral"
-          icon={Activity}
-          tone="blue"
+          subValue="Combined F&O Exposure"
+          sparkData={[totalPositionValue * 0.9, totalPositionValue * 0.95, totalPositionValue]}
+          sparkColor="#2563eb"
+          icon={<DollarSign className="h-4 w-4" />}
+          tag="Notional"
         />
-        <DashboardMetricCard
-          title="Futures P&L"
+
+        <ModernDerivKpiCard
+          title="Futures MTM P&L"
           value={isLoading ? "..." : formatCurrency(totalFuturesPnL)}
-          change={
+          subValue={
             totalFuturesMargin > 0
-              ? `${((totalFuturesPnL / totalFuturesMargin) * 100).toFixed(2)}% Return`
+              ? `${((totalFuturesPnL / totalFuturesMargin) * 100).toFixed(2)}% Margin Return`
               : "No Margin Data"
           }
-          changeType={totalFuturesPnL >= 0 ? "positive" : "negative"}
-          icon={totalFuturesPnL >= 0 ? TrendingUp : TrendingDown}
-          tone="green"
+          isPositive={totalFuturesPnL >= 0}
+          sparkData={[totalFuturesPnL * 0.8, totalFuturesPnL * 0.9, totalFuturesPnL]}
+          sparkColor={totalFuturesPnL >= 0 ? "#10b981" : "#ef4444"}
+          icon={totalFuturesPnL >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+          tag="Futures"
         />
-        <DashboardMetricCard
-          title="Options P&L"
+
+        <ModernDerivKpiCard
+          title="Options MTM P&L"
           value={isLoading ? "..." : formatCurrency(totalOptionsPnL)}
-          change={`Premium: ${formatCurrency(totalPremiumPaid)}`}
-          changeType={totalOptionsPnL >= 0 ? "positive" : "negative"}
-          icon={totalOptionsPnL >= 0 ? TrendingUp : TrendingDown}
-          tone={totalOptionsPnL >= 0 ? "amber" : "rose"}
+          subValue={`Premium Paid: ${formatCurrency(totalPremiumPaid)}`}
+          isPositive={totalOptionsPnL >= 0}
+          sparkData={[totalOptionsPnL * 0.8, totalOptionsPnL * 0.9, totalOptionsPnL]}
+          sparkColor={totalOptionsPnL >= 0 ? "#10b981" : "#ef4444"}
+          icon={totalOptionsPnL >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+          tag="Options"
         />
-        <DashboardMetricCard
-          title="Total Margin Used"
+
+        <ModernDerivKpiCard
+          title="Margin Utilization"
           value={isLoading ? "..." : formatIndianUnits(totalFuturesMargin)}
-          change="Futures Margin"
-          changeType="neutral"
-          icon={AlertCircle}
-          tone="blue"
+          subValue="SPAN + Exposure Margin"
+          sparkData={[totalFuturesMargin * 0.95, totalFuturesMargin]}
+          sparkColor="#8b5cf6"
+          icon={<AlertCircle className="h-4 w-4" />}
+          tag="Capital Locked"
         />
       </div>
 
-      <Card className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold">
-            <BarChart3 className="h-4 w-4 text-primary" />
-            Position P&L
-          </CardTitle>
+      {/* ── Position P&L Chart ── */}
+      <Card className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 pb-2 border-b border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <BarChart3 className="h-3.5 w-3.5" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold text-foreground">Position MTM Breakdown</CardTitle>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Mark-to-market returns per active contract</p>
+              </div>
+            </div>
+            <Badge variant="outline" className="text-[10px] font-bold">
+              {winningPositions} / {positions.length} Profitable
+            </Badge>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-4 sm:p-5 space-y-3">
           {isLoading ? (
-            <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
               Loading positions...
             </div>
           ) : positionChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart
                 data={positionChartData}
                 layout="vertical"
@@ -428,7 +533,7 @@ const Derivatives = () => {
                   dataKey="pnl"
                   name="Position P&L"
                   radius={[0, 4, 4, 0]}
-                  barSize={18}
+                  barSize={16}
                 >
                   {positionChartData.map((entry) => (
                     <Cell key={entry.contract} fill={entry.pnl >= 0 ? "#10b981" : "#ef4444"} />
@@ -437,18 +542,19 @@ const Derivatives = () => {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
-              No derivative positions available.
+            <div className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
+              No active derivative contracts recorded.
             </div>
           )}
           <ChartInsight>
             {bestPosition
-              ? `Net position P&L is ${formatCurrency(totalPnL)}. ${winningPositions} of ${positions.length} positions are profitable; ${bestPosition.contract} has the highest P&L in the current list.`
+              ? `Net position P&L is ${formatCurrency(totalPnL)}. ${winningPositions} of ${positions.length} positions are profitable; ${bestPosition.contract} leads performance.`
               : "Add derivative positions to see contract-level P&L and performance insights."}
           </ChartInsight>
         </CardContent>
       </Card>
 
+      {/* ── Position Ledger Table ── */}
       <DataManager<DerivativePosition, typeof DEFAULT_FORM_DATA>
         entity="derivatives"
         title="Derivatives Positions"
@@ -468,4 +574,3 @@ const Derivatives = () => {
 };
 
 export default memo(Derivatives);
-

@@ -10,12 +10,13 @@ import {
   TOKEN_CHECK_INTERVAL_MS,
 } from "@/lib/constants";
 
-type UserRole = "superAdmin" | "user";
+export type UserRole = "superAdmin" | "orgAdmin" | "advisor" | "auditor" | "user" | string;
 
 interface User {
   id: string;
   email: string;
   name?: string;
+  tenantId?: string;
 }
 
 type AuthResult = { error: string | null };
@@ -43,6 +44,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<AuthResult>;
   updatePassword: (newPassword: string) => Promise<AuthResult>;
   isSuperAdmin: boolean;
+  isAdvisor: boolean;
 }
 
 const defaultAuthContext: AuthContextType = {
@@ -57,6 +59,7 @@ const defaultAuthContext: AuthContextType = {
   resetPassword: async () => ({ error: "Auth service not ready" }),
   updatePassword: async () => ({ error: "Auth service not ready" }),
   isSuperAdmin: false,
+  isAdvisor: false,
 };
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
@@ -137,7 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const savedRole = localStorage.getItem(AUTH_STORAGE_KEYS.ROLE) as UserRole | null;
     const loginTime = localStorage.getItem(AUTH_STORAGE_KEYS.LOGIN_TIME);
 
-    if (savedToken && (savedRole === "superAdmin" || savedRole === "user")) {
+    if (savedToken && savedRole) {
       const expTime = getDecodedTokenExp(savedToken);
       const fallbackExpiration = loginTime
         ? parseInt(loginTime) + TOKEN_LIFETIME_MS
@@ -296,6 +299,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const isSuperAdmin = role === "superAdmin";
+  const isAdvisor = isSuperAdmin || role === "advisor" || role === "orgAdmin";
 
   return (
     <AuthContext.Provider
@@ -311,6 +315,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         resetPassword,
         updatePassword,
         isSuperAdmin,
+        isAdvisor,
       }}
     >
       {children}

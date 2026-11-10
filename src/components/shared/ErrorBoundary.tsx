@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleReset = () => {
     this.setState({ hasError: false, error: null });
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("token") || localStorage.getItem("auth_token");
     window.location.href = token ? "/" : "/login";
   };
 
@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
-      const hasSession = !!localStorage.getItem("auth_token");
+      const hasSession = !!(localStorage.getItem("token") || localStorage.getItem("auth_token"));
       return (
         <div className="flex min-h-screen items-center justify-center p-4 bg-background">
           <Card className="max-w-md w-full border border-border/80 shadow-2xl rounded-2xl">

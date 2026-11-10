@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
+import axios from "axios";
 import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -38,7 +39,8 @@ const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error) =>
+        failureCount < 1 && axios.isAxiosError(error) && !error.response && error.code !== "ERR_CANCELED",
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000, // 5 minutes default stale time
     },

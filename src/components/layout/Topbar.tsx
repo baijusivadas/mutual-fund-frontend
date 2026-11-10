@@ -1,10 +1,11 @@
-import { useState, useMemo,useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { InvestorSelector } from "./InvestorSelector";
-import { NotificationBell } from "../shared/NotificationBell";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { NotificationCenter } from "../shared/NotificationCenter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -52,16 +53,33 @@ import {
   User,
   ChevronDown,
   Menu,
-  Sparkles,
+  Search,
 } from "lucide-react";
 
+interface NavRoute {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  desc: string;
+  superAdminOnly?: boolean;
+}
+
+interface NavSection {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  superAdminOnly?: boolean;
+  routes: NavRoute[];
+}
+
 export const Topbar = () => {
-  const { user, role, signOut, isSuperAdmin } = useAuth();
+  const { user, role, signOut, isSuperAdmin, isAdvisor } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -73,65 +91,138 @@ export const Topbar = () => {
     setTheme(isDark ? "light" : "dark");
   };
 
-  // Group definitions
-  const navSections = useMemo(
-    () => [
+  // Derive a display label for the user's role
+  const roleBadgeLabel = useMemo(() => {
+    if (isSuperAdmin) return "SuperAdmin";
+    if (isAdvisor) return "Advisor";
+    if (role) return role.charAt(0).toUpperCase() + role.slice(1);
+    return "Investor";
+  }, [role, isSuperAdmin, isAdvisor]);
+
+  // Role-adaptive, simplified navigation structure
+  const navSections: NavSection[] = useMemo(() => {
+    if (isSuperAdmin) {
+      return [
+        {
+          id: "portfolio",
+          label: "Portfolio",
+          icon: Briefcase,
+          routes: [
+            { href: "/portfolio", label: "Portfolio Overview", icon: Briefcase, desc: "Asset overview & allocation" },
+            { href: "/portfolio-analysis", label: "Portfolio Analysis", icon: Activity, desc: "Detailed breakdown, XIRR & asset mix" },
+            { href: "/mutual-funds", label: "Mutual Funds", icon: TrendingUp, desc: "Scheme holdings & NAV" },
+            { href: "/derivatives", label: "Derivatives", icon: ArrowLeftRight, desc: "F&O positions & strategies" },
+            { href: "/other-investments", label: "Other Investments", icon: Coins, desc: "Alternative financial assets" },
+            { href: "/other-assets", label: "Other Assets", icon: Layers, desc: "Tangible & fixed investments" },
+            { href: "/liabilities", label: "Liabilities", icon: TrendingDown, desc: "Loans & credit balances" },
+          ],
+        },
+        {
+          id: "assets",
+          label: "Assets",
+          icon: Building2,
+          routes: [
+            { href: "/admin/real-estate", label: "Real Estate", icon: Building2, desc: "Commercial & residential land" },
+            { href: "/admin/gold", label: "Gold Holdings", icon: Coins, desc: "Physical & digital bullion" },
+            { href: "/admin/flats", label: "Flats & Units", icon: Home, desc: "Residential properties" },
+            { href: "/admin/rental-properties", label: "Rental Yields", icon: KeyRound, desc: "Tenancy & rental revenue" },
+          ],
+        },
+        {
+          id: "insights",
+          label: "Insights",
+          icon: BarChart3,
+          routes: [
+            { href: "/transactions", label: "Transactions", icon: Receipt, desc: "Complete trade ledgers" },
+            { href: "/transaction-reports", label: "Transaction Reports", icon: FileText, desc: "Consolidated statement exports" },
+            { href: "/pnl", label: "Profit & Loss", icon: PieChart, desc: "Realized & unrealized returns" },
+            { href: "/capital-gains", label: "Capital Gains", icon: BarChart3, desc: "Short & long-term tax insights" },
+            { href: "/stock-reports", label: "Stock Reports", icon: TableProperties, desc: "Equity performance metrics" },
+            { href: "/admin/analytics", label: "Analytics Suite", icon: BarChart3, desc: "Deep portfolio intelligence" },
+          ],
+        },
+        {
+          id: "admin",
+          label: "System",
+          icon: Shield,
+          routes: [
+            { href: "/admin", label: "Admin Overview", icon: LayoutDashboard, desc: "Administration workspace" },
+            { href: "/admin/users", label: "User Accounts", icon: Users, desc: "Role-based account controls" },
+            { href: "/admin/roles", label: "Roles & Permissions", icon: Shield, desc: "System authorization trees" },
+            { href: "/admin/investors", label: "Investors Directory", icon: User, desc: "KYC & mapped folios" },
+            { href: "/admin/data-upload", label: "Data Importer", icon: Upload, desc: "CAS & workbook batch sync" },
+            { href: "/admin/user-investment-mapping", label: "Portfolio Mappings", icon: Link2, desc: "Assign investors to users" },
+            { href: "/admin/master-data", label: "Master Data", icon: Database, desc: "Schemes & asset reference tables" },
+            { href: "/admin/notifications", label: "Audit Notifications", icon: Bell, desc: "System alerts & activity logs" },
+          ],
+        },
+      ];
+    }
+
+    if (isAdvisor) {
+      return [
+        {
+          id: "portfolio",
+          label: "Portfolio",
+          icon: Briefcase,
+          routes: [
+            { href: "/portfolio", label: "Portfolio Overview", icon: Briefcase, desc: "Asset overview & allocation" },
+            { href: "/portfolio-analysis", label: "Portfolio Analysis", icon: Activity, desc: "Detailed breakdown & XIRR" },
+            { href: "/mutual-funds", label: "Mutual Funds", icon: TrendingUp, desc: "Holdings & NAV updates" },
+            { href: "/derivatives", label: "Derivatives", icon: ArrowLeftRight, desc: "F&O positions" },
+            { href: "/liabilities", label: "Liabilities", icon: TrendingDown, desc: "Credit & loans" },
+          ],
+        },
+        {
+          id: "practice",
+          label: "Practice Tools",
+          icon: Users,
+          routes: [
+            { href: "/admin/investors", label: "Client Directory", icon: User, desc: "Client KYC & mapped folios" },
+            { href: "/admin/data-upload", label: "Import CAS / Statements", icon: Upload, desc: "Batch client file sync" },
+            { href: "/admin/user-investment-mapping", label: "Portfolio Mappings", icon: Link2, desc: "Manage client assignments" },
+            { href: "/transaction-reports", label: "Client Reports", icon: FileText, desc: "Consolidated client statements" },
+          ],
+        },
+        {
+          id: "insights",
+          label: "Insights",
+          icon: BarChart3,
+          routes: [
+            { href: "/transactions", label: "Transactions", icon: Receipt, desc: "Complete trade ledger" },
+            { href: "/pnl", label: "Profit & Loss", icon: PieChart, desc: "Realized & unrealized returns" },
+            { href: "/capital-gains", label: "Capital Gains", icon: BarChart3, desc: "STCG & LTCG insights" },
+          ],
+        },
+      ];
+    }
+
+    // Standard Client / Retail Investor: Simplified, uncluttered, focused on their wealth
+    return [
       {
         id: "portfolio",
-        label: "Portfolio",
+        label: "My Portfolio",
         icon: Briefcase,
         routes: [
-          { href: "/portfolio", label: "Portfolio Overview", icon: Briefcase, desc: "Asset overview & allocation" },
-          { href: "/portfolio-analysis", label: "Portfolio Analysis", icon: Activity, desc: "Detailed breakdown, XIRR & asset mix" },
-          { href: "/mutual-funds", label: "Mutual Funds", icon: TrendingUp, desc: "Scheme holdings & NAV" },
-          { href: "/derivatives", label: "Derivatives", icon: ArrowLeftRight, desc: "F&O positions & strategies" },
-          { href: "/other-investments", label: "Other Investments", icon: Coins, desc: "Alternative financial assets" },
-          { href: "/other-assets", label: "Other Assets", icon: Layers, desc: "Tangible & fixed investments" },
-          { href: "/liabilities", label: "Liabilities", icon: TrendingDown, desc: "Loans & credit balances" },
-        ],
-      },
-      {
-        id: "assets",
-        label: "Assets",
-        icon: Building2,
-        routes: [
-          { href: "/admin/real-estate", label: "Real Estate", icon: Building2, desc: "Commercial & residential land" },
-          { href: "/admin/gold", label: "Gold Holdings", icon: Coins, desc: "Physical & digital bullion" },
-          { href: "/admin/flats", label: "Flats & Units", icon: Home, desc: "Residential properties" },
-          { href: "/admin/rental-properties", label: "Rental Yields", icon: KeyRound, desc: "Tenancy & rental revenue" },
+          { href: "/portfolio", label: "Portfolio Overview", icon: Briefcase, desc: "Your net worth & asset mix" },
+          { href: "/mutual-funds", label: "Mutual Funds", icon: TrendingUp, desc: "Your active scheme holdings & NAV" },
+          { href: "/portfolio-analysis", label: "Portfolio Analysis", icon: Activity, desc: "Asset allocation & performance" },
+          { href: "/liabilities", label: "My Liabilities", icon: TrendingDown, desc: "Outstanding loans & EMIs" },
         ],
       },
       {
         id: "insights",
-        label: "Insights",
+        label: "Statements & Tax",
         icon: BarChart3,
         routes: [
-          { href: "/transactions", label: "Transactions", icon: Receipt, desc: "Complete trade ledgers" },
-          { href: "/transaction-reports", label: "Transaction Reports", icon: FileText, desc: "Consolidated statement exports" },
-          { href: "/pnl", label: "Profit & Loss", icon: PieChart, desc: "Realized & unrealized returns" },
-          { href: "/capital-gains", label: "Capital Gains", icon: BarChart3, desc: "Short & long-term tax insights" },
-          { href: "/stock-reports", label: "Stock Reports", icon: TableProperties, desc: "Equity performance metrics" },
-          { href: "/admin/analytics", label: "Analytics Suite", icon: BarChart3, desc: "Deep portfolio intelligence", superAdminOnly: true },
+          { href: "/transactions", label: "Transaction History", icon: Receipt, desc: "All purchases & redemptions" },
+          { href: "/pnl", label: "Profit & Loss", icon: PieChart, desc: "Realized capital performance" },
+          { href: "/capital-gains", label: "Capital Gains Tax", icon: BarChart3, desc: "STCG & LTCG tax statement" },
+          { href: "/transaction-reports", label: "Download Reports", icon: FileText, desc: "Export consolidated statements" },
         ],
       },
-      {
-        id: "admin",
-        label: "System",
-        icon: Shield,
-        superAdminOnly: true,
-        routes: [
-          { href: "/admin/users", label: "User Accounts", icon: Users, desc: "Role-based account controls" },
-          { href: "/admin/roles", label: "Roles & Permissions", icon: Shield, desc: "System authorization trees" },
-          { href: "/admin/investors", label: "Investors Directory", icon: User, desc: "KYC & mapped folios" },
-          { href: "/admin/data-upload", label: "Data Importer", icon: Upload, desc: "CAS & workbook batch sync" },
-          { href: "/admin/user-investment-mapping", label: "Portfolio Mappings", icon: Link2, desc: "Assign investors to users" },
-          { href: "/admin/master-data", label: "Master Data", icon: Database, desc: "Schemes & asset reference tables" },
-          { href: "/admin/notifications", label: "Audit Notifications", icon: Bell, desc: "System alerts & activity logs" },
-        ],
-      },
-    ],
-    []
-  );
+    ];
+  }, [isSuperAdmin, isAdvisor]);
 
   const isSectionActive = (routes: { href: string }[]) => {
     return routes.some((r) => location.pathname === r.href || location.pathname.startsWith(`${r.href}/`));
@@ -186,16 +277,10 @@ export const Topbar = () => {
               </NavLink>
 
               {/* Categorized Dropdowns */}
-              {navSections
-                .filter((section) => !section.superAdminOnly || isSuperAdmin)
-                .map((section) => {
-                  const active = isSectionActive(section.routes);
-                  const Icon = section.icon;
-
-                  // Filter visible routes based on role
-                  const visibleRoutes = section.routes.filter(
-                    (r) => !("superAdminOnly" in r && r.superAdminOnly) || isSuperAdmin
-                  );
+              {navSections.map((section) => {
+                const active = isSectionActive(section.routes);
+                const Icon = section.icon;
+                const visibleRoutes = section.routes;
 
                   return (
                     <DropdownMenu key={section.id}>
@@ -287,6 +372,25 @@ export const Topbar = () => {
               <Separator orientation="vertical" className="h-5 mx-0.5 hidden md:block" />
             )}
 
+            {/* Global Search Trigger */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className={cn(
+                "hidden md:flex items-center gap-2 h-9 px-3 rounded-full",
+                "border border-border/60 bg-muted/40 hover:bg-muted/70",
+                "text-muted-foreground hover:text-foreground",
+                "transition-all duration-200 cursor-pointer group"
+              )}
+            >
+              <Search className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-xs font-medium truncate max-w-[200px]">
+                Search investments, schemes, stocks...
+              </span>
+              <kbd className="ml-1 px-1.5 py-0.5 rounded bg-background border border-border text-[10px] font-mono font-bold text-muted-foreground/80 shrink-0">
+                Ctrl+K
+              </kbd>
+            </button>
+
             {/* Theme Switcher */}
             <Button
               variant="ghost"
@@ -302,8 +406,23 @@ export const Topbar = () => {
               )}
             </Button>
 
-            {/* Notification Bell */}
-            <NotificationBell />
+            {/* Notification Center */}
+            <NotificationCenter />
+
+            {/* Role Badge Pill */}
+            <Badge
+              variant={isSuperAdmin ? "default" : "secondary"}
+              className={cn(
+                "hidden sm:inline-flex text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full shrink-0",
+                isSuperAdmin
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none shadow-sm"
+                  : isAdvisor
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {roleBadgeLabel}
+            </Badge>
 
             {/* User Profile Menu */}
             <DropdownMenu>
@@ -406,17 +525,13 @@ export const Topbar = () => {
                   </div>
 
                   {/* Sections */}
-                  {navSections
-                    .filter((s) => !s.superAdminOnly || isSuperAdmin)
-                    .map((section) => (
-                      <div key={section.id} className="space-y-1">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1">
-                          {section.label}
-                        </div>
-                        <div className="space-y-0.5">
-                          {section.routes
-                            .filter((r) => !("superAdminOnly" in r && r.superAdminOnly) || isSuperAdmin)
-                            .map((route) => {
+                  {navSections.map((section) => (
+                    <div key={section.id} className="space-y-1">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1">
+                        {section.label}
+                      </div>
+                      <div className="space-y-0.5">
+                        {section.routes.map((route) => {
                               const isCurrent = location.pathname === route.href;
                               const RouteIcon = route.icon;
 
@@ -458,6 +573,9 @@ export const Topbar = () => {
           </div>
         </div>
       </div>
+
+      {/* Global Search Dialog */}
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 };
