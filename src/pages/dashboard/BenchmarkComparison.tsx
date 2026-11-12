@@ -21,6 +21,8 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+
 import {
   BarChart,
   Bar,
@@ -32,12 +34,8 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
+import { formatPercent } from "@/utils/format";
 
-/* ─── helpers ─────────────────────────────────────────────── */
-const fmt = (v: number | null) => {
-  if (v === null || v === undefined || !Number.isFinite(v)) return "N/A";
-  return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
-};
 
 type PerfStatus = "outperforming" | "in-line" | "underperforming" | "unavailable";
 
@@ -140,14 +138,14 @@ const FundCompareCard = memo(
         {/* Fund XIRR */}
         <div className="text-center min-w-[80px]">
           <p className={cn("text-sm font-extrabold", fundXirr === null ? "text-muted-foreground" : fundXirr >= benchmark.xirr ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-            {fmt(fundXirr)}
+            {formatPercent(fundXirr)}
           </p>
           <p className="text-[10px] text-muted-foreground">Fund XIRR</p>
         </div>
 
         {/* Benchmark XIRR */}
         <div className="text-center min-w-[80px]">
-          <p className="text-sm font-extrabold text-foreground">{fmt(benchmark.xirr)}</p>
+          <p className="text-sm font-extrabold text-foreground">{formatPercent(benchmark.xirr)}</p>
           <p className="text-[10px] text-muted-foreground">Benchmark</p>
         </div>
 
@@ -394,8 +392,8 @@ const BenchmarkComparison = () => {
             {strongestAlpha && (
               <ChartInsight>
                 {strongestAlpha.Alpha >= 0
-                  ? `${strongestAlpha.name} leads its benchmark by ${fmt(strongestAlpha.Alpha)} percentage points.`
-                  : `${strongestAlpha.name} has the smallest benchmark gap at ${fmt(strongestAlpha.Alpha)} percentage points.`}{" "}
+                  ? `${strongestAlpha.name} leads its benchmark by ${formatPercent(strongestAlpha.Alpha)} percentage points.`
+                  : `${strongestAlpha.name} has the smallest benchmark gap at ${formatPercent(strongestAlpha.Alpha)} percentage points.`}{" "}
                 {summary.outperforming} of {fundList.length} fund(s) are outperforming their benchmark.
               </ChartInsight>
             )}

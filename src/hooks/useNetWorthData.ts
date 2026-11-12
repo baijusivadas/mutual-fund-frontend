@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { numericValue } from "@/lib/utils";
 
 export interface NetWorthData {
   portfolio: number;
@@ -34,11 +35,6 @@ function getArray(response: { data: unknown }): AssetRecord[] {
   }
 
   return records;
-}
-
-function numericValue(value: unknown): number {
-  const parsedValue = Number(value);
-  return Number.isFinite(parsedValue) ? parsedValue : 0;
 }
 
 export function useNetWorthData() {

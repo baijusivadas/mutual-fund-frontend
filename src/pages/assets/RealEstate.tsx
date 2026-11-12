@@ -1,6 +1,8 @@
 import { memo, useCallback } from "react";
-import { Building2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Building2, RefreshCw } from "lucide-react";
 import { DataManager } from "@/components/shared/DataManager";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,6 +15,29 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { realEstateStatusFilters, propertyTypeOptions } from "@/data/filterOptions";
 import { ColumnConfig, StatusBadge } from "@/components/shared/CommonTable";
+import { useAuth } from "@/contexts/AuthContext";
+import api from "@/services/api";
+import { getErrorMessage } from "@/lib/errors";
+import { getAdvancedQueryKey } from "@/hooks/useAdvancedPortfolio";
+import { propertyQueryConfig } from "@/hooks/useQueryConfig";
+
+const usePropertyLoadError = () => {
+  const { token } = useAuth();
+  const { isError, error, refetch } = useQuery({
+    queryKey: getAdvancedQueryKey("real_estate"),
+    queryFn: async () => {
+      const response = await api.get("/advanced/real_estate");
+      return Array.isArray(response.data) ? response.data : response.data.data || [];
+    },
+    enabled: !!token,
+    ...propertyQueryConfig,
+  });
+
+  return {
+    message: isError ? getErrorMessage(error, "Unable to load properties.") : "",
+    retry: refetch,
+  };
+};
 
 interface RealEstateItem {
   id: string;
@@ -75,6 +100,7 @@ const transformPayload = (data: typeof DEFAULT_FORM_DATA) => ({
 });
 
 const RealEstate = () => {
+  const { message, retry } = usePropertyLoadError();
   const renderForm = useCallback(
     (
       formData: typeof DEFAULT_FORM_DATA,
@@ -99,7 +125,7 @@ const RealEstate = () => {
             placeholder="e.g., Mumbai, Maharashtra"
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor="price">Price (₹) *</Label>
             <Input
@@ -107,7 +133,7 @@ const RealEstate = () => {
               type="number"
               value={formData.price}
               onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
-              placeholder="5000000"
+              placeholder="Enter property value"
             />
           </div>
           <div className="grid gap-2">
@@ -117,11 +143,11 @@ const RealEstate = () => {
               type="number"
               value={formData.area}
               onChange={(e) => setFormData((prev) => ({ ...prev, area: e.target.value }))}
-              placeholder="1200"
+              placeholder="Enter area in square feet"
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor="property_type">Property Type *</Label>
             <Select
@@ -177,7 +203,16 @@ const RealEstate = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in">
+    <div className="min-w-0 space-y-6 animate-in">
+      {message && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-destructive">{message}</p>
+          <Button variant="outline" size="sm" onClick={() => void retry()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Try again
+          </Button>
+        </div>
+      )}
       <DataManager<RealEstateItem, typeof DEFAULT_FORM_DATA>
         entity="real_estate"
         title="Real Estate Management"

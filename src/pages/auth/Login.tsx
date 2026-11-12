@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
@@ -68,6 +68,11 @@ const Login = () => {
 
   const fillSuperadmin = () => {
     setEmail("Superadmin@gmail.com");
+    setPassword("123456");
+  };
+
+  const fillRajesh = () => {
+    setEmail("rajesh@gmail.com");
     setPassword("123456");
   };
 
@@ -188,20 +193,31 @@ const Login = () => {
             </div>
 
             {/* Quick Demo Credentials */}
-            <div className="mb-5 p-3 rounded-2xl bg-primary/8 border border-primary/20 flex items-center justify-between gap-3">
+            <div className="mb-5 p-3 rounded-2xl bg-muted/40 border border-border/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
               <div className="flex items-center gap-2 min-w-0">
                 <Shield className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-xs text-primary/80 font-medium truncate">Quick SuperAdmin Fill</span>
+                <span className="text-xs text-muted-foreground font-medium">Quick Credentials:</span>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={fillSuperadmin}
-                className="h-7 px-2.5 text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border-primary/30 rounded-lg transition-all"
-              >
-                Autofill
-              </Button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={fillSuperadmin}
+                  className="flex-1 sm:flex-initial h-7 px-2.5 text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border-primary/30 rounded-lg transition-all"
+                >
+                  Admin
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={fillRajesh}
+                  className="flex-1 sm:flex-initial h-7 px-2.5 text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 rounded-lg transition-all"
+                >
+                  Rajesh (User)
+                </Button>
+              </div>
             </div>
 
             <Tabs defaultValue="login" className="w-full">

@@ -13,9 +13,11 @@ import {
   Info,
   Layers,
   ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SchemeData } from "@/hooks/usePortfolioData";
+import type { AdvancedPortfolioData } from "@/hooks/useAdvancedPortfolio";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 export type PortfolioCategory = "all" | "equity" | "mutual_fund" | "gold" | "real_estate" | "rent_property";
@@ -23,7 +25,7 @@ export type PortfolioCategory = "all" | "equity" | "mutual_fund" | "gold" | "rea
 interface CategorySummary {
   id: PortfolioCategory;
   name: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   iconBg: string;
   iconColor: string;
   value: number; // in INR
@@ -41,17 +43,7 @@ interface OverallPortfolioDetailsProps {
   schemeData: SchemeData[];
   totalMfCurrentValue: number;
   totalMfInvested: number;
-  advancedDetails?: {
-    realEstate?: any[];
-    flats?: any[];
-    rentalProperties?: any[];
-    customAssets?: any[];
-    etfs?: any[];
-    crypto?: any[];
-    bonds?: any[];
-    [key: string]: any;
-  };
-  totalPortfolioValue?: number;
+  advancedDetails?: AdvancedPortfolioData["details"];
   onViewCategory?: (cat: PortfolioCategory) => void;
 }
 
@@ -63,27 +55,23 @@ const fmtLakh = (v: number) => {
   return `₹${(v / 100000).toFixed(2)} Lakh`;
 };
 
-// Fallback holdings when DB records are empty or demo state
-const DEMO_EQUITY_HOLDINGS = [
-  { name: "Reliance Industries Ltd", symbol: "RELIANCE", qty: 120, avgPrice: 2450, cmp: 2985, value: 358200, pnl: 64200, returnPct: 21.8 },
-  { name: "Tata Consultancy Services", symbol: "TCS", qty: 50, avgPrice: 3500, cmp: 4120, value: 206000, pnl: 31000, returnPct: 17.7 },
-  { name: "HDFC Bank Ltd", symbol: "HDFCBANK", qty: 95, avgPrice: 1520, cmp: 1680, value: 159600, pnl: 15200, returnPct: 10.5 },
-  { name: "Infosys Ltd", symbol: "INFY", qty: 65, avgPrice: 1480, cmp: 1820, value: 118300, pnl: 22100, returnPct: 22.9 },
-];
+const recordText = (record: Record<string, string | number | null | undefined>, ...keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "";
+};
 
-const DEMO_GOLD_HOLDINGS = [
-  { item: "24K Gold Bullion (Physical)", type: "Physical Gold", purity: "99.9% (24 Karat)", weight: "20 grams", acquisitionCost: 128000, currentValue: 156000, valuationDate: "2026-10-25" },
-  { item: "Sovereign Gold Bonds (SGB)", type: "RBI SGB Series", purity: "99.9%", weight: "10 units", acquisitionCost: 59000, currentValue: 75000, valuationDate: "2026-10-25" },
-];
-
-const DEMO_REAL_ESTATE_HOLDINGS = [
-  { name: "Greenfield Residential Plot", location: "Sector 82, Gurgaon", type: "Residential Plot", acquisitionCost: 95000, currentValue: 112000, share: "100%", valuationDate: "2026-09-30", status: "Verified" },
-];
-
-const DEMO_RENTAL_HOLDINGS = [
-  { name: "Orchid Heights Studio 4B", location: "Whitefield, Bengaluru", monthlyRent: 22500, annualRent: 270000, annualExpenses: 28000, netAnnualRent: 242000, propertyValue: 4200000, rentalYield: 5.76, occupancy: "Occupied", tenant: "Aravind Nair" },
-  { name: "City Center Commercial Unit 12", location: "Andheri East, Mumbai", monthlyRent: 28500, annualRent: 342000, annualExpenses: 36000, netAnnualRent: 306000, propertyValue: 5100000, rentalYield: 6.00, occupancy: "Occupied", tenant: "TechCorp Logistics" },
-];
+const recordNumber = (record: Record<string, string | number | null | undefined>, ...keys: string[]) => {
+  for (const key of keys) {
+    const value = Number(record[key]);
+    if (Number.isFinite(value) && record[key] !== null && record[key] !== undefined && record[key] !== "") {
+      return value;
+    }
+  }
+  return 0;
+};
 
 export const OverallPortfolioDetails = memo(
   ({
@@ -91,7 +79,6 @@ export const OverallPortfolioDetails = memo(
     totalMfCurrentValue,
     totalMfInvested,
     advancedDetails,
-    totalPortfolioValue = 2187000, // 21.87 Lakh reference
     onViewCategory,
   }: OverallPortfolioDetailsProps) => {
     const [activeTab, setActiveTab] = useState<PortfolioCategory>("all");
@@ -122,12 +109,13 @@ export const OverallPortfolioDetails = memo(
       // 3. Gold — live from custom assets / bullion
       const customAssets = advancedDetails?.customAssets || [];
       const goldAssets = customAssets.filter((a) =>
-        (a.asset_type || a.asset_name || "").toLowerCase().includes("gold")
+        recordText(a, "asset_type", "asset_name").toLowerCase().includes("gold")
       );
-      const goldVal = goldAssets.reduce((s, a) => s + Number(a.current_value || a.price || 0), 0);
-      const goldInvested = goldAssets.reduce((s, a) => s + Number(a.price || a.current_value || 0), 0);
+      const goldVal = goldAssets.reduce((s, a) => s + recordNumber(a, "current_value", "price"), 0);
+      const goldInvested = goldAssets.reduce((s, a) => s + recordNumber(a, "purchase_price", "price"), 0);
       const goldGain = goldVal - goldInvested;
-      const goldTrend = `${goldGain >= 0 ? "↑" : "↓"} 0.00%`;
+      const goldReturnPct = goldInvested > 0 ? ((goldGain / goldInvested) * 100).toFixed(2) : "0.00";
+      const goldTrend = goldInvested > 0 ? `${goldGain >= 0 ? "↑" : "↓"} ${Math.abs(Number(goldReturnPct))}%` : "—";
 
       // 4. Real Estate — live from real_estate and flats tables
       const reList = advancedDetails?.realEstate || [];
@@ -141,9 +129,8 @@ export const OverallPortfolioDetails = memo(
       const rentalList = advancedDetails?.rentalProperties || [];
       const dbRentalMonthly = rentalList.reduce((s, r) => s + Number(r.monthly_rent || 0), 0);
       const rentAnnualIncome = dbRentalMonthly * 12;
-      const yieldPct = reVal > 0 ? Number(((rentAnnualIncome / reVal) * 100).toFixed(2)) : 0;
 
-      const grandTotal = totalPortfolioValue > 0 ? totalPortfolioValue : (eqVal + mfVal + goldVal + reVal);
+      const grandTotal = eqVal + mfVal + goldVal + reVal + rentAnnualIncome;
 
       return [
         {
@@ -200,8 +187,8 @@ export const OverallPortfolioDetails = memo(
           value: reVal,
           displayValue: fmtLakh(reVal),
           sharePercent: grandTotal > 0 ? Number(((reVal / grandTotal) * 100).toFixed(1)) : 0,
-          trend: "→ 0.00%",
-          isPositive: true,
+          trend: "—",
+          isPositive: false,
           holdingsCount: reList.length + flatsList.length,
           investedValue: reVal,
           unrealizedGain: 0,
@@ -215,17 +202,15 @@ export const OverallPortfolioDetails = memo(
           value: rentAnnualIncome,
           displayValue: fmtLakh(rentAnnualIncome),
           sharePercent: grandTotal > 0 ? Number(((rentAnnualIncome / grandTotal) * 100).toFixed(1)) : 0,
-          trend: `↑ ${yieldPct > 0 ? yieldPct : "0.00"}%`,
-          isPositive: true,
+          trend: "—",
+          isPositive: false,
           holdingsCount: rentalList.length,
-          yieldPercent: yieldPct,
         },
       ];
     }, [
       totalMfCurrentValue,
       totalMfInvested,
       advancedDetails,
-      totalPortfolioValue,
       schemeData,
     ]);
 
@@ -236,7 +221,7 @@ export const OverallPortfolioDetails = memo(
 
     // Dynamic Top Holdings derived from active user portfolio
     const topHoldingsList = useMemo(() => {
-      const list: { name: string; type: string; value: string; change: string; pos: boolean }[] = [];
+      const list: { name: string; type: string; value: string; change: string; pos?: boolean }[] = [];
 
       // Top Mutual Fund Schemes
       schemeData.slice(0, 4).forEach((s) => {
@@ -251,27 +236,27 @@ export const OverallPortfolioDetails = memo(
 
       // Equities / ETFs
       const etfs = advancedDetails?.etfs || [];
-      etfs.slice(0, 2).forEach((e: any) => {
-        const val = Number(e.current_nav || e.purchase_price || 0) * Number(e.quantity || 1);
+      etfs.slice(0, 2).forEach((e) => {
+        const val = recordNumber(e, "current_nav", "purchase_price") * recordNumber(e, "quantity");
         list.push({
-          name: e.symbol || e.asset_name || "Equity",
+          name: recordText(e, "symbol", "asset_name") || "Equity",
           type: "Equity",
           value: `₹${Math.round(val).toLocaleString("en-IN")}`,
-          change: "↑ 0.85%",
-          pos: true,
+          change: "—",
         });
       });
 
       // Gold
       const customAssets = advancedDetails?.customAssets || [];
-      const gold = customAssets.find((a: any) => (a.asset_type || a.asset_name || "").toLowerCase().includes("gold"));
+      const gold = customAssets.find((asset) =>
+        recordText(asset, "asset_type", "asset_name").toLowerCase().includes("gold")
+      );
       if (gold) {
         list.push({
-          name: gold.asset_name || "Digital Gold",
+          name: recordText(gold, "asset_name") || "Gold",
           type: "Gold",
-          value: `₹${Math.round(Number(gold.current_value || gold.price || 0)).toLocaleString("en-IN")}`,
-          change: "↑ 0.30%",
-          pos: true,
+          value: `₹${Math.round(recordNumber(gold, "current_value", "price")).toLocaleString("en-IN")}`,
+          change: "—",
         });
       }
 
@@ -488,7 +473,7 @@ export const OverallPortfolioDetails = memo(
                         </ResponsiveContainer>
                         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
                           <span className="text-[11px] font-extrabold text-foreground leading-tight">
-                            {fmtLakh(totalPortfolioValue || 2187000)}
+                            {fmtLakh(categories.reduce((sum, category) => sum + category.value, 0))}
                           </span>
                           <span className="text-[8px] text-muted-foreground font-medium">Total Portfolio</span>
                         </div>
@@ -555,12 +540,11 @@ export const OverallPortfolioDetails = memo(
                                 </td>
                                 <td className="py-1 text-center text-[10px] text-muted-foreground">{row.type}</td>
                                 <td className="py-1 text-right font-bold text-foreground">{row.value}</td>
-                                <td
-                                  className={cn(
-                                    "py-1 text-right font-bold",
-                                    row.pos ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                                  )}
-                                >
+                                <td className={cn("py-1 text-right font-bold", row.pos === undefined
+                                  ? "text-muted-foreground"
+                                  : row.pos
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : "text-rose-600 dark:text-rose-400")}>
                                   {row.change}
                                 </td>
                               </tr>
@@ -645,23 +629,41 @@ export const OverallPortfolioDetails = memo(
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
-                        {DEMO_EQUITY_HOLDINGS.map((eq, i) => (
-                          <tr key={i} className="hover:bg-muted/30">
-                            <td className="py-1.5 px-3 font-semibold text-foreground">
-                              <div>{eq.name}</div>
-                              <span className="text-[10px] text-muted-foreground">{eq.symbol} • NSE</span>
-                            </td>
-                            <td className="py-1.5 px-3 text-right text-muted-foreground">{eq.qty}</td>
-                            <td className="py-1.5 px-3 text-right text-muted-foreground">₹{eq.avgPrice}</td>
-                            <td className="py-1.5 px-3 text-right font-medium text-foreground">₹{eq.cmp}</td>
-                            <td className="py-1.5 px-3 text-right font-bold text-foreground">
-                              ₹{eq.value.toLocaleString("en-IN")}
-                            </td>
-                            <td className="py-1.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                              +{eq.returnPct}%
-                            </td>
-                          </tr>
-                        ))}
+                        {(advancedDetails?.etfs || []).map((equity, index) => {
+                          const quantity = recordNumber(equity, "quantity");
+                          const averagePrice = recordNumber(equity, "purchase_price");
+                          const currentPrice = recordNumber(equity, "current_nav") || averagePrice;
+                          const currentValue = currentPrice * quantity;
+                          const investedValue = averagePrice * quantity;
+                          const returnPct =
+                            investedValue > 0 ? ((currentValue - investedValue) / investedValue) * 100 : null;
+                          return (
+                            <tr key={String(equity.id ?? index)} className="hover:bg-muted/30">
+                              <td className="py-1.5 px-3 font-semibold text-foreground">
+                                <div>{recordText(equity, "asset_name", "symbol") || "Unnamed asset"}</div>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {recordText(equity, "symbol")}
+                                </span>
+                              </td>
+                              <td className="py-1.5 px-3 text-right text-muted-foreground">{quantity}</td>
+                              <td className="py-1.5 px-3 text-right text-muted-foreground">
+                                ₹{averagePrice.toLocaleString("en-IN")}
+                              </td>
+                              <td className="py-1.5 px-3 text-right font-medium text-foreground">
+                                ₹{currentPrice.toLocaleString("en-IN")}
+                              </td>
+                              <td className="py-1.5 px-3 text-right font-bold text-foreground">
+                                ₹{currentValue.toLocaleString("en-IN")}
+                              </td>
+                              <td className="py-1.5 px-3 text-right font-bold text-muted-foreground">
+                                {returnPct === null ? "—" : `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}%`}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {advancedDetails?.etfs?.length === 0 && (
+                          <tr><td colSpan={6} className="py-3 text-center text-muted-foreground">No equity holdings recorded.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -681,12 +683,7 @@ export const OverallPortfolioDetails = memo(
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
-                        {(schemeData.length > 0 ? schemeData.slice(0, 5) : [
-                          { schemeName: "SBI Magnum Multicap Fund - Growth", totalUnits: 1250, totalInvested: 180000, latestNav: 172.4, currentValue: 215500, returnPercent: 19.7 },
-                          { schemeName: "HDFC Flexi Cap Fund - Direct Growth", totalUnits: 980, totalInvested: 150000, latestNav: 195.2, currentValue: 191296, returnPercent: 27.5 },
-                          { schemeName: "ICICI Prudential Bluechip Fund - Growth", totalUnits: 1850, totalInvested: 160000, latestNav: 104.5, currentValue: 193325, returnPercent: 20.8 },
-                          { schemeName: "Parag Parikh Flexi Cap Fund - Regular", totalUnits: 2100, totalInvested: 150000, latestNav: 78.4, currentValue: 164640, returnPercent: 9.7 },
-                        ]).map((sch, i) => (
+                        {schemeData.slice(0, 5).map((sch, i) => (
                           <tr key={i} className="hover:bg-muted/30">
                             <td className="py-1.5 px-3 font-semibold text-foreground max-w-[220px] truncate">
                               {sch.schemeName}
@@ -703,11 +700,14 @@ export const OverallPortfolioDetails = memo(
                             <td className="py-1.5 px-3 text-right font-bold text-foreground">
                               ₹{Math.round(sch.currentValue).toLocaleString("en-IN")}
                             </td>
-                            <td className="py-1.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                              +{sch.returnPercent.toFixed(1)}%
+                            <td className={cn("py-1.5 px-3 text-right font-bold", sch.returnPercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                              {sch.returnPercent >= 0 ? "+" : ""}{sch.returnPercent.toFixed(1)}%
                             </td>
                           </tr>
                         ))}
+                        {schemeData.length === 0 && (
+                          <tr><td colSpan={6} className="py-3 text-center text-muted-foreground">No mutual fund holdings recorded.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -727,20 +727,25 @@ export const OverallPortfolioDetails = memo(
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
-                        {DEMO_GOLD_HOLDINGS.map((g, i) => (
-                          <tr key={i} className="hover:bg-muted/30">
-                            <td className="py-1.5 px-3 font-semibold text-foreground">{g.item}</td>
-                            <td className="py-1.5 px-3 text-muted-foreground">{g.purity}</td>
-                            <td className="py-1.5 px-3 text-right text-foreground font-medium">{g.weight}</td>
-                            <td className="py-1.5 px-3 text-right text-muted-foreground">
-                              ₹{g.acquisitionCost.toLocaleString("en-IN")}
-                            </td>
-                            <td className="py-1.5 px-3 text-right font-bold text-foreground">
-                              ₹{g.currentValue.toLocaleString("en-IN")}
-                            </td>
-                            <td className="py-1.5 px-3 text-right text-muted-foreground">{g.valuationDate}</td>
-                          </tr>
-                        ))}
+                        {(advancedDetails?.customAssets || [])
+                          .filter((asset) => recordText(asset, "asset_type", "asset_name").toLowerCase().includes("gold"))
+                          .map((gold, index) => (
+                            <tr key={String(gold.id ?? index)} className="hover:bg-muted/30">
+                              <td className="py-1.5 px-3 font-semibold text-foreground">{recordText(gold, "asset_name") || "Unnamed asset"}</td>
+                              <td className="py-1.5 px-3 text-muted-foreground">{recordText(gold, "asset_type") || "—"}</td>
+                              <td className="py-1.5 px-3 text-right text-foreground font-medium">
+                                {recordText(gold, "quantity", "weight") || recordNumber(gold, "quantity", "weight") || "—"}
+                              </td>
+                              <td className="py-1.5 px-3 text-right text-muted-foreground">₹{recordNumber(gold, "purchase_price", "price").toLocaleString("en-IN")}</td>
+                              <td className="py-1.5 px-3 text-right font-bold text-foreground">₹{recordNumber(gold, "current_value", "price").toLocaleString("en-IN")}</td>
+                              <td className="py-1.5 px-3 text-right text-muted-foreground">{recordText(gold, "updated_at", "purchase_date") || "—"}</td>
+                            </tr>
+                          ))}
+                        {!(advancedDetails?.customAssets || []).some((asset) =>
+                          recordText(asset, "asset_type", "asset_name").toLowerCase().includes("gold")
+                        ) && (
+                          <tr><td colSpan={6} className="py-3 text-center text-muted-foreground">No gold holdings recorded.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -753,29 +758,38 @@ export const OverallPortfolioDetails = memo(
                         <tr>
                           <th className="py-1.5 px-3">Property Name</th>
                           <th className="py-1.5 px-3">Location & Type</th>
-                          <th className="py-1.5 px-3 text-right">Acquisition Cost</th>
-                          <th className="py-1.5 px-3 text-right">Estimated Value</th>
-                          <th className="py-1.5 px-3 text-right">Share %</th>
-                          <th className="py-1.5 px-3 text-right">Valuation Date</th>
+                          <th className="py-1.5 px-3 text-right">Recorded Value</th>
+                          <th className="py-1.5 px-3 text-right">Area</th>
+                          <th className="py-1.5 px-3 text-right">Status</th>
+                          <th className="py-1.5 px-3 text-right">Updated</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
-                        {DEMO_REAL_ESTATE_HOLDINGS.map((re, i) => (
-                          <tr key={i} className="hover:bg-muted/30">
-                            <td className="py-1.5 px-3 font-semibold text-foreground">{re.name}</td>
-                            <td className="py-1.5 px-3 text-muted-foreground">
-                              {re.location} • {re.type}
+                        {[...(advancedDetails?.realEstate || []), ...(advancedDetails?.flats || [])].map((property, index) => (
+                          <tr key={String(property.id ?? index)} className="hover:bg-muted/30">
+                            <td className="py-1.5 px-3 font-semibold text-foreground">
+                              {recordText(property, "property_name", "flat_name") || "Unnamed property"}
                             </td>
-                            <td className="py-1.5 px-3 text-right text-muted-foreground">
-                              ₹{re.acquisitionCost.toLocaleString("en-IN")}
+                            <td className="py-1.5 px-3 text-muted-foreground">
+                              {recordText(property, "location", "property_type") || "—"}
                             </td>
                             <td className="py-1.5 px-3 text-right font-bold text-foreground">
-                              ₹{re.currentValue.toLocaleString("en-IN")}
+                              ₹{recordNumber(property, "price").toLocaleString("en-IN")}
                             </td>
-                            <td className="py-1.5 px-3 text-right font-medium text-foreground">{re.share}</td>
-                            <td className="py-1.5 px-3 text-right text-muted-foreground">{re.valuationDate}</td>
+                            <td className="py-1.5 px-3 text-right text-muted-foreground">
+                              {recordNumber(property, "area").toLocaleString("en-IN")}
+                            </td>
+                            <td className="py-1.5 px-3 text-right font-medium text-foreground">
+                              {recordText(property, "status") || "—"}
+                            </td>
+                            <td className="py-1.5 px-3 text-right text-muted-foreground">
+                              {recordText(property, "updated_at", "created_at") || "—"}
+                            </td>
                           </tr>
                         ))}
+                        {(advancedDetails?.realEstate?.length || 0) + (advancedDetails?.flats?.length || 0) === 0 && (
+                          <tr><td colSpan={6} className="py-3 text-center text-muted-foreground">No real estate holdings recorded.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -789,39 +803,35 @@ export const OverallPortfolioDetails = memo(
                           <th className="py-1.5 px-3">Rental Property</th>
                           <th className="py-1.5 px-3">Occupancy & Tenant</th>
                           <th className="py-1.5 px-3 text-right">Monthly Rent</th>
-                          <th className="py-1.5 px-3 text-right">Annual Gross</th>
-                          <th className="py-1.5 px-3 text-right">Net Income</th>
-                          <th className="py-1.5 px-3 text-right">Rental Yield</th>
+                          <th className="py-1.5 px-3 text-right">Annual Rent</th>
+                          <th className="py-1.5 px-3 text-right">Lease End</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
-                        {DEMO_RENTAL_HOLDINGS.map((rp, i) => (
-                          <tr key={i} className="hover:bg-muted/30">
+                        {(advancedDetails?.rentalProperties || []).map((rental, index) => (
+                          <tr key={String(rental.id ?? index)} className="hover:bg-muted/30">
                             <td className="py-1.5 px-3 font-semibold text-foreground">
-                              <div>{rp.name}</div>
-                              <span className="text-[10px] text-muted-foreground">{rp.location}</span>
+                              <div>{recordText(rental, "property_name") || "Unnamed property"}</div>
+                              <span className="text-[10px] text-muted-foreground">{recordText(rental, "location")}</span>
                             </td>
                             <td className="py-1.5 px-3 text-muted-foreground">
-                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                {rp.occupancy}
-                              </span>
-                              <div className="text-[10px] text-muted-foreground">{rp.tenant}</div>
+                              <span className="font-semibold">{recordText(rental, "status") || "—"}</span>
+                              <div className="text-[10px] text-muted-foreground">{recordText(rental, "tenant_name") || "No tenant listed"}</div>
                             </td>
                             <td className="py-1.5 px-3 text-right text-muted-foreground">
-                              ₹{rp.monthlyRent.toLocaleString("en-IN")}
+                              ₹{recordNumber(rental, "monthly_rent").toLocaleString("en-IN")}
                             </td>
                             <td className="py-1.5 px-3 text-right text-muted-foreground">
-                              ₹{rp.annualRent.toLocaleString("en-IN")}
+                              ₹{(recordNumber(rental, "monthly_rent") * 12).toLocaleString("en-IN")}
                             </td>
                             <td className="py-1.5 px-3 text-right font-bold text-foreground">
-                              ₹{rp.netAnnualRent.toLocaleString("en-IN")}
-                            </td>
-                            <td className="py-1.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                              {rp.rentalYield.toFixed(2)}%
+                              {recordText(rental, "lease_end_date") || "—"}
                             </td>
                           </tr>
                         ))}
+                        {(advancedDetails?.rentalProperties || []).length === 0 && (
+                          <tr><td colSpan={5} className="py-3 text-center text-muted-foreground">No rental properties recorded.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>

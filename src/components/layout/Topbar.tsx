@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { InvestorSelector } from "./InvestorSelector";
+import { useInvestor } from "@/contexts/InvestorContext";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { NotificationCenter } from "../shared/NotificationCenter";
 import { Button } from "@/components/ui/button";
@@ -79,7 +79,13 @@ export const Topbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { investors, selectedInvestor, setSelectedInvestor } = useInvestor();
   const [searchOpen, setSearchOpen] = useState(false);
+
+  const handleSelectClient = (name: string) => {
+    setSelectedInvestor(name);
+    navigate("/client-view");
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -98,6 +104,7 @@ export const Topbar = () => {
     if (role) return role.charAt(0).toUpperCase() + role.slice(1);
     return "Investor";
   }, [role, isSuperAdmin, isAdvisor]);
+  const dashboardHref = isAdvisor ? "/advisor" : "/";
 
   // Role-adaptive, simplified navigation structure
   const navSections: NavSection[] = useMemo(() => {
@@ -122,10 +129,10 @@ export const Topbar = () => {
           label: "Assets",
           icon: Building2,
           routes: [
-            { href: "/admin/real-estate", label: "Real Estate", icon: Building2, desc: "Commercial & residential land" },
-            { href: "/admin/gold", label: "Gold Holdings", icon: Coins, desc: "Physical & digital bullion" },
-            { href: "/admin/flats", label: "Flats & Units", icon: Home, desc: "Residential properties" },
-            { href: "/admin/rental-properties", label: "Rental Yields", icon: KeyRound, desc: "Tenancy & rental revenue" },
+            { href: "/real-estate", label: "Real Estate", icon: Building2, desc: "Commercial & residential land" },
+            { href: "/gold", label: "Gold Holdings", icon: Coins, desc: "Physical & digital bullion" },
+            { href: "/flats", label: "Flats & Units", icon: Home, desc: "Residential properties" },
+            { href: "/rental-properties", label: "Rental Yields", icon: KeyRound, desc: "Tenancy & rental revenue" },
           ],
         },
         {
@@ -138,7 +145,7 @@ export const Topbar = () => {
             { href: "/pnl", label: "Profit & Loss", icon: PieChart, desc: "Realized & unrealized returns" },
             { href: "/capital-gains", label: "Capital Gains", icon: BarChart3, desc: "Short & long-term tax insights" },
             { href: "/stock-reports", label: "Stock Reports", icon: TableProperties, desc: "Equity performance metrics" },
-            { href: "/admin/analytics", label: "Analytics Suite", icon: BarChart3, desc: "Deep portfolio intelligence" },
+            { href: "/analytics", label: "Analytics Suite", icon: BarChart3, desc: "Deep portfolio intelligence" },
           ],
         },
         {
@@ -146,14 +153,15 @@ export const Topbar = () => {
           label: "System",
           icon: Shield,
           routes: [
-            { href: "/admin", label: "Admin Overview", icon: LayoutDashboard, desc: "Administration workspace" },
-            { href: "/admin/users", label: "User Accounts", icon: Users, desc: "Role-based account controls" },
-            { href: "/admin/roles", label: "Roles & Permissions", icon: Shield, desc: "System authorization trees" },
-            { href: "/admin/investors", label: "Investors Directory", icon: User, desc: "KYC & mapped folios" },
-            { href: "/admin/data-upload", label: "Data Importer", icon: Upload, desc: "CAS & workbook batch sync" },
-            { href: "/admin/user-investment-mapping", label: "Portfolio Mappings", icon: Link2, desc: "Assign investors to users" },
-            { href: "/admin/master-data", label: "Master Data", icon: Database, desc: "Schemes & asset reference tables" },
-            { href: "/admin/notifications", label: "Audit Notifications", icon: Bell, desc: "System alerts & activity logs" },
+            { href: "/admin-dashboard", label: "Admin Overview", icon: LayoutDashboard, desc: "Administration workspace" },
+            { href: "/advisor", label: "Advisor Portal", icon: Briefcase, desc: "Advisor analytics & practice book" },
+            { href: "/users", label: "User Accounts", icon: Users, desc: "Role-based account controls" },
+            { href: "/roles", label: "Roles & Permissions", icon: Shield, desc: "System authorization trees" },
+            { href: "/investors", label: "Investors Directory", icon: User, desc: "KYC & mapped folios" },
+            { href: "/data-upload", label: "Data Importer", icon: Upload, desc: "CAS & workbook batch sync" },
+            { href: "/user-investment-mapping", label: "Portfolio Mappings", icon: Link2, desc: "Assign investors to users" },
+            { href: "/master-data", label: "Master Data", icon: Database, desc: "Schemes & asset reference tables" },
+            { href: "/notifications", label: "Audit Notifications", icon: Bell, desc: "System alerts & activity logs" },
           ],
         },
       ];
@@ -178,9 +186,9 @@ export const Topbar = () => {
           label: "Practice Tools",
           icon: Users,
           routes: [
-            { href: "/admin/investors", label: "Client Directory", icon: User, desc: "Client KYC & mapped folios" },
-            { href: "/admin/data-upload", label: "Import CAS / Statements", icon: Upload, desc: "Batch client file sync" },
-            { href: "/admin/user-investment-mapping", label: "Portfolio Mappings", icon: Link2, desc: "Manage client assignments" },
+            { href: "/investors", label: "Client Directory", icon: User, desc: "Client KYC & mapped folios" },
+            { href: "/data-upload", label: "Import CAS / Statements", icon: Upload, desc: "Batch client file sync" },
+            { href: "/user-investment-mapping", label: "Portfolio Mappings", icon: Link2, desc: "Manage client assignments" },
             { href: "/transaction-reports", label: "Client Reports", icon: FileText, desc: "Consolidated client statements" },
           ],
         },
@@ -238,13 +246,13 @@ export const Topbar = () => {
       {/* Top Card Gradient Glow Edge */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-500/80 to-transparent opacity-80 pointer-events-none" />
 
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-4">
+      <div className="w-full px-3 sm:px-5 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-2 sm:gap-4">
           {/* Left: Brand + Navigation Links */}
-          <div className="flex items-center gap-6 lg:gap-8 min-w-0">
+          <div className="flex min-w-0 shrink-0 items-center gap-3 xl:gap-6 2xl:gap-8">
             {/* Logo */}
             <Link
-              to="/"
+              to={dashboardHref}
               className="flex items-center gap-2.5 shrink-0 group focus:outline-none"
             >
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform">
@@ -258,10 +266,10 @@ export const Topbar = () => {
             </Link>
 
             {/* Desktop Horizontal Navigation Menu */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden xl:flex items-center gap-1">
               {/* Direct Dashboard Link */}
               <NavLink
-                to="/"
+                to={dashboardHref}
                 end
                 className={({ isActive }) =>
                   cn(
@@ -360,35 +368,50 @@ export const Topbar = () => {
           </div>
 
           {/* Right: Actions, Filters, Theme, Profile */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Investor Selector (SuperAdmin Only) */}
-            {isSuperAdmin && (
-              <div className="hidden md:block">
-                <InvestorSelector />
+          <div className="flex min-w-0 shrink items-center gap-1 sm:gap-2 xl:gap-3">
+            {/* Client Selector (SuperAdmin / Advisor) */}
+            {(isSuperAdmin || isAdvisor) && investors.length > 0 && (
+              <div className="hidden 2xl:flex items-center relative">
+                <Users className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none z-10" />
+                <select
+                  value={selectedInvestor}
+                  onChange={(e) => {
+                    if (e.target.value === "all") {
+                      setSelectedInvestor("all");
+                      navigate("/client-view");
+                    } else {
+                      handleSelectClient(e.target.value);
+                    }
+                  }}
+                  className="h-9 w-[220px] pl-8 pr-7 rounded-xl bg-muted/50 border border-border/50 text-xs font-semibold hover:bg-muted transition-colors cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  <option value="all">All Investors (Consolidated)</option>
+                  {investors.map((inv) => (
+                    <option key={inv} value={inv}>{inv}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 h-3 w-3 text-muted-foreground pointer-events-none" />
               </div>
             )}
 
-            {isSuperAdmin && (
-              <Separator orientation="vertical" className="h-5 mx-0.5 hidden md:block" />
+            {(isSuperAdmin || isAdvisor) && investors.length > 0 && (
+              <Separator orientation="vertical" className="h-5 mx-0.5 hidden 2xl:block" />
             )}
 
             {/* Global Search Trigger */}
             <button
               onClick={() => setSearchOpen(true)}
               className={cn(
-                "hidden md:flex items-center gap-2 h-9 px-3 rounded-full",
+                "flex h-9 shrink-0 items-center gap-2 rounded-full px-2.5 xl:px-3",
                 "border border-border/60 bg-muted/40 hover:bg-muted/70",
                 "text-muted-foreground hover:text-foreground",
                 "transition-all duration-200 cursor-pointer group"
               )}
             >
               <Search className="h-3.5 w-3.5 shrink-0" />
-              <span className="text-xs font-medium truncate max-w-[200px]">
+              <span className="hidden xl:block text-xs font-medium truncate max-w-[160px] 2xl:max-w-[200px]">
                 Search investments, schemes, stocks...
               </span>
-              <kbd className="ml-1 px-1.5 py-0.5 rounded bg-background border border-border text-[10px] font-mono font-bold text-muted-foreground/80 shrink-0">
-                Ctrl+K
-              </kbd>
             </button>
 
             {/* Theme Switcher */}
@@ -408,21 +431,6 @@ export const Topbar = () => {
 
             {/* Notification Center */}
             <NotificationCenter />
-
-            {/* Role Badge Pill */}
-            <Badge
-              variant={isSuperAdmin ? "default" : "secondary"}
-              className={cn(
-                "hidden sm:inline-flex text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full shrink-0",
-                isSuperAdmin
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none shadow-sm"
-                  : isAdvisor
-                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
-              {roleBadgeLabel}
-            </Badge>
 
             {/* User Profile Menu */}
             <DropdownMenu>
@@ -456,13 +464,13 @@ export const Topbar = () => {
                 {isSuperAdmin && (
                   <>
                     <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                      <Link to="/admin/users" className="flex items-center gap-2 text-xs">
+                      <Link to="/users" className="flex items-center gap-2 text-xs">
                         <Users className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>Manage Users</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                      <Link to="/admin/data-upload" className="flex items-center gap-2 text-xs">
+                      <Link to="/data-upload" className="flex items-center gap-2 text-xs">
                         <Upload className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>Upload Data / CAS</span>
                       </Link>
@@ -484,7 +492,7 @@ export const Topbar = () => {
             {/* Mobile Drawer Toggle */}
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden h-9 w-9 rounded-xl hover:bg-muted">
+                <Button variant="ghost" size="icon" className="xl:hidden h-9 w-9 shrink-0 rounded-xl hover:bg-muted">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -502,13 +510,34 @@ export const Topbar = () => {
                 </SheetHeader>
 
                 <div className="p-4 overflow-y-auto max-h-[calc(100vh-80px)] space-y-6">
-                  {/* Mobile Investor Selector */}
-                  {isSuperAdmin && (
+                  {/* Mobile Client Selector */}
+                  {(isSuperAdmin || isAdvisor) && investors.length > 0 && (
                     <div className="space-y-1.5 pb-2 border-b border-border/40">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Viewing Investor
+                        View Client
                       </span>
-                      <InvestorSelector />
+                      <div className="relative">
+                        <Users className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none z-10" />
+                        <select
+                          value={selectedInvestor}
+                          onChange={(e) => {
+                            setMobileOpen(false);
+                            if (e.target.value === "all") {
+                              setSelectedInvestor("all");
+                              navigate("/client-view");
+                            } else {
+                              handleSelectClient(e.target.value);
+                            }
+                          }}
+                          className="w-full h-9 pl-8 pr-7 rounded-xl bg-muted/50 border border-border/50 text-xs font-semibold cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        >
+                          <option value="all">All Investors (Consolidated)</option>
+                          {investors.map((inv) => (
+                            <option key={inv} value={inv}>{inv}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-3 h-3 w-3 text-muted-foreground pointer-events-none" />
+                      </div>
                     </div>
                   )}
 

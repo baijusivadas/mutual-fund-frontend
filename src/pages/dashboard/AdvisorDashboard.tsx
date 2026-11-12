@@ -1,610 +1,646 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { useInvestor } from "@/contexts/InvestorContext";
-import { usePortfolioData } from "@/hooks/usePortfolioData";
-import { formatIndianUnits } from "@/utils/format";
+import { useAuth } from "@/contexts/AuthContext";
 import { isSellTransaction } from "@/utils/parseTransactions";
+import { formatIndianUnits, formatRelativeDate } from "@/utils/format";
+import {
+  classifyScheme,
+  extractAMC,
+  getClientRiskProfile,
+  getClientTier,
+  AMC_COLOR_PALETTE,
+} from "@/utils/schemeUtils";
+import { cn } from "@/lib/utils";
+import type {
+  ClientRow,
+  AdvisorySignal,
+  AmcShare,
+  CapShare,
+  MonthlyFlow,
+  SchemePerformance,
+  AdvisorMetrics,
+} from "@/types/advisor";
 import {
   Users,
   Briefcase,
-  TrendingUp,
-  ArrowUpRight,
-  Activity,
-  AlertTriangle,
-  Clock,
-  Upload,
-  UserPlus,
-  FileText,
-  CheckCircle2,
-  Search,
-  Filter,
-  Sparkles,
-  Layers,
-  Calendar,
+  CircleAlert,
+  Wallet,
+  Clock3,
+  Eye,
+  Building2,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 
-export interface ClientRow {
-  id: string;
-  name: string;
-  pan: string;
-  schemesCount: number;
-  invested: number;
-  currentValue: number;
-  returnsPercent: number;
-  kycStatus: "Verified" | "Pending" | "Review Required";
-}
+import { AdvisorKpis } from "@/components/advisor/AdvisorKpis";
+import { AdvisoryCockpit } from "@/components/advisor/AdvisoryCockpit";
+import { CashflowSection } from "@/components/advisor/CashflowSection";
+import { AmcMarketShare } from "@/components/advisor/AmcMarketShare";
+import { ClientBookTable } from "@/components/advisor/ClientBookTable";
+import { SchemeHoldingsTable } from "@/components/advisor/SchemeHoldingsTable";
+import { PerformanceMatrix } from "@/components/advisor/PerformanceMatrix";
 
-const DEFAULT_PRACTICE_CLIENTS: ClientRow[] = [
-  { id: "c1", name: "Rajesh Babu", pan: "ABCPR1234D", schemesCount: 14, invested: 1894000, currentValue: 2187000, returnsPercent: 15.47, kycStatus: "Verified" },
-  { id: "c2", name: "Dileep Kumar T S", pan: "BKPKD5678E", schemesCount: 9, invested: 1450000, currentValue: 1720000, returnsPercent: 18.62, kycStatus: "Verified" },
-  { id: "c3", name: "Ananya Sharma", pan: "CHKPS9876M", schemesCount: 6, invested: 980000, currentValue: 1120000, returnsPercent: 14.28, kycStatus: "Verified" },
-  { id: "c4", name: "Vikramaditya Roy", pan: "DLKPR3412B", schemesCount: 11, invested: 2500000, currentValue: 2890000, returnsPercent: 15.6, kycStatus: "Pending" },
-  { id: "c5", name: "Meera Krishnan", pan: "EMPPM8765A", schemesCount: 5, invested: 620000, currentValue: 710000, returnsPercent: 14.51, kycStatus: "Verified" },
-];
+/* ═══════════════════════════════════════════════════════════════════
+   ADVISOR DASHBOARD
+   ═══════════════════════════════════════════════════════════════════ */
 
-export const AdvisorDashboard = memo(({ onSwitchToInvestorView }: { onSwitchToInvestorView?: () => void }) => {
+export const AdvisorDashboard = memo(() => {
   const navigate = useNavigate();
-  const { transactions, investors, filteredTransactions, setSelectedInvestor, isNewUser } = useInvestor();
-  const { currentValue: selectedCurrentValue } = usePortfolioData(filteredTransactions, isNewUser);
+  const { user } = useAuth();
+  const { transactions, setSelectedInvestor, isLoading, investmentsError } = useInvestor();
 
-  const [search, setSearch] = useState("");
-  const [kycFilter, setKycFilter] = useState<"all" | "Verified" | "Pending">("all");
+  const advisorName = user?.name?.trim() || user?.email?.split("@")[0] || "Advisor";
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+  }, []);
 
-  // Dynamic derivation of all clients from active live transactions
+  /* ═══ Build client list from transactions ════════════════════ */
   const clientList: ClientRow[] = useMemo(() => {
-    if (!transactions || transactions.length === 0) {
-      return DEFAULT_PRACTICE_CLIENTS;
-    }
-
-    const clientMap = new Map<
+    const map = new Map<
       string,
       {
-        schemes: Set<string>;
-        invested: number;
-        schemeUnits: Map<string, { units: number; nav: number }>;
+        schemes: Map<string, { units: number; nav: number; latestDate: number; invested: number; name: string }>;
+        txCount: number;
+        latestActivity: string | null;
+        sipCount: number;
       }
     >();
 
-    transactions.forEach((tx) => {
-      const name = tx.investorName?.trim() || "Retail Investor";
-      if (!clientMap.has(name)) {
-        clientMap.set(name, {
-          schemes: new Set(),
-          invested: 0,
-          schemeUnits: new Map(),
-        });
+    for (const tx of transactions) {
+      const name = tx.investorName?.trim();
+      if (!name) continue;
+      if (!map.has(name)) map.set(name, { schemes: new Map(), txCount: 0, latestActivity: null, sipCount: 0 });
+      const rec = map.get(name)!;
+      const sell = isSellTransaction(tx);
+      rec.txCount++;
+      if (/sip/i.test(tx.transactionType)) rec.sipCount++;
+
+      const d = tx.investmentDate ? new Date(tx.investmentDate) : null;
+      const ts = d && !Number.isNaN(d.getTime()) ? d.getTime() : -Infinity;
+      if (ts > -Infinity && (!rec.latestActivity || ts > new Date(rec.latestActivity).getTime())) {
+        rec.latestActivity = d!.toISOString();
       }
-      const record = clientMap.get(name)!;
-      record.schemes.add(tx.schemeName);
 
-      const isSell = isSellTransaction(tx);
-      const units = isSell ? -tx.units : tx.units;
-      const val = isSell ? -tx.value : tx.value;
-      record.invested += val;
+      if (tx.schemeName) {
+        const cur = rec.schemes.get(tx.schemeName) || {
+          units: 0,
+          nav: 0,
+          latestDate: -Infinity,
+          invested: 0,
+          name: tx.schemeName,
+        };
+        cur.units += sell ? -tx.units : tx.units;
+        cur.invested += sell ? -tx.value : tx.value;
+        if (tx.nav > 0 && ts >= cur.latestDate) {
+          cur.nav = tx.nav;
+          cur.latestDate = ts;
+        }
+        rec.schemes.set(tx.schemeName, cur);
+      }
+    }
 
-      const currentScheme = record.schemeUnits.get(tx.schemeName) || { units: 0, nav: tx.nav };
-      currentScheme.units += units;
-      currentScheme.nav = tx.nav || currentScheme.nav;
-      record.schemeUnits.set(tx.schemeName, currentScheme);
-    });
-
-    const parsedClients: ClientRow[] = [];
-    let idx = 1;
-
-    clientMap.forEach((data, name) => {
-      let clientCurrentValue = 0;
-      data.schemeUnits.forEach((s) => {
+    return Array.from(map.entries()).map(([name, data]) => {
+      let cv = 0,
+        uv = 0,
+        eq = 0,
+        de = 0,
+        hy = 0,
+        inv = 0;
+      data.schemes.forEach((s) => {
+        inv += s.invested;
         if (s.units > 0) {
-          clientCurrentValue += s.units * s.nav;
+          if (s.nav > 0) {
+            const v = s.units * s.nav;
+            cv += v;
+            const t = classifyScheme(s.name);
+            if (t === "equity") eq += v;
+            else if (t === "debt") de += v;
+            else hy += v;
+          } else uv++;
         }
       });
+      const tot = eq + de + hy || 1;
+      const ret = cv - inv;
+      const equityPct = Math.round((eq / tot) * 100);
+      const isDormant = data.latestActivity
+        ? Date.now() - new Date(data.latestActivity).getTime() > 180 * 86_400_000
+        : false;
 
-      const inv = Math.max(0, Math.round(data.invested));
-      const cur = Math.max(inv, Math.round(clientCurrentValue));
-      const returns = cur - inv;
-      const returnsPct = inv > 0 ? Number(((returns / inv) * 100).toFixed(2)) : 0;
-
-      // Deterministic PAN derivation
-      const hash = Math.abs(name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 1234));
-      const panPrefix = (name.replace(/[^A-Za-z]/g, "").toUpperCase() + "ABCDE").substring(0, 5);
-      const panNum = (1000 + (hash % 8999)).toString();
-      const pan = `${panPrefix}${panNum}Z`;
-
-      parsedClients.push({
-        id: `client-${idx++}`,
+      return {
+        id: name,
         name,
-        pan,
         schemesCount: data.schemes.size,
-        invested: inv,
-        currentValue: cur,
-        returnsPercent: returnsPct,
-        kycStatus: "Verified",
-      });
+        unvaluedSchemesCount: uv,
+        transactionCount: data.txCount,
+        netInvested: inv,
+        currentValue: cv,
+        returns: ret,
+        returnsPercent: inv > 0 ? (ret / inv) * 100 : null,
+        latestActivity: data.latestActivity,
+        sipCount: data.sipCount,
+        equityPct,
+        debtPct: Math.round((de / tot) * 100),
+        hybridPct: Math.round((hy / tot) * 100),
+        tier: getClientTier(cv),
+        riskProfile: getClientRiskProfile(equityPct),
+        isDormant,
+      };
     });
-
-    return parsedClients.length > 0 ? parsedClients : DEFAULT_PRACTICE_CLIENTS;
   }, [transactions]);
 
-  // Aggregate practice metrics dynamically calculated
-  const { practiceAum, monthlyInflow, activeClientsCount, practiceSipBook, practiceGrowthData } = useMemo(() => {
-    let aumSum = 0;
-    clientList.forEach((c) => {
-      aumSum += c.currentValue;
-    });
+  /* ═══ Aggregate metrics ══════════════════════════════════════ */
+  const metrics: AdvisorMetrics = useMemo(() => {
+    const practiceAum = clientList.reduce((s, c) => s + c.currentValue, 0);
+    const netInvested = clientList.reduce((s, c) => s + c.netInvested, 0);
+    const totalReturns = practiceAum - netInvested;
+    const totalSipCount = clientList.reduce((s, c) => s + c.sipCount, 0);
+    const hniClients = clientList.filter((c) => c.tier === "HNI").length;
+    const premiumClients = clientList.filter((c) => c.tier === "Premium").length;
+    const regularClients = clientList.filter((c) => c.tier === "Regular").length;
 
-    // Inflows from current transactions
-    let inflowSum = 0;
-    let sipSum = 0;
     const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = now.getMonth();
-
-    transactions.forEach((tx) => {
-      if (tx.investmentDate) {
-        const d = new Date(tx.investmentDate);
-        if (d.getFullYear() === curYear && d.getMonth() === curMonth) {
-          if (!isSellTransaction(tx)) {
-            inflowSum += tx.value || 0;
-          }
-        }
-      }
-      if (tx.transactionType?.toLowerCase().includes("sip")) {
-        sipSum += tx.value || 0;
-      }
-    });
-
-    // Practice Trajectory: 6 trailing months
-    const growthTrajectory = [];
-    const months = ["May", "Jun", "Jul", "Aug", "Sep", "Oct"];
-    const baseAum = Math.max(aumSum, 184500000);
-    const baseInflow = inflowSum > 0 ? inflowSum : 4280000;
-
-    for (let i = 0; i < 6; i++) {
-      const ratio = 0.82 + (i / 5) * 0.18;
-      growthTrajectory.push({
-        month: months[i],
-        aum: Math.round(baseAum * ratio),
-        inflow: Math.round(baseInflow * (0.88 + (i % 3) * 0.08)),
+    const latestTx = transactions.reduce<Date | null>((lat, tx) => {
+      if (!tx.investmentDate) return lat;
+      const d = new Date(tx.investmentDate);
+      return Number.isNaN(d.getTime()) ? lat : !lat || d > lat ? d : lat;
+    }, null);
+    const periodEnd = latestTx || now;
+    const mfMap = new Map<string, MonthlyFlow>();
+    for (let i = 5; i >= 0; i--) {
+      const m = new Date(periodEnd.getFullYear(), periodEnd.getMonth() - i, 1);
+      mfMap.set(`${m.getFullYear()}-${m.getMonth()}`, {
+        label: m.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+        purchases: 0,
+        redemptions: 0,
+        netFlow: 0,
+        transactions: 0,
       });
     }
 
+    let lastActivity: string | null = null;
+    let latestTs = -Infinity;
+    const curMK = `${now.getFullYear()}-${now.getMonth()}`;
+    let mPurch = 0,
+      mRed = 0;
+
+    for (const tx of transactions) {
+      const d = tx.investmentDate ? new Date(tx.investmentDate) : null;
+      if (!d || Number.isNaN(d.getTime())) continue;
+      const k = `${d.getFullYear()}-${d.getMonth()}`;
+      const mf = mfMap.get(k);
+      const sell = isSellTransaction(tx);
+      if (mf) {
+        if (sell) mf.redemptions += tx.value;
+        else mf.purchases += tx.value;
+        mf.netFlow = mf.purchases - mf.redemptions;
+        mf.transactions++;
+      }
+      if (k === curMK) {
+        if (sell) mRed += tx.value;
+        else mPurch += tx.value;
+      }
+      if (d.getTime() > latestTs) {
+        latestTs = d.getTime();
+        lastActivity = d.toISOString();
+      }
+    }
+
+    const monthlyFlows = Array.from(mfMap.values());
+
+    // Scheme-level aggregation for top/bottom funds & AMCs
+    const sAgg = new Map<string, { invested: number; clients: Set<string> }>();
+    const sUnits = new Map<string, { units: number; nav: number }>();
+    const sorted = [...transactions].sort(
+      (a, b) => new Date(a.investmentDate).getTime() - new Date(b.investmentDate).getTime()
+    );
+    for (const tx of sorted) {
+      if (!tx.schemeName) continue;
+      const inv = tx.investorName?.trim();
+      if (inv) {
+        if (!sAgg.has(tx.schemeName)) sAgg.set(tx.schemeName, { invested: 0, clients: new Set() });
+        const a = sAgg.get(tx.schemeName)!;
+        a.invested += isSellTransaction(tx) ? -tx.value : tx.value;
+        a.clients.add(inv);
+      }
+      const u = sUnits.get(tx.schemeName) || { units: 0, nav: 0 };
+      u.units += isSellTransaction(tx) ? -tx.units : tx.units;
+      if (tx.nav > 0) u.nav = tx.nav;
+      sUnits.set(tx.schemeName, u);
+    }
+
+    const allFunds: SchemePerformance[] = [];
+    const amcMap = new Map<string, { value: number; schemes: Set<string>; clients: Set<string> }>();
+    let largeCapVal = 0,
+      midSmallVal = 0,
+      flexiVal = 0,
+      debtCashVal = 0,
+      hybridVal = 0;
+
+    sAgg.forEach((data, name) => {
+      const su = sUnits.get(name);
+      if (!su || su.units <= 0) return;
+      const v = su.units * su.nav;
+      const type = classifyScheme(name);
+      const amc = extractAMC(name);
+      allFunds.push({
+        schemeName: name,
+        totalValue: v,
+        totalInvested: data.invested,
+        returnsPercent: data.invested > 0 ? ((v - data.invested) / data.invested) * 100 : 0,
+        clientCount: data.clients.size,
+        type,
+        amc,
+      });
+
+      // AMC aggregation
+      if (!amcMap.has(amc)) amcMap.set(amc, { value: 0, schemes: new Set(), clients: new Set() });
+      const item = amcMap.get(amc)!;
+      item.value += v;
+      item.schemes.add(name);
+      data.clients.forEach((c) => item.clients.add(c));
+
+      // Style classification
+      const l = name.toLowerCase();
+      if (type === "debt") debtCashVal += v;
+      else if (type === "hybrid") hybridVal += v;
+      else if (l.includes("large") || l.includes("bluechip") || l.includes("top 100") || l.includes("nifty 50"))
+        largeCapVal += v;
+      else if (l.includes("mid") || l.includes("small") || l.includes("micro") || l.includes("emerging"))
+        midSmallVal += v;
+      else flexiVal += v;
+    });
+    allFunds.sort((a, b) => b.returnsPercent - a.returnsPercent);
+
+    const amcBreakdown: AmcShare[] = Array.from(amcMap.entries())
+      .map(([amc, d], idx) => ({
+        amc,
+        totalValue: d.value,
+        pct: practiceAum > 0 ? Math.round((d.value / practiceAum) * 100) : 0,
+        clientCount: d.clients.size,
+        schemeCount: d.schemes.size,
+        color:
+          AMC_COLOR_PALETTE[amc] ||
+          ["#2563eb", "#7c3aed", "#059669", "#d97706", "#dc2626", "#0891b2", "#db2777"][idx % 7],
+      }))
+      .sort((a, b) => b.totalValue - a.totalValue);
+
+    const marketCapBreakdown: CapShare[] = [
+      {
+        category: "Large Cap",
+        totalValue: largeCapVal,
+        pct: practiceAum > 0 ? Math.round((largeCapVal / practiceAum) * 100) : 0,
+        color: "#3b82f6",
+        description: "Bluechip & Top 100 market leaders",
+      },
+      {
+        category: "Flexi & Multi Cap",
+        totalValue: flexiVal,
+        pct: practiceAum > 0 ? Math.round((flexiVal / practiceAum) * 100) : 0,
+        color: "#6366f1",
+        description: "Multi-cap dynamic asset allocation",
+      },
+      {
+        category: "Mid & Small Cap",
+        totalValue: midSmallVal,
+        pct: practiceAum > 0 ? Math.round((midSmallVal / practiceAum) * 100) : 0,
+        color: "#8b5cf6",
+        description: "High-growth mid & emerging businesses",
+      },
+      {
+        category: "Hybrid & Multi-Asset",
+        totalValue: hybridVal,
+        pct: practiceAum > 0 ? Math.round((hybridVal / practiceAum) * 100) : 0,
+        color: "#10b981",
+        description: "Balanced asset allocation",
+      },
+      {
+        category: "Debt & Liquid",
+        totalValue: debtCashVal,
+        pct: practiceAum > 0 ? Math.round((debtCashVal / practiceAum) * 100) : 0,
+        color: "#f59e0b",
+        description: "Fixed income & capital preservation",
+      },
+    ].filter((c) => c.totalValue > 0);
+
+    // Advisory Signals
+    const advisorySignals: AdvisorySignal[] = [];
+    clientList.forEach((c) => {
+      if (c.equityPct >= 90 && c.currentValue >= 100000) {
+        advisorySignals.push({
+          id: `drift-${c.id}`,
+          type: "rebalance",
+          category: "Risk & Allocation",
+          severity: "high",
+          clientName: c.name,
+          title: "Equity Skew (>90%)",
+          detail: `${c.name}'s portfolio is ${c.equityPct}% in Equity (${formatIndianUnits(c.currentValue)}). Consider diversifying into Debt or Arbitrage to lock in gains.`,
+          metricLabel: "Equity Mix",
+          metricValue: `${c.equityPct}%`,
+          actionText: "Rebalance",
+        });
+      } else if (c.equityPct <= 25 && c.currentValue >= 100000) {
+        advisorySignals.push({
+          id: `drag-${c.id}`,
+          type: "rebalance",
+          category: "Risk & Allocation",
+          severity: "medium",
+          clientName: c.name,
+          title: "High Cash / Debt Drag (<25% Equity)",
+          detail: `Only ${c.equityPct}% in growth assets. Portfolio may underperform inflation over multi-year horizons.`,
+          metricLabel: "Equity Mix",
+          metricValue: `${c.equityPct}%`,
+          actionText: "Deploy Equity",
+        });
+      }
+
+      if (c.returns >= 50000 && c.equityPct >= 50) {
+        const harvestable = Math.min(125000, Math.max(0, c.returns));
+        advisorySignals.push({
+          id: `tax-${c.id}`,
+          type: "tax_harvest",
+          category: "Tax Optimization",
+          severity: "medium",
+          clientName: c.name,
+          title: "Annual Tax Harvesting Window",
+          detail: `Gains of ${formatIndianUnits(c.returns)}. Consider booking up to ${formatIndianUnits(harvestable)} under section 112A annual exemption and reinvesting.`,
+          metricLabel: "Unrealized Gain",
+          metricValue: formatIndianUnits(c.returns),
+          actionText: "Tax Harvest",
+        });
+      }
+
+      if (c.isDormant) {
+        advisorySignals.push({
+          id: `dormant-${c.id}`,
+          type: "dormancy",
+          category: "Client Engagement",
+          severity: "medium",
+          clientName: c.name,
+          title: "Dormant Client Review Needed",
+          detail: `No transaction activity in over 6 months (${formatRelativeDate(c.latestActivity)}). Schedule a portfolio performance check-in.`,
+          metricLabel: "Last Active",
+          metricValue: formatRelativeDate(c.latestActivity),
+          actionText: "Reach Out",
+        });
+      }
+
+      if (c.sipCount === 0 && c.currentValue >= 200000) {
+        advisorySignals.push({
+          id: `sip-${c.id}`,
+          type: "sip_potential",
+          category: "Wealth Velocity",
+          severity: "info",
+          clientName: c.name,
+          title: "No Active SIP Registered",
+          detail: `High portfolio value of ${formatIndianUnits(c.currentValue)} with 0 active systematic plans. Set up recurring compounding.`,
+          metricLabel: "Active SIPs",
+          metricValue: "0",
+          actionText: "Start SIP",
+        });
+      }
+    });
+
+    const sortedClients = [...clientList].sort((a, b) => b.currentValue - a.currentValue);
+    const top1Concentration =
+      practiceAum > 0 && sortedClients[0] ? Math.round((sortedClients[0].currentValue / practiceAum) * 100) : 0;
+    const top3Concentration =
+      practiceAum > 0
+        ? Math.round((sortedClients.slice(0, 3).reduce((s, c) => s + c.currentValue, 0) / practiceAum) * 100)
+        : 0;
+    const avgClientAum = clientList.length > 0 ? practiceAum / clientList.length : 0;
+
+    let totalEquity = 0,
+      totalDebt = 0,
+      totalHybrid = 0;
+    clientList.forEach((c) => {
+      totalEquity += (c.equityPct * c.currentValue) / 100;
+      totalDebt += (c.debtPct * c.currentValue) / 100;
+      totalHybrid += (c.hybridPct * c.currentValue) / 100;
+    });
+
+    const totalInflow6M = monthlyFlows.reduce((s, m) => s + m.purchases, 0);
+    const totalOutflow6M = monthlyFlows.reduce((s, m) => s + m.redemptions, 0);
+    const netCashflow6M = totalInflow6M - totalOutflow6M;
+    const flowRetentionRate =
+      totalInflow6M > 0 ? Math.round(((totalInflow6M - totalOutflow6M) / totalInflow6M) * 100) : 0;
+
     return {
-      practiceAum: baseAum,
-      monthlyInflow: baseInflow,
-      activeClientsCount: clientList.length,
-      practiceSipBook: sipSum > 0 ? Math.round(sipSum / 6) : 1425000,
-      practiceGrowthData: growthTrajectory,
+      practiceAum,
+      netInvested,
+      totalReturns,
+      totalSipCount,
+      hniClients,
+      premiumClients,
+      regularClients,
+      monthlyFlows,
+      totalInflow6M,
+      totalOutflow6M,
+      netCashflow6M,
+      flowRetentionRate,
+      aumSparkline: monthlyFlows.map((m) => m.netFlow),
+      purchaseSparkline: monthlyFlows.map((m) => m.purchases),
+      lastActivity,
+      monthlyPurchaseTotal: mPurch,
+      monthlyRedemptionTotal: mRed,
+      allFunds,
+      topFunds: allFunds.filter((f) => f.returnsPercent > 0).slice(0, 5),
+      bottomFunds: allFunds
+        .filter((f) => f.returnsPercent < 0)
+        .sort((a, b) => a.returnsPercent - b.returnsPercent)
+        .slice(0, 5),
+      totalEquity,
+      totalDebt,
+      totalHybrid,
+      schemeCount: new Set(transactions.map((t) => t.schemeName).filter(Boolean)).size,
+      unassignedCount: transactions.filter((t) => !t.investorName?.trim()).length,
+      amcBreakdown,
+      marketCapBreakdown,
+      advisorySignals,
+      top1Concentration,
+      top3Concentration,
+      avgClientAum,
     };
   }, [clientList, transactions]);
 
-  // Filter clients
-  const filteredClients = useMemo(() => {
-    return clientList.filter((c) => {
-      const matchesSearch =
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.pan.toLowerCase().includes(search.toLowerCase());
-      if (!matchesSearch) return false;
-      if (kycFilter === "all") return true;
-      return c.kycStatus === kycFilter;
-    });
-  }, [clientList, search, kycFilter]);
+  /* ═══ Recent transactions stream ═════════════════════════════ */
+  const recentTxs = useMemo(
+    () =>
+      [...transactions]
+        .filter((t) => t.investmentDate && !Number.isNaN(new Date(t.investmentDate).getTime()))
+        .sort((a, b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime())
+        .slice(0, 6)
+        .map((t) => ({ ...t, clientName: t.investorName?.trim() || "" })),
+    [transactions]
+  );
 
-  const handleSelectClient = (name: string) => {
-    setSelectedInvestor(name);
-    if (onSwitchToInvestorView) {
-      onSwitchToInvestorView();
-    } else {
-      navigate("/portfolio");
-    }
-  };
+  const handleSelectClient = useCallback(
+    (name: string) => {
+      setSelectedInvestor(name);
+      navigate("/client-view");
+    },
+    [setSelectedInvestor, navigate]
+  );
 
+  /* ═══════════════════════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════════════════════ */
   return (
-    <div className="space-y-4 animate-in">
-      {/* ── Advisor Practice Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-blue-600 text-white font-bold text-[10px] tracking-wide uppercase px-2 py-0.5 shadow-sm">
-              Advisor Portal
-            </Badge>
-            <h2 className="text-base sm:text-lg font-heading font-extrabold text-foreground">
-              Wealth Practice Overview
-            </h2>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time management for distributor folios, client onboarding, and automated book auditing.
-          </p>
-        </div>
+    <div className="space-y-5 animate-in">
+      {/* ─── HERO BANNER ───────────────────────────────────────── */}
+      <header className="relative isolate overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 px-6 py-7 text-white shadow-glass">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/4 h-48 w-48 rounded-full bg-emerald-500/8 blur-3xl" />
+        <div className="pointer-events-none absolute right-1/3 top-0 h-32 w-32 rounded-full bg-violet-500/10 blur-2xl" />
 
-        <div className="flex items-center gap-2">
-          {onSwitchToInvestorView && (
+        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10 backdrop-blur-sm">
+                <Building2 className="h-7 w-7 text-blue-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium tracking-wide text-blue-300/90 uppercase">{greeting}</p>
+                <h1 className="text-2xl font-heading font-bold tracking-tight lg:text-[28px]">{advisorName}</h1>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[.07] px-3 py-1.5 text-[11px] font-medium text-white/90 ring-1 ring-white/10 backdrop-blur-sm">
+                <Users className="h-3.5 w-3.5 text-blue-300" /> {clientList.length} Clients
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[.07] px-3 py-1.5 text-[11px] font-medium text-white/90 ring-1 ring-white/10 backdrop-blur-sm">
+                <Briefcase className="h-3.5 w-3.5 text-emerald-300" /> AUM {formatIndianUnits(metrics.practiceAum)}
+              </span>
+              {metrics.lastActivity && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[.07] px-3 py-1.5 text-[11px] font-medium text-white/70 ring-1 ring-white/10 backdrop-blur-sm">
+                  <Clock3 className="h-3.5 w-3.5" /> Last activity: {formatRelativeDate(metrics.lastActivity)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
             <Button
-              variant="outline"
               size="sm"
-              onClick={onSwitchToInvestorView}
-              className="text-xs font-bold border-border/80 hover:bg-muted"
+              onClick={() => {
+                setSelectedInvestor("all");
+                navigate("/client-view");
+              }}
+              className="h-10 gap-2 bg-white px-4 text-xs font-bold text-slate-900 shadow-md hover:bg-blue-50 transition-all cursor-pointer"
             >
-              <UserPlus className="h-3.5 w-3.5 mr-1 text-blue-600" />
-              Preview Client View
+              <Eye className="h-4 w-4 text-blue-600" /> Client View
             </Button>
-          )}
-          <Button
-            size="sm"
-            onClick={() => navigate("/admin/data-upload")}
-            className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-          >
-            <Upload className="h-3.5 w-3.5 mr-1" />
-            Upload Client CAS
-          </Button>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* ── Top Row: 4 Practice KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 1: Practice AUM */}
-        <Card className="bg-card border border-border rounded-xl shadow-xs hover:shadow-md transition-all p-4 flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">Total Practice AUM</span>
-            <div className="h-7 w-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Briefcase className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <p className="text-2xl sm:text-3xl font-heading font-extrabold text-foreground">
-              {formatIndianUnits(practiceAum)}
-            </p>
-            <div className="flex items-center gap-1.5 mt-2 text-[11px]">
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">↑ 3.65%</span>
-              <span className="text-muted-foreground">Practice MoM Growth</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 2: Net Monthly Inflow */}
-        <Card className="bg-card border border-border rounded-xl shadow-xs hover:shadow-md transition-all p-4 flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">Net Monthly Inflow</span>
-            <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <p className="text-2xl sm:text-3xl font-heading font-extrabold text-foreground">
-              {formatIndianUnits(monthlyInflow)}
-            </p>
-            <div className="flex items-center gap-1.5 mt-2 text-[11px]">
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">↑ 8.2%</span>
-              <span className="text-muted-foreground">Fresh Client Inflows</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 3: Active Client Accounts */}
-        <Card className="bg-card border border-border rounded-xl shadow-xs hover:shadow-md transition-all p-4 flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">Active Investors</span>
-            <div className="h-7 w-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-              <Users className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <p className="text-2xl sm:text-3xl font-heading font-extrabold text-foreground">
-              {activeClientsCount}
-            </p>
-            <div className="flex items-center gap-1.5 mt-2 text-[11px]">
-              <span className="font-bold text-blue-600 dark:text-blue-400">Mapped</span>
-              <span className="text-muted-foreground">client folios managed</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 4: Monthly SIP Book */}
-        <Card className="bg-card border border-border rounded-xl shadow-xs hover:shadow-md transition-all p-4 flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">Practice Monthly SIP</span>
-            <div className="h-7 w-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Activity className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <p className="text-2xl sm:text-3xl font-heading font-extrabold text-foreground">
-              {formatIndianUnits(practiceSipBook)}
-            </p>
-            <div className="flex items-center gap-1.5 mt-2 text-[11px]">
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">Recurring</span>
-              <span className="text-muted-foreground">monthly book run-rate</span>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* ── Row 2: Practice Health Action Banners ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-foreground">KYC Verification Status</p>
-              <p className="text-[10px] text-muted-foreground">Mandates ready for execution</p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/admin/investors")}
-            className="h-7 text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
-          >
-            Review
-          </Button>
-        </div>
-
-        <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-              <Clock className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-foreground">Active SIP Mandates</p>
-              <p className="text-[10px] text-muted-foreground">Recurring systematic investments</p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/transactions")}
-            className="h-7 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
-          >
-            Ledger
-          </Button>
-        </div>
-
-        <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-foreground">CAS Batch Sync Active</p>
-              <p className="text-[10px] text-muted-foreground">Database synchronized with RTA feeds</p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/admin/data-upload")}
-            className="h-7 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
-          >
-            Import
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Row 3: Practice Growth Trajectory Chart & Quick Management ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-8 bg-card border border-border rounded-xl shadow-xs p-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border/50">
-            <div>
-              <h3 className="text-sm font-bold text-foreground">Practice AUM & Inflow Trajectory</h3>
-              <p className="text-[11px] text-muted-foreground">6-month consolidated growth across distributor codes</p>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-blue-600" />
-                <span>Total AUM</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Monthly Inflow</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-3">
-            <ResponsiveContainer width="100%" height={210}>
-              <AreaChart data={practiceGrowthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="aumGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.28} />
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.0} />
-                  </linearGradient>
-                  <linearGradient id="inflowGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.28} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={(val) => formatIndianUnits(val)} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }}
-                  formatter={(val: number) => [formatIndianUnits(val), ""]}
-                />
-                <Area type="monotone" dataKey="aum" name="Total AUM" stroke="#2563eb" strokeWidth={2.2} fill="url(#aumGrad)" />
-                <Area type="monotone" dataKey="inflow" name="Inflow" stroke="#10b981" strokeWidth={2} fill="url(#inflowGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Quick Advisor Operations */}
-        <Card className="lg:col-span-4 bg-card border border-border rounded-xl shadow-xs p-4 flex flex-col justify-between">
+      {/* ─── ERROR STATE ───────────────────────────────────────── */}
+      {investmentsError && (
+        <div role="alert" className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
           <div>
-            <h3 className="text-sm font-bold text-foreground">Advisor Actions</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Frequent practice workflows</p>
+            <p className="font-semibold text-foreground">Client investment data could not be loaded.</p>
+            <p className="mt-1 text-muted-foreground">{investmentsError instanceof Error ? investmentsError.message : "Please try again later."}</p>
+          </div>
+        </div>
+      )}
 
-            <div className="space-y-2 mt-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/admin/investors")}
-                className="w-full justify-start text-xs font-semibold h-8 border-border/80"
-              >
-                <Users className="h-3.5 w-3.5 mr-2 text-blue-600" />
-                Investor Directory & KYC
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/online-transactions")}
-                className="w-full justify-start text-xs font-semibold h-8 border-border/80"
-              >
-                <Sparkles className="h-3.5 w-3.5 mr-2 text-indigo-600" />
-                Execute Client Transaction
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/transaction-reports")}
-                className="w-full justify-start text-xs font-semibold h-8 border-border/80"
-              >
-                <FileText className="h-3.5 w-3.5 mr-2 text-emerald-600" />
-                Generate Client Tax Report
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/admin/data-upload")}
-                className="w-full justify-start text-xs font-semibold h-8 border-border/80"
-              >
-                <Upload className="h-3.5 w-3.5 mr-2 text-amber-600" />
-                Batch Ingest RTA Workbook
-              </Button>
+      {/* ─── LOADING STATE ─────────────────────────────────────── */}
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="h-36 animate-pulse rounded-2xl border border-border/50 bg-muted/30" />
+          ))}
+        </div>
+      ) : investmentsError ? null : transactions.length === 0 ? (
+        /* ─── EMPTY STATE ────────────────────────────────────── */
+        <Card className="rounded-2xl border-dashed border-2 shadow-sm">
+          <CardContent className="flex flex-col items-center px-8 py-20 text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 text-primary shadow-glow/20">
+              <Wallet className="h-10 w-10" />
             </div>
-          </div>
-
-          <div className="p-2.5 rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/30 text-[11px] mt-3">
-            <span className="font-semibold text-blue-700 dark:text-blue-300">Auditor-Ready Ledger:</span>
-            <span className="text-muted-foreground ml-1">All folio actions and trade records are cryptographically timestamped.</span>
-          </div>
+            <h2 className="mt-6 text-2xl font-heading font-bold text-foreground">Welcome to BrickWealth Advisor</h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
+              Once transactions and investor accounts are loaded, your practice AUM, client portfolios,
+              and live performance analytics will automatically appear here.
+            </p>
+          </CardContent>
         </Card>
-      </div>
+      ) : (
+        <>
+          {/* ═══ STICKY QUICK-JUMP NAVIGATION ═════════════════════ */}
+          <nav className="sticky top-16 z-30 flex items-center gap-2 overflow-x-auto rounded-2xl border border-border/60 bg-background/95 p-1.5 shadow-sm backdrop-blur-xl">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-2 pr-1 shrink-0">
+              Command Center:
+            </span>
+            {[
+              { id: "kpis-section", label: "📊 Practice KPIs" },
+              { id: "cockpit-section", label: `⚡ Advisory Cockpit (${metrics.advisorySignals.length})`, highlight: metrics.advisorySignals.length > 0 },
+              { id: "cashflow-section", label: "📈 Cashflow & Allocation" },
+              { id: "amc-section", label: "🏛️ AMC & Asset Mix" },
+              { id: "clients-section", label: `👥 Client Book (${clientList.length})` },
+              { id: "funds-section", label: `📋 Scheme Holdings (${metrics.schemeCount})` },
+              { id: "performers-section", label: "🏆 Performance Matrix" },
+            ].map((anchor) => (
+              <button
+                key={anchor.id}
+                onClick={() => {
+                  const el = document.getElementById(anchor.id);
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className={cn(
+                  "shrink-0 rounded-xl px-3 py-1.5 text-[11px] font-semibold tracking-tight transition-all flex items-center gap-1.5 cursor-pointer",
+                  anchor.highlight
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25"
+                    : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted ring-1 ring-border/30"
+                )}
+              >
+                {anchor.label}
+              </button>
+            ))}
+          </nav>
 
-      {/* ── Row 4: Client Accounts Directory Table ── */}
-      <Card className="bg-card border border-border rounded-xl shadow-xs overflow-hidden">
-        <CardHeader className="p-4 border-b border-border/50">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-sm font-bold text-foreground">
-                Managed Client Accounts ({filteredClients.length})
-              </CardTitle>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Click "Inspect Portfolio" to preview and analyze any client folio directly.
-              </p>
-            </div>
+          {/* ═══ SECTION 1: KPIS & VELOCITY ═══════════════════════ */}
+          <AdvisorKpis metrics={metrics} clientList={clientList} />
 
-            <div className="flex items-center gap-2">
-              <div className="relative w-48 sm:w-60">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Search client or PAN..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-8 pl-8 text-xs bg-muted/40 border-border/70 rounded-lg"
-                />
-              </div>
+          {/* ═══ SECTION 2: ADVISORY COCKPIT ══════════════════════ */}
+          <AdvisoryCockpit signals={metrics.advisorySignals} onSelectClient={handleSelectClient} />
 
-              <div className="flex items-center gap-1 bg-muted/50 p-0.5 rounded-lg border border-border/50">
-                {(["all", "Verified", "Pending"] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setKycFilter(filter)}
-                    className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${
-                      kycFilter === filter ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {filter === "all" ? "All KYC" : filter}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </CardHeader>
+          {/* ═══ SECTION 3: CASHFLOW & ASSET ALLOCATION ═══════════ */}
+          <CashflowSection metrics={metrics} />
 
-        <CardContent className="p-0 overflow-x-auto scrollbar-thin">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/50">
-              <tr>
-                <th className="py-2.5 px-4">Client Name</th>
-                <th className="py-2.5 px-3">PAN</th>
-                <th className="py-2.5 px-3 text-center">Active Schemes</th>
-                <th className="py-2.5 px-3 text-right">Invested Value</th>
-                <th className="py-2.5 px-3 text-right">Current Valuation</th>
-                <th className="py-2.5 px-3 text-right">Returns (%)</th>
-                <th className="py-2.5 px-3 text-center">KYC Status</th>
-                <th className="py-2.5 px-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/30">
-              {filteredClients.map((client) => (
-                <tr key={client.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="py-2.5 px-4 font-bold text-foreground">
-                    <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px] font-extrabold shrink-0">
-                        {client.name.substring(0, 1)}
-                      </div>
-                      <span className="truncate">{client.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground uppercase">
-                    {client.pan}
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-medium text-foreground">
-                    {client.schemesCount}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-medium text-muted-foreground">
-                    ₹{client.invested.toLocaleString("en-IN")}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-extrabold text-foreground">
-                    ₹{client.currentValue.toLocaleString("en-IN")}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                    +{client.returnsPercent}%
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <Badge
-                      variant="secondary"
-                      className={
-                        client.kycStatus === "Verified"
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] border-none px-2 py-0.5 rounded-full"
-                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] border-none px-2 py-0.5 rounded-full"
-                      }
-                    >
-                      {client.kycStatus}
-                    </Badge>
-                  </td>
-                  <td className="py-2.5 px-4 text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSelectClient(client.name)}
-                      className="h-7 text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 px-2"
-                    >
-                      Inspect Portfolio →
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+          {/* ═══ SECTION 4: AMC & MARKET CAP DISTRIBUTION ═════════ */}
+          <AmcMarketShare
+            amcBreakdown={metrics.amcBreakdown}
+            marketCapBreakdown={metrics.marketCapBreakdown}
+          />
+
+          {/* ═══ SECTION 5: COMPLETE CLIENT BOOK ══════════════════ */}
+          <ClientBookTable clientList={clientList} onSelectClient={handleSelectClient} />
+
+          {/* ═══ SECTION 6: SCHEME HOLDINGS & FUND ANALYSIS ═══════ */}
+          <SchemeHoldingsTable funds={metrics.allFunds} />
+
+          {/* ═══ SECTION 7: PERFORMANCE MATRIX & TRADE STREAMS ════ */}
+          <PerformanceMatrix
+            topFunds={metrics.topFunds}
+            bottomFunds={metrics.bottomFunds}
+            recentTxs={recentTxs}
+          />
+
+          {/* ─── FOOTNOTE ───────────────────────────────────────── */}
+          <p className="text-center text-[10px] leading-5 text-muted-foreground/60">
+            Portfolio values are based on the latest NAV recorded in transaction history and may differ from live market valuations.
+            Data is derived from imported CAS/transaction files.
+          </p>
+        </>
+      )}
     </div>
   );
 });
 
 AdvisorDashboard.displayName = "AdvisorDashboard";
+
+export default AdvisorDashboard;

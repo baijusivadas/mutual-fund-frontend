@@ -29,56 +29,29 @@ export interface NotificationItem {
   actionLabel?: string;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-1",
-    type: "alert",
-    title: "Nifty 50 Index Milestone",
-    message: "Nifty crossed 25,400 points (+1.12%). Check asset rebalancing thresholds.",
-    timestamp: "10 mins ago",
-    date: new Date(Date.now() - 10 * 60 * 1000),
-    read: false,
-    urgent: false,
-    actionUrl: "/portfolio-analysis",
-    actionLabel: "Analyze Mix",
-  },
-  {
-    id: "notif-2",
-    type: "transaction",
-    title: "SIP Deduction Executed",
-    message: "₹5,000 processed for HDFC Flexi Cap Fund. Folio: 987654/01.",
-    timestamp: "2 hours ago",
-    date: new Date(Date.now() - 2 * 3600 * 1000),
-    read: false,
-    urgent: false,
-    actionUrl: "/transactions",
-    actionLabel: "View Ledger",
-  },
-  {
-    id: "notif-3",
-    type: "reminder",
-    title: "Client KYC Verification Required",
-    message: "2 investor accounts require updated PAN/Aadhaar document verification.",
-    timestamp: "1 day ago",
-    date: new Date(Date.now() - 24 * 3600 * 1000),
-    read: false,
-    urgent: true,
-    actionUrl: "/admin/investors",
-    actionLabel: "Review KYC",
-  },
-];
+interface LiabilityNotificationRecord {
+  id?: string | number;
+  liability_name?: string;
+  loan_type?: string;
+  start_date?: string;
+  monthly_emi?: number | string | null;
+}
 
 export const NotificationCenter = memo(() => {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "alert" | "transaction" | "reminder">("all");
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(() => new Set());
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<string>>(
+    () => new Set()
+  );
 
   // Dynamic liability EMI alerts
-  const { data: liabilities = [] } = useAdvancedEntity<any>("liabilities");
+  const { data: liabilities = [] } = useAdvancedEntity<LiabilityNotificationRecord>("liabilities");
 
   // Merge liabilities into reminders
   const combinedNotifications = useMemo(() => {
-    const list = [...notifications];
+    const list = notifications.filter((notification) => !dismissedNotificationIds.has(notification.id));
     const today = new Date();
     const nextWeek = new Date();
     nextWeek.setDate(today.getDate() + 7);
@@ -95,9 +68,9 @@ export const NotificationCenter = memo(() => {
 
       if (nextPayment >= today && nextPayment <= nextWeek) {
         const daysLeft = Math.ceil((nextPayment.getTime() - today.getTime()) / (1000 * 3600 * 24));
-        const id = `emi-${l.id || l.liability_name}`;
+        const id = `emi-${l.id || l.liability_name}-${nextPayment.getFullYear()}-${nextPayment.getMonth()}`;
 
-        if (!list.some((n) => n.id === id)) {
+        if (!dismissedNotificationIds.has(id) && !list.some((n) => n.id === id)) {
           list.push({
             id,
             type: "reminder",
@@ -105,7 +78,7 @@ export const NotificationCenter = memo(() => {
             message: `₹${Number(l.monthly_emi).toLocaleString("en-IN")} due in ${daysLeft} day(s).`,
             timestamp: `${daysLeft}d left`,
             date: nextPayment,
-            read: false,
+            read: readNotificationIds.has(id),
             urgent: daysLeft <= 2,
             actionUrl: "/liabilities",
             actionLabel: "Pay EMI",
@@ -115,7 +88,7 @@ export const NotificationCenter = memo(() => {
     });
 
     return list.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [notifications, liabilities]);
+  }, [notifications, liabilities, readNotificationIds, dismissedNotificationIds]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return combinedNotifications;
@@ -134,16 +107,19 @@ export const NotificationCenter = memo(() => {
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setReadNotificationIds((prev) => new Set([...prev, ...combinedNotifications.map((item) => item.id)]));
   };
 
   const markItemAsRead = (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    setReadNotificationIds((prev) => new Set(prev).add(id));
   };
 
   const clearAll = () => {
     setNotifications([]);
+    setDismissedNotificationIds((prev) => new Set([...prev, ...combinedNotifications.map((item) => item.id)]));
   };
 
   return (
@@ -326,7 +302,7 @@ export const NotificationCenter = memo(() => {
         {/* Footer */}
         <div className="p-2 border-t border-border/50 bg-muted/20 text-center">
           <Link
-            to="/admin/notifications"
+            to="/notifications"
             onClick={() => setOpen(false)}
             className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline"
           >
@@ -339,4 +315,3 @@ export const NotificationCenter = memo(() => {
 });
 
 NotificationCenter.displayName = "NotificationCenter";
-

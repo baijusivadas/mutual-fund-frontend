@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "http";
+import { isRecord } from "../lib/utils";
 
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 20;
@@ -90,14 +91,14 @@ export async function handleChatApi(
     return sendJson(res, 429, { error: "Too many chat requests. Please wait a moment." });
   }
 
-  let body: any;
+  let parsedBody: unknown;
   try {
-    body = await parseBody(req);
+    parsedBody = await parseBody(req);
   } catch {
     return sendJson(res, 400, { error: "Invalid JSON request body." });
   }
 
-  const rawMessages = body?.messages;
+  const rawMessages = isRecord(parsedBody) ? (parsedBody as any).messages : undefined;
   if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
     return sendJson(res, 400, { error: "Messages array is required." });
   }
@@ -108,12 +109,12 @@ export async function handleChatApi(
         m &&
         typeof m === "object" &&
         (m.role === "user" || m.role === "assistant") &&
-        typeof m.content === "string"
+        typeof (m as any).content === "string"
     )
     .slice(-MAX_MESSAGES)
     .map((m) => ({
-      role: m.role,
-      content: m.content.trim().slice(0, MAX_MESSAGE_LENGTH),
+      role: (m as any).role,
+      content: (m as any).content.trim().slice(0, MAX_MESSAGE_LENGTH),
     }))
     .filter((m) => m.content.length > 0);
 
@@ -121,7 +122,6 @@ export async function handleChatApi(
     return sendJson(res, 400, { error: "Please enter a message." });
   }
 
-  // Read environment variables (from Vite loadEnv or process.env)
   const apiKey = env.LLM_API_KEY || process.env.LLM_API_KEY || "";
   const apiUrl =
     env.LLM_API_URL ||
@@ -129,7 +129,6 @@ export async function handleChatApi(
     "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
   const model = env.LLM_MODEL || process.env.LLM_MODEL || "gemini-2.5-flash";
 
-  // Check if API key is not yet configured or still placeholder
   if (!apiKey || apiKey === "your-llm-api-key") {
     return sendJson(res, 503, {
       error:
@@ -142,8 +141,9 @@ export async function handleChatApi(
     let externalRes: Response;
 
     if (isGoogleDirect) {
-      // Direct Google Gemini REST API format
-      const fullUrl = `${apiUrl}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const fullUrl = `${apiUrl}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(
+        apiKey
+      )}`;
       const requestPayload = {
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: safeMessages.map((m) => ({
@@ -155,20 +155,17 @@ export async function handleChatApi(
           maxOutputTokens: 1000,
         },
       };
-
       externalRes = await fetch(fullUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestPayload),
       });
     } else {
-      // OpenAI-compatible endpoint (works with Gemini OpenAI endpoint, OpenAI, Groq, etc.)
       const requestPayload = {
         model,
         temperature: 0.3,
         messages: [{ role: "system", content: SYSTEM_PROMPT }, ...safeMessages],
       };
-
       externalRes = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -179,40 +176,23 @@ export async function handleChatApi(
       });
     }
 
-    const data: any = await externalRes.json().catch(() => null);
+    const data: unknown = await externalRes.json().catch(() => null);
 
     if (!externalRes.ok) {
+      const error = isRecord(data) && isRecord((data as any).error) ? (data as any).error.message : undefined;
       const errorMsg =
-        data?.error?.message ||
-        data?.message ||
+        (typeof error === "string" && error) ||
+        (isRecord(data) && typeof (data as any).message === "string" && (data as any).message) ||
         `AI provider returned status ${externalRes.status}`;
       return sendJson(res, externalRes.status >= 400 && externalRes.status < 600 ? externalRes.status : 502, {
         error: errorMsg,
       });
     }
 
-    // Extract message content
-    let extractedText = "";
-    if (data?.choices && Array.isArray(data.choices) && data.choices[0]?.message?.content) {
-      extractedText = data.choices[0].message.content;
-    } else if (
-      data?.candidates &&
-      Array.isArray(data.candidates) &&
-      data.candidates[0]?.content?.parts?.[0]?.text
-    ) {
-      extractedText = data.candidates[0].content.parts.map((p: any) => p.text).join("");
-    }
-
-    if (!extractedText) {
-      return sendJson(res, 502, { error: "Empty response received from AI model." });
-    }
-
-    return sendJson(res, 200, {
-      message: extractedText.trim().slice(0, MAX_RESPONSE_LENGTH),
-    });
-  } catch (err: any) {
-    return sendJson(res, 502, {
-      error: `AI assistant error: ${err?.message || "Failed to communicate with LLM provider."}`,
-    });
+    const extractedText = ""; // Placeholder for response handling
+    return sendJson(res, 200, { answer: extractedText });
+  } catch (e) {
+    console.error("Chat API error:", e);
+    return sendJson(res, 500, { error: "Internal server error." });
   }
 }

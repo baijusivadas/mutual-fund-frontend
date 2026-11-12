@@ -10,40 +10,49 @@ import { cn } from "@/lib/utils";
 import {
   MarketNewsItem,
   fetchMarketNews,
-  DEFAULT_NEWS_BY_CATEGORY,
 } from "@/services/marketService";
 
 type NewsTab = "nse" | "bse" | "market";
 
 export const LiveMarketNews = memo(() => {
   const [activeTab, setActiveTab] = useState<NewsTab>("nse");
-  const [news, setNews] = useState<MarketNewsItem[]>(DEFAULT_NEWS_BY_CATEGORY.nse);
+  const [news, setNews] = useState<MarketNewsItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState("");
+  const [isStale, setIsStale] = useState(false);
 
-  const loadData = useCallback(async (tab: NewsTab, isManual = false) => {
-    if (isManual) setIsLoading(true);
+  const loadData = useCallback(async (tab: NewsTab) => {
+    setIsLoading(true);
+    setError("");
     try {
       const newsRes = await fetchMarketNews(tab);
+      setIsStale(newsRes.isStale === true);
       if (newsRes && newsRes.news && newsRes.news.length > 0) {
         setNews(newsRes.news);
+      } else {
+        setNews([]);
       }
-    } catch (err) {
-      console.warn("Failed to refresh live market news:", err);
+    } catch (loadError: unknown) {
+      setNews([]);
+      setIsStale(false);
+      setError(
+        loadError instanceof Error ? loadError.message : "Market news is temporarily unavailable."
+      );
     } finally {
-      if (isManual) setIsLoading(false);
+      setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData(activeTab, false);
+    void loadData(activeTab);
     const interval = setInterval(() => {
-      loadData(activeTab, false);
+      void loadData(activeTab);
     }, 180000);
     return () => clearInterval(interval);
   }, [activeTab, loadData]);
 
   const handleRefresh = () => {
-    loadData(activeTab, true);
+    void loadData(activeTab);
   };
 
   return (
@@ -124,7 +133,14 @@ export const LiveMarketNews = memo(() => {
         {/* 5 Compact Headline Items matching reference image */}
         <CardContent className="p-3 sm:p-3.5 pt-1.5 pb-2">
           <div className="divide-y divide-border/30">
-            {news.slice(0, 5).map((item) => {
+            {isStale && news.length > 0 && (
+              <p className="pb-2 text-center text-[10px] text-amber-600">Showing cached headlines; refresh failed.</p>
+            )}
+            {news.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground" role={error ? "alert" : undefined}>
+                {isLoading ? "Loading market news..." : error || "No market headlines are available."}
+              </p>
+            ) : news.slice(0, 5).map((item) => {
               const isUp = item.direction === "up" || item.sentiment === "positive";
               const isDown = item.direction === "down" || item.sentiment === "negative";
 

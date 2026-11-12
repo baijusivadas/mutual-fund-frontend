@@ -2,6 +2,7 @@ import { memo, useMemo, useCallback } from "react";
 import { useInvestor } from "@/contexts/InvestorContext";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { useAdvancedPortfolio } from "@/hooks/useAdvancedPortfolio";
+import { useUserInvestments } from "@/hooks/useUserInvestments";
 import { calculateXIRR } from "@/lib/xirr";
 import { isSellTransaction } from "@/utils/parseTransactions";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -22,8 +23,6 @@ import {
   YAxis,
   CartesianGrid,
   Legend,
-  AreaChart,
-  Area,
 } from "recharts";
 import {
   TrendingUp,
@@ -43,33 +42,7 @@ import {
   Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const SPARKLINE_HEIGHT = 44;
-
-/* ── Smooth Sparkline ────────────────────────────────────────── */
-const Sparkline = memo(({ data, color = "#2563eb" }: { data: number[]; color?: string }) => {
-  const chartData = useMemo(() => {
-    const safe = data && data.length > 0 ? data : [10, 15, 20, 25, 30];
-    return safe.map((v, i) => ({ i, v }));
-  }, [data]);
-
-  const gradId = `pa-spk-${color.replace("#", "")}`;
-
-  return (
-    <ResponsiveContainer width="100%" height={SPARKLINE_HEIGHT}>
-      <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2.2} fill={`url(#${gradId})`} dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-});
-Sparkline.displayName = "Sparkline";
+import { useQueryClient } from "@tanstack/react-query";
 
 /* ── KPI Metric Card ─────────────────────────────────────────── */
 interface ModernAnalysisKpiCardProps {
@@ -78,14 +51,12 @@ interface ModernAnalysisKpiCardProps {
   subValue?: string;
   tag?: string;
   isPositive?: boolean;
-  sparkData: number[];
-  sparkColor: string;
   icon: React.ReactNode;
   footerNote?: string;
 }
 
 const ModernAnalysisKpiCard = memo(
-  ({ title, value, subValue, tag, isPositive = true, sparkData, sparkColor, icon, footerNote }: ModernAnalysisKpiCardProps) => (
+  ({ title, value, subValue, tag, isPositive = true, icon, footerNote }: ModernAnalysisKpiCardProps) => (
     <Card className="relative overflow-hidden bg-card border border-border/80 rounded-2xl shadow-xs hover:shadow-md hover:border-primary/30 transition-all duration-200 group flex flex-col justify-between">
       <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full">
         <div>
@@ -105,14 +76,11 @@ const ModernAnalysisKpiCard = memo(
                 </p>
               )}
             </div>
-            <div className="w-[95px] shrink-0">
-              <Sparkline data={sparkData} color={sparkColor} />
-            </div>
           </div>
         </div>
 
         <div className="mt-3 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>{footerNote || "Audit Verified"}</span>
+          <span>{footerNote || "Recorded portfolio data"}</span>
           {tag && (
             <Badge
               variant="outline"
@@ -224,14 +192,21 @@ SchemeCard.displayName = "SchemeCard";
 /* ── Main Page ───────────────────────────────────────────────── */
 export const PortfolioAnalysis = () => {
   const { filteredTransactions, isNewUser, investors, selectedInvestor } = useInvestor();
+  const { isLoading: isTransactionsLoading, error: transactionsError } = useUserInvestments();
+  const queryClient = useQueryClient();
   const {
     schemeData,
     totalInvested,
     currentValue,
     xirr: overallXirr,
-    performanceData,
   } = usePortfolioData(filteredTransactions, isNewUser);
-  const { totalAssets, totalLiabilities, totalInvestments: advancedInvestments } = useAdvancedPortfolio();
+  const {
+    totalAssets,
+    totalLiabilities,
+    totalInvestments: advancedInvestments,
+    isLoading: isAdvancedPortfolioLoading,
+    error: advancedPortfolioError,
+  } = useAdvancedPortfolio();
 
   const totalReturns = currentValue - totalInvested;
   const overallAllReturn = totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : "0.00";
@@ -243,7 +218,7 @@ export const PortfolioAnalysis = () => {
       { name: "Real Estate", value: totalAssets, color: "#10b981" },
       { name: "Other Assets", value: advancedInvestments, color: "#f59e0b" },
     ].filter((d) => d.value > 0);
-    return items.length > 0 ? items : [{ name: "Mutual Funds", value: 1, color: "#2563eb" }];
+    return items;
   }, [currentValue, totalAssets, advancedInvestments]);
 
   const totalPortfolioValue = currentValue + totalAssets + advancedInvestments;
@@ -292,6 +267,22 @@ export const PortfolioAnalysis = () => {
 
   const hasData = schemeData.length > 0;
 
+  if (isTransactionsLoading || transactionsError) {
+    return (
+      <div className="space-y-5 animate-in">
+        <PageHeader title="Portfolio Attribution & Analysis" description="Analysis of recorded transactions and holdings." />
+        {isTransactionsLoading ? (
+          <div role="status" className="rounded-xl border border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">Loading transaction data…</div>
+        ) : (
+          <div role="alert" className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <span>Portfolio transaction data could not be loaded.</span>
+            <Button variant="outline" onClick={() => void queryClient.invalidateQueries({ queryKey: ["user-investments"] })}>Retry</Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 animate-in">
       {/* ── Page Header ── */}
@@ -306,7 +297,7 @@ export const PortfolioAnalysis = () => {
             </h1>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Detailed breakdown for {selectedInvestor === "all" ? `${investors.length} investor(s)` : selectedInvestor} across asset classes and schemes.
+            Analysis of recorded transactions and holdings for {selectedInvestor === "all" ? `${investors.length} investor(s)` : selectedInvestor}.
           </p>
         </div>
 
@@ -326,19 +317,15 @@ export const PortfolioAnalysis = () => {
           title="Total Invested"
           value={formatIndianUnits(totalInvested)}
           subValue={`${schemeData.length} Active Schemes`}
-          sparkData={performanceData.length > 1 ? performanceData.map((p) => p.invested) : [totalInvested * 0.9, totalInvested]}
-          sparkColor="#2563eb"
           icon={<Target className="h-4 w-4" />}
           tag="Cost Basis"
         />
 
         <ModernAnalysisKpiCard
-          title="Current Valuation"
+          title="Latest Recorded Value"
           value={formatIndianUnits(currentValue)}
           subValue={`${isPositive ? "+" : ""}${overallAllReturn}% Return`}
           isPositive={isPositive}
-          sparkData={performanceData.length > 1 ? performanceData.map((p) => p.value) : [currentValue * 0.9, currentValue]}
-          sparkColor="#10b981"
           icon={isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
           tag={isPositive ? "Profitable" : "Deficit"}
         />
@@ -348,8 +335,6 @@ export const PortfolioAnalysis = () => {
           value={`${isPositive ? "+" : ""}${formatIndianUnits(totalReturns)}`}
           subValue={isPositive ? "Above net invested" : "Below net invested"}
           isPositive={isPositive}
-          sparkData={performanceData.length > 1 ? performanceData.map((p) => p.value - p.invested) : [totalReturns * 0.8, totalReturns]}
-          sparkColor={isPositive ? "#10b981" : "#ef4444"}
           icon={<DollarSign className="h-4 w-4" />}
           tag="Mark to Market"
         />
@@ -358,12 +343,22 @@ export const PortfolioAnalysis = () => {
           title="Portfolio XIRR"
           value={typeof overallXirr === "number" ? `${overallXirr.toFixed(1)}%` : "N/A"}
           subValue="Annualized Money-Weighted Return"
-          sparkData={[12, 13.5, 14.8, typeof overallXirr === "number" ? overallXirr : 15]}
-          sparkColor="#8b5cf6"
           icon={<Zap className="h-4 w-4" />}
           tag="XIRR"
         />
       </div>
+
+      {advancedPortfolioError && (
+        <div role="alert" className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>Additional asset totals are unavailable. Mutual fund analysis remains available.</span>
+          <button type="button" onClick={() => void queryClient.invalidateQueries({ queryKey: ["consolidated-portfolio"] })} className="w-fit font-semibold text-primary hover:underline">Retry</button>
+        </div>
+      )}
+      {isAdvancedPortfolioLoading && (
+        <div role="status" className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          Loading additional asset data…
+        </div>
+      )}
 
       {/* ── Charts Row: Asset Mix Donut & Monthly Activity ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -380,6 +375,7 @@ export const PortfolioAnalysis = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-6 pt-4 flex-1">
+            {allocationData.length > 0 ? <>
             <div className="relative h-44 w-44 shrink-0 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -425,6 +421,7 @@ export const PortfolioAnalysis = () => {
                 );
               })}
             </div>
+            </> : <div className="flex h-44 w-full items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted-foreground">No asset allocation data available.</div>}
           </div>
         </Card>
 
@@ -448,6 +445,7 @@ export const PortfolioAnalysis = () => {
           </div>
 
           <div className="pt-3 flex-1">
+            {monthlyData.some((month) => month.invested > 0 || month.redeemed > 0) ? (
             <ResponsiveContainer width="100%" height={210}>
               <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.4)" vertical={false} />
@@ -461,6 +459,7 @@ export const PortfolioAnalysis = () => {
                 <Bar dataKey="redeemed" name="Redemptions" fill="#ef4444" radius={[3, 3, 0, 0]} barSize={14} />
               </BarChart>
             </ResponsiveContainer>
+            ) : <div className="flex h-[210px] items-center justify-center text-sm text-muted-foreground">No transaction activity recorded for this period.</div>}
           </div>
         </Card>
       </div>

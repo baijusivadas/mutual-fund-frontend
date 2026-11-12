@@ -10,35 +10,8 @@ import { CommonCard } from "@/components/shared/CommonCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import api from "@/services/api";
-import { AreaChart, Area, ResponsiveContainer } from "recharts";
+import { Sparkline } from "@/components/charts/Sparkline";
 import { cn } from "@/lib/utils";
-
-const SPARKLINE_HEIGHT = 44;
-
-/* ── Smooth Sparkline ────────────────────────────────────────── */
-const Sparkline = memo(({ data, color = "#2563eb" }: { data: number[]; color?: string }) => {
-  const chartData = useMemo(() => {
-    const safe = data && data.length > 0 ? data : [10, 15, 20, 25, 30];
-    return safe.map((v, i) => ({ i, v }));
-  }, [data]);
-
-  const gradId = `notif-spk-${color.replace("#", "")}`;
-
-  return (
-    <ResponsiveContainer width="100%" height={SPARKLINE_HEIGHT}>
-      <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2.2} fill={`url(#${gradId})`} dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-});
-Sparkline.displayName = "Sparkline";
 
 /* ── KPI Metric Card ─────────────────────────────────────────── */
 interface ModernNotifKpiCardProps {

@@ -14,22 +14,17 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  AreaChart,
-  Area,
 } from "recharts";
 import {
   TrendingUp,
   DollarSign,
   Home,
-  Users,
   Calendar,
   Loader2,
   Activity,
   PieChart as PieIcon,
   Building,
   KeyRound,
-  ArrowUpRight,
-  ShieldCheck,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ChartInsight } from "@/components/charts/ChartInsight";
@@ -49,33 +44,6 @@ interface PropertyMetricsResponse {
   };
 }
 
-const SPARKLINE_HEIGHT = 44;
-
-/* ── Smooth Sparkline ────────────────────────────────────────── */
-const Sparkline = memo(({ data, color = "#2563eb" }: { data: number[]; color?: string }) => {
-  const chartData = useMemo(() => {
-    const safe = data && data.length > 0 ? data : [10, 15, 20, 25, 30];
-    return safe.map((v, i) => ({ i, v }));
-  }, [data]);
-
-  const gradId = `ana-spk-${color.replace("#", "")}`;
-
-  return (
-    <ResponsiveContainer width="100%" height={SPARKLINE_HEIGHT}>
-      <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2.2} fill={`url(#${gradId})`} dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-});
-Sparkline.displayName = "Sparkline";
-
 /* ── KPI Metric Card ─────────────────────────────────────────── */
 interface ModernAnalyticsKpiCardProps {
   title: string;
@@ -83,13 +51,11 @@ interface ModernAnalyticsKpiCardProps {
   subValue?: string;
   tag?: string;
   isPositive?: boolean;
-  sparkData: number[];
-  sparkColor: string;
   icon: React.ReactNode;
 }
 
 const ModernAnalyticsKpiCard = memo(
-  ({ title, value, subValue, tag, isPositive = true, sparkData, sparkColor, icon }: ModernAnalyticsKpiCardProps) => (
+  ({ title, value, subValue, tag, isPositive = true, icon }: ModernAnalyticsKpiCardProps) => (
     <Card className="relative overflow-hidden bg-card border border-border/80 rounded-2xl shadow-xs hover:shadow-md hover:border-primary/30 transition-all duration-200 group flex flex-col justify-between">
       <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full">
         <div>
@@ -108,9 +74,6 @@ const ModernAnalyticsKpiCard = memo(
                   {subValue}
                 </p>
               )}
-            </div>
-            <div className="w-[95px] shrink-0">
-              <Sparkline data={sparkData} color={sparkColor} />
             </div>
           </div>
         </div>
@@ -140,12 +103,10 @@ const CHART_PIE_COLORS = [
   "#ec4899",
 ];
 
-const PROPERTY_CATEGORY_COUNT = 3;
-
 export default function Analytics() {
   const { token } = useAuth();
 
-  const { data, isLoading } = useQuery<PropertyMetricsResponse>({
+  const { data, isLoading, isError, refetch } = useQuery<PropertyMetricsResponse>({
     queryKey: ["portfolio-metrics"],
     queryFn: async () => {
       const response = await api.get("/analytics/metrics");
@@ -192,8 +153,33 @@ export default function Analytics() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-5 animate-in" role="status" aria-live="polite">
+        <PageHeader title="Property & Asset Analytics" description="Loading your recorded real estate and rental data." />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <Card key={index} className="h-32 animate-pulse border-border/70 bg-muted/30" />
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          Loading analytics…
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-5 animate-in">
+        <PageHeader title="Property & Asset Analytics" description="Rental, occupancy, lease and valuation insights from your recorded property data." />
+        <Card className="rounded-2xl border border-destructive/30 bg-card">
+          <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">Property analytics could not be loaded. Please try again.</p>
+            <button type="button" onClick={() => void refetch()} className="rounded-lg border border-border px-3 py-2 text-sm font-semibold hover:bg-muted">
+              Retry
+            </button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -230,8 +216,6 @@ export default function Analytics() {
           value={`${metrics.occupancyRate.toFixed(1)}%`}
           subValue={`${occupiedCount} of ${rentalProperties.length} rentals occupied`}
           isPositive={metrics.occupancyRate >= 70}
-          sparkData={[metrics.occupancyRate * 0.9, metrics.occupancyRate * 0.95, metrics.occupancyRate]}
-          sparkColor="#2563eb"
           icon={<Activity className="h-4 w-4" />}
           tag="Tenancy"
         />
@@ -240,8 +224,6 @@ export default function Analytics() {
           title="Monthly Rental Income"
           value={formatIndianUnits(metrics.totalMonthlyRevenue)}
           subValue="Gross Inflow / Month"
-          sparkData={[metrics.totalMonthlyRevenue * 0.9, metrics.totalMonthlyRevenue * 0.95, metrics.totalMonthlyRevenue]}
-          sparkColor="#10b981"
           icon={<DollarSign className="h-4 w-4" />}
           tag="Monthly Cashflow"
         />
@@ -249,9 +231,7 @@ export default function Analytics() {
         <ModernAnalyticsKpiCard
           title="Total Properties"
           value={metrics.totalProperties.toString()}
-          subValue={`${PROPERTY_CATEGORY_COUNT} Categories Tracked`}
-          sparkData={[1, 2, metrics.totalProperties]}
-          sparkColor="#8b5cf6"
+          subValue={`${metrics.propertyTypeData.filter((item) => item.value > 0).length} Categories with assets`}
           icon={<Home className="h-4 w-4" />}
           tag="Units"
         />
@@ -260,8 +240,6 @@ export default function Analytics() {
           title="Real Estate Valuation"
           value={formatIndianUnits(metrics.totalPropertyValue)}
           subValue="Consolidated Asset Worth"
-          sparkData={[metrics.totalPropertyValue * 0.92, metrics.totalPropertyValue * 0.98, metrics.totalPropertyValue]}
-          sparkColor="#f59e0b"
           icon={<TrendingUp className="h-4 w-4" />}
           tag="Valuation"
         />
@@ -324,7 +302,7 @@ export default function Analytics() {
           </div>
 
           <div className="pt-3 flex-1 flex flex-col items-center justify-center">
-            <ResponsiveContainer width="100%" height={240}>
+            {metrics.statusDistribution.length > 0 ? <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie
                   data={metrics.statusDistribution}
@@ -342,7 +320,7 @@ export default function Analytics() {
                 <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }} />
                 <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: "11px" }} />
               </PieChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer> : <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">No property status records to chart.</div>}
           </div>
           <ChartInsight>{statusInsight}</ChartInsight>
         </Card>
@@ -360,6 +338,7 @@ export default function Analytics() {
           </div>
 
           <div className="pt-3 flex-1">
+            {metrics.propertyTypeData.some((item) => item.value > 0) ? (
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={metrics.propertyTypeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" vertical={false} />
@@ -378,6 +357,7 @@ export default function Analytics() {
                 <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={20} name="Units" />
               </BarChart>
             </ResponsiveContainer>
+            ) : <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">No property categories to chart.</div>}
           </div>
           <ChartInsight>{propertyTypeInsight}</ChartInsight>
         </Card>

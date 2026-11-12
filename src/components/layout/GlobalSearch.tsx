@@ -52,20 +52,20 @@ const SEARCH_ITEMS: SearchItem[] = [
   { id: "nav-cg", title: "Capital Gains Tax", subtitle: "FIFO short-term & long-term tax insights", category: "Navigation", icon: BarChart3, href: "/capital-gains" },
   { id: "nav-txn", title: "Transactions Ledger", subtitle: "Complete history of purchases & redemptions", category: "Navigation", icon: Receipt, href: "/transactions" },
   { id: "nav-rep", title: "Transaction Reports", subtitle: "Export consolidated client statements", category: "Navigation", icon: FileText, href: "/transaction-reports" },
-  { id: "nav-re", title: "Real Estate Holdings", subtitle: "Commercial & residential properties", category: "Navigation", icon: Building2, href: "/admin/real-estate" },
-  { id: "nav-gold", title: "Gold & Bullion", subtitle: "Physical gold & sovereign bonds", category: "Navigation", icon: Coins, href: "/admin/gold" },
+  { id: "nav-re", title: "Real Estate Holdings", subtitle: "Commercial & residential properties", category: "Navigation", icon: Building2, href: "/real-estate" },
+  { id: "nav-gold", title: "Gold & Bullion", subtitle: "Physical gold & sovereign bonds", category: "Navigation", icon: Coins, href: "/gold" },
 
   // Admin Navigation
-  { id: "adm-usr", title: "User Accounts", subtitle: "Manage user roles and credentials", category: "Navigation", icon: Users, href: "/admin/users", superAdminOnly: true },
-  { id: "adm-rol", title: "Roles & Permissions", subtitle: "Role hierarchy & authorization rules", category: "Navigation", icon: Shield, href: "/admin/roles", superAdminOnly: true },
-  { id: "adm-inv", title: "Investor Directory", subtitle: "Client profiles & KYC verification", category: "Navigation", icon: User, href: "/admin/investors", superAdminOnly: true },
-  { id: "adm-upld", title: "Data Importer", subtitle: "Batch import transaction workbooks & CAS", category: "Navigation", icon: Upload, href: "/admin/data-upload", superAdminOnly: true },
+  { id: "adm-usr", title: "User Accounts", subtitle: "Manage user roles and credentials", category: "Navigation", icon: Users, href: "/users", superAdminOnly: true },
+  { id: "adm-rol", title: "Roles & Permissions", subtitle: "Role hierarchy & authorization rules", category: "Navigation", icon: Shield, href: "/roles", superAdminOnly: true },
+  { id: "adm-inv", title: "Investor Directory", subtitle: "Client profiles & KYC verification", category: "Navigation", icon: User, href: "/investors", superAdminOnly: true },
+  { id: "adm-upld", title: "Data Importer", subtitle: "Batch import transaction workbooks & CAS", category: "Navigation", icon: Upload, href: "/data-upload", superAdminOnly: true },
 
   // Quick Actions
   { id: "act-inv", title: "Add Investment", subtitle: "Execute purchase, switch, or redemption", category: "Action", icon: PlusCircle, href: "/online-transactions" },
   { id: "act-stmt", title: "Download Account Statement", subtitle: "Export PDF / Excel client transaction reports", category: "Action", icon: Download, href: "/transactions" },
   { id: "act-cg", title: "Calculate Capital Gains", subtitle: "Compute STCG / LTCG with FY tax rules", category: "Action", icon: Sparkles, href: "/capital-gains" },
-  { id: "act-upld", title: "Upload CAS / Transaction File", subtitle: "Batch import investor transaction data", category: "Action", icon: Upload, href: "/admin/data-upload", superAdminOnly: true },
+  { id: "act-upld", title: "Upload CAS / Transaction File", subtitle: "Batch import investor transaction data", category: "Action", icon: Upload, href: "/data-upload", superAdminOnly: true },
 
   // Key Schemes
   { id: "sch-1", title: "HDFC Flexi Cap Fund", subtitle: "Equity • Current NAV ₹1,698.40", category: "Scheme", icon: TrendingUp, href: "/mutual-funds" },
@@ -76,9 +76,9 @@ const SEARCH_ITEMS: SearchItem[] = [
   { id: "sch-6", title: "Kotak Emerging Equity Fund", subtitle: "Mid Cap • Current NAV ₹112.80", category: "Scheme", icon: TrendingUp, href: "/mutual-funds" },
 
   // Clients / Investors
-  { id: "inv-1", title: "Rajesh Babu", subtitle: "PAN: ABCPR1234D • 12 Active Schemes", category: "Client / Investor", icon: User, href: "/admin/investors", superAdminOnly: true },
-  { id: "inv-2", title: "Dileep Kumar T S", subtitle: "PAN: BKPKD5678E • 8 Active Schemes", category: "Client / Investor", icon: User, href: "/admin/investors", superAdminOnly: true },
-  { id: "inv-3", title: "Ananya Sharma", subtitle: "PAN: CHKPS9876M • 5 Active Schemes", category: "Client / Investor", icon: User, href: "/admin/investors", superAdminOnly: true },
+  { id: "inv-1", title: "Rajesh Babu", subtitle: "PAN: ABCPR1234D • 12 Active Schemes", category: "Client / Investor", icon: User, href: "/investors", superAdminOnly: true },
+  { id: "inv-2", title: "Dileep Kumar T S", subtitle: "PAN: BKPKD5678E • 8 Active Schemes", category: "Client / Investor", icon: User, href: "/investors", superAdminOnly: true },
+  { id: "inv-3", title: "Ananya Sharma", subtitle: "PAN: CHKPS9876M • 5 Active Schemes", category: "Client / Investor", icon: User, href: "/investors", superAdminOnly: true },
 ];
 
 export const GlobalSearch = ({
@@ -268,4 +268,3 @@ export const GlobalSearch = ({
     </Dialog>
   );
 };
-

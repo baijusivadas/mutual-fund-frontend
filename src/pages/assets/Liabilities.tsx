@@ -1,6 +1,8 @@
 import { memo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DataManager } from "@/components/shared/DataManager";
-import { Banknote } from "lucide-react";
+import { Banknote, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,6 +15,29 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ColumnConfig } from "@/components/shared/CommonTable";
 import { formatCurrency } from "@/utils/format";
+import { useAuth } from "@/contexts/AuthContext";
+import api from "@/services/api";
+import { getErrorMessage } from "@/lib/errors";
+import { getAdvancedQueryKey } from "@/hooks/useAdvancedPortfolio";
+import { propertyQueryConfig } from "@/hooks/useQueryConfig";
+
+const useLiabilityLoadError = () => {
+  const { token } = useAuth();
+  const { isError, error, refetch } = useQuery({
+    queryKey: getAdvancedQueryKey("liabilities"),
+    queryFn: async () => {
+      const response = await api.get("/advanced/liabilities");
+      return Array.isArray(response.data) ? response.data : response.data.data || [];
+    },
+    enabled: !!token,
+    ...propertyQueryConfig,
+  });
+
+  return {
+    message: isError ? getErrorMessage(error, "Unable to load liabilities.") : "",
+    retry: refetch,
+  };
+};
 
 interface LiabilityItem {
   id: string;
@@ -90,28 +115,33 @@ const COLUMNS: ColumnConfig<LiabilityItem>[] = [
     key: "status",
     label: "Status",
     sortable: true,
-    render: (item) => (
-      <span
-        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-          item.status === "active"
-            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-        }`}
-      >
-        {item.status.toUpperCase()}
-      </span>
-    ),
+    render: (item) => {
+      const statusClass =
+        item.status === "active"
+          ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+          : item.status === "paid"
+            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+            : item.status === "defaulted"
+              ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
+              : "bg-muted text-muted-foreground border border-border";
+      return (
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize ${statusClass}`}>
+          {item.status.replace(/_/g, " ")}
+        </span>
+      );
+    },
   },
 ];
 
 const Liabilities = () => {
+  const { message, retry } = useLiabilityLoadError();
   const renderForm = useCallback(
     (
       formData: typeof DEFAULT_FORM_DATA,
       setFormData: React.Dispatch<React.SetStateAction<typeof DEFAULT_FORM_DATA>>
     ) => (
       <div className="grid gap-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Liability Name *</Label>
             <Input
@@ -141,14 +171,14 @@ const Liabilities = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Principal Amount (₹) *</Label>
             <Input
               type="number"
               value={formData.principal_amount}
               onChange={(e) => setFormData((prev) => ({ ...prev, principal_amount: e.target.value }))}
-              placeholder="5000000"
+              placeholder="Enter original principal"
               required
             />
           </div>
@@ -158,13 +188,13 @@ const Liabilities = () => {
               type="number"
               value={formData.outstanding_amount}
               onChange={(e) => setFormData((prev) => ({ ...prev, outstanding_amount: e.target.value }))}
-              placeholder="4200000"
+              placeholder="Enter remaining balance"
               required
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Interest Rate (% p.a.)</Label>
             <Input
@@ -172,7 +202,7 @@ const Liabilities = () => {
               step="0.01"
               value={formData.interest_rate}
               onChange={(e) => setFormData((prev) => ({ ...prev, interest_rate: e.target.value }))}
-              placeholder="8.5"
+              placeholder="Enter annual rate"
             />
           </div>
           <div className="grid gap-2">
@@ -181,12 +211,12 @@ const Liabilities = () => {
               type="number"
               value={formData.monthly_payment}
               onChange={(e) => setFormData((prev) => ({ ...prev, monthly_payment: e.target.value }))}
-              placeholder="45000"
+              placeholder="Enter monthly payment"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Lender / Financial Institution</Label>
             <Input
@@ -230,7 +260,16 @@ const Liabilities = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in">
+    <div className="min-w-0 space-y-6 animate-in">
+      {message && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-destructive">{message}</p>
+          <Button variant="outline" size="sm" onClick={() => void retry()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Try again
+          </Button>
+        </div>
+      )}
       <DataManager
         entity="liabilities"
         title="Liabilities & Loans"

@@ -1,5 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { useInvestor } from "@/contexts/InvestorContext";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { useAdvancedPortfolio } from "@/hooks/useAdvancedPortfolio";
@@ -13,7 +14,6 @@ import {
   ArrowUpRight,
   Filter,
   Info,
-  FileText,
   Lightbulb,
   PlusCircle,
   Download,
@@ -22,12 +22,12 @@ import {
   Layers,
   BarChart2,
   PieChart as PieChartIcon,
-  Home,
-  GraduationCap,
   Shield,
   Coins,
   Activity,
   UserCheck,
+  ArrowLeft,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -47,6 +47,7 @@ import { OverallPortfolioDetails } from "@/components/dashboard/OverallPortfolio
 import { LiveMarketNews } from "@/components/dashboard/LiveMarketNews";
 import { AiPortfolioAuditDialog } from "@/components/dashboard/AiPortfolioAuditDialog";
 import { formatIndianUnits } from "@/utils/format";
+import { Sparkline } from "@/components/charts/Sparkline";
 import {
   FEED_MAX_TRANSACTIONS,
   SPARKLINE_HEIGHT,
@@ -57,46 +58,6 @@ const fmt = (v: number): string => {
   if (!v || isNaN(v)) return "₹0";
   return formatIndianUnits(v);
 };
-
-/* ─── Smooth Sparkline Component ───────────────────────────── */
-const Sparkline = memo(
-  ({
-    data,
-    color = CHART_COLORS.blue,
-  }: {
-    data: number[];
-    color?: string;
-  }) => {
-    const chartData = useMemo(() => {
-      const safeData = data && data.length > 0 ? data : [10, 15, 20, 25, 30];
-      return safeData.map((v, i) => ({ i, v }));
-    }, [data]);
-
-    const gradientId = `spk-${color.replace("#", "")}`;
-
-    return (
-      <ResponsiveContainer width="100%" height={SPARKLINE_HEIGHT}>
-        <AreaChart data={chartData} margin={{ top: 4, right: 2, bottom: 2, left: 2 }}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={color} stopOpacity={0.28} />
-              <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-            </linearGradient>
-          </defs>
-          <Area
-            type="monotone"
-            dataKey="v"
-            stroke={color}
-            strokeWidth={2.2}
-            fill={`url(#${gradientId})`}
-            dot={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    );
-  }
-);
-Sparkline.displayName = "Sparkline";
 
 /* ─── Modern 4 KPI Card Component ──────────────────────────── */
 interface ModernKpiCardProps {
@@ -295,75 +256,12 @@ const TxnFeedItem = memo(
 );
 TxnFeedItem.displayName = "TxnFeedItem";
 
-/* ─── Financial Goals Component ───────────────────────────── */
-interface GoalItem {
-  id: string;
-  name: string;
-  category: string;
-  currentAmount: number;
-  targetAmount: number;
-  targetDate: string;
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-  barColor: string;
-}
 
-const DEMO_GOALS: GoalItem[] = [
-  {
-    id: "g1",
-    name: "Home Purchase",
-    category: "Real Estate",
-    currentAmount: 2500000,
-    targetAmount: 5000000,
-    targetDate: "Dec 2028",
-    icon: Home,
-    iconBg: "bg-blue-500/10",
-    iconColor: "text-blue-600 dark:text-blue-400",
-    barColor: "bg-blue-600",
-  },
-  {
-    id: "g2",
-    name: "Retirement",
-    category: "Growth",
-    currentAmount: 1200000,
-    targetAmount: 3000000,
-    targetDate: "Jun 2035",
-    icon: Shield,
-    iconBg: "bg-emerald-500/10",
-    iconColor: "text-emerald-600 dark:text-emerald-400",
-    barColor: "bg-emerald-500",
-  },
-  {
-    id: "g3",
-    name: "Education",
-    category: "Children",
-    currentAmount: 800000,
-    targetAmount: 3000000,
-    targetDate: "Jun 2030",
-    icon: GraduationCap,
-    iconBg: "bg-purple-500/10",
-    iconColor: "text-purple-600 dark:text-purple-400",
-    barColor: "bg-purple-600",
-  },
-  {
-    id: "g4",
-    name: "Emergency Fund",
-    category: "Liquid",
-    currentAmount: 300000,
-    targetAmount: 600000,
-    targetDate: "Dec 2026",
-    icon: Coins,
-    iconBg: "bg-amber-500/10",
-    iconColor: "text-amber-600 dark:text-amber-400",
-    barColor: "bg-amber-500",
-  },
-];
 
-export const InvestorDashboard = memo(
-  ({ onSwitchToAdvisorView }: { onSwitchToAdvisorView?: () => void }) => {
+export const InvestorDashboard = memo(() => {
     const navigate = useNavigate();
-    const { filteredTransactions, selectedInvestor, isNewUser } = useInvestor();
+    const { isAdvisor, isSuperAdmin, user } = useAuth();
+    const { filteredTransactions, selectedInvestor, setSelectedInvestor, investors, isNewUser } = useInvestor();
     const {
       schemeData,
       totalInvested,
@@ -415,23 +313,35 @@ export const InvestorDashboard = memo(
         const cur = performanceData[performanceData.length - 1].value;
         const prev = performanceData[performanceData.length - 2].value;
         const diff = cur - prev;
-        const pct = prev > 0 ? (diff / prev) * 100 : 0;
+        const momPct = prev > 0 ? (diff / prev) * 100 : 0;
+        const formatted = `${diff >= 0 ? "+" : ""}${momPct.toFixed(2)}%`;
         return {
-          todayPct: `${Math.abs(pct * 0.15).toFixed(2)}%`,
-          momPct: `${Math.abs(pct).toFixed(2)}%`,
+          todayPct: formatted,
+          momPct: formatted,
           isPositive: diff >= 0,
         };
       }
+      if (totalInvested > 0) {
+        const gain = currentValue - totalInvested;
+        const pct = (gain / totalInvested) * 100;
+        const formatted = `${gain >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+        return {
+          todayPct: formatted,
+          momPct: formatted,
+          isPositive: gain >= 0,
+        };
+      }
       return { todayPct: "0.00%", momPct: "0.00%", isPositive: true };
-    }, [performanceData]);
+    }, [performanceData, currentValue, totalInvested]);
 
     const mfChange = useMemo(() => {
       if (totalInvested > 0) {
         const gain = currentValue - totalInvested;
         const pct = (gain / totalInvested) * 100;
+        const formatted = `${gain >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
         return {
-          todayPct: `${Math.abs(pct * 0.1).toFixed(2)}%`,
-          momPct: `${Math.abs(pct).toFixed(2)}%`,
+          todayPct: formatted,
+          momPct: formatted,
           isPositive: gain >= 0,
         };
       }
@@ -439,30 +349,37 @@ export const InvestorDashboard = memo(
     }, [currentValue, totalInvested]);
 
     const assetsChange = useMemo(() => {
-      if (totalAssets > 0) {
-        return { todayPct: "0.25%", momPct: "1.40%", isPositive: true };
+      if (totalInvested > 0 && displayTotalAssets > 0) {
+        const gain = displayTotalAssets - totalInvested;
+        const pct = (gain / totalInvested) * 100;
+        const formatted = `${gain >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+        return {
+          todayPct: formatted,
+          momPct: formatted,
+          isPositive: gain >= 0,
+        };
       }
       return { todayPct: "0.00%", momPct: "0.00%", isPositive: true };
-    }, [totalAssets]);
+    }, [totalInvested, displayTotalAssets]);
 
     const aumSpark = useMemo(() => {
-      if (performanceData.length > 1) return performanceData.map((p) => p.value);
-      return [currentValue * 0.9, currentValue * 0.95, currentValue * 0.98, currentValue];
+      if (performanceData.length > 0) return performanceData.map((p) => p.value);
+      return [currentValue];
     }, [performanceData, currentValue]);
 
     const mfSpark = useMemo(() => {
-      if (performanceData.length > 1) return performanceData.map((p) => p.value * 0.45);
-      return [currentValue * 0.85, currentValue * 0.92, currentValue];
+      if (performanceData.length > 0) return performanceData.map((p) => p.value);
+      return [currentValue];
     }, [performanceData, currentValue]);
 
     const sipSpark = useMemo(() => {
-      if (sipMonthlyTrend.length > 0 && sipMonthlyTrend.some((v) => v > 0)) return sipMonthlyTrend;
-      return [0, 0, 0, 0, 0];
+      if (sipMonthlyTrend.length > 0) return sipMonthlyTrend;
+      return [0];
     }, [sipMonthlyTrend]);
 
     const assetsSpark = useMemo(() => {
-      if (performanceData.length > 1) return performanceData.map((p) => p.value + totalAssets);
-      return [displayTotalAssets * 0.95, displayTotalAssets];
+      if (performanceData.length > 0) return performanceData.map((p) => p.value + totalAssets);
+      return [displayTotalAssets];
     }, [performanceData, totalAssets, displayTotalAssets]);
 
     const filteredPerformanceData = useMemo(() => {
@@ -526,23 +443,81 @@ export const InvestorDashboard = memo(
 
     return (
       <div className="space-y-4 animate-in">
-        {/* Investor Welcome banner if advisor toggle available */}
-        {onSwitchToAdvisorView && (
-          <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 text-xs">
-            <div className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-blue-600" />
+        {/* Client View Header or Investor Greeting */}
+        {(isAdvisor || isSuperAdmin) && selectedInvestor !== "all" ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-blue-900/90 via-slate-900 to-indigo-950 text-white border border-blue-500/20 shadow-glass">
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 rounded-2xl bg-white/10 ring-1 ring-white/10 flex items-center justify-center font-bold text-base text-blue-200">
+                {selectedInvestor.slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wider text-blue-300/80 font-medium">Client Portfolio View</span>
+                  <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] font-semibold">Active Client</Badge>
+                </div>
+                <h1 className="text-xl font-heading font-bold text-white tracking-tight">{selectedInvestor}</h1>
+                <p className="text-[11px] text-slate-300">
+                  {schemeData.length} Mutual Fund Scheme{schemeData.length !== 1 ? "s" : ""} · {filteredTransactions.length} Total Transactions
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {investors.length > 1 && (
+                <div className="relative">
+                  <select
+                    aria-label="Switch client portfolio"
+                    value={selectedInvestor}
+                    onChange={(e) => setSelectedInvestor(e.target.value)}
+                    className="h-8 pl-2.5 pr-7 rounded-xl bg-white/10 text-white border border-white/20 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer appearance-none"
+                  >
+                    <option value="all" className="bg-slate-900 text-white">All Clients (Consolidated)</option>
+                    {investors.map((inv) => (
+                      <option key={inv} value={inv} className="bg-slate-900 text-white">{inv}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-2.5 h-3.5 w-3.5 text-white/70 pointer-events-none" />
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/advisor")}
+                className="h-8 gap-1.5 text-xs font-semibold bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Back to Advisor
+              </Button>
+            </div>
+          </div>
+        ) : (isAdvisor || isSuperAdmin) ? (
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-blue-50/90 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-xs">
+            <div className="flex items-center gap-2.5">
+              <UserCheck className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400 shrink-0" />
               <span>
-                <strong>Previewing Investor View:</strong> Showing consolidated client holdings & returns experience.
+                <strong className="text-foreground">Previewing Consolidated Investor View:</strong> Showing aggregate portfolio across all clients.
               </span>
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={onSwitchToAdvisorView}
+              onClick={() => navigate("/advisor")}
               className="h-7 text-xs font-bold border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300"
             >
               Return to Advisor Portal →
             </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-blue-950 text-white border border-slate-800 shadow-sm">
+            <div>
+              <p className="text-[11px] font-medium text-blue-300/90 uppercase tracking-wider">Welcome back</p>
+              <h1 className="text-xl font-heading font-bold text-white tracking-tight">{user?.name || "Investor"}</h1>
+              <p className="text-xs text-slate-300 mt-0.5">Overview of your mutual fund schemes, systematic plans, and consolidated portfolio.</p>
+            </div>
+            <div className="hidden sm:flex items-center gap-2">
+              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs font-semibold px-2.5 py-1">
+                {schemeData.length} Schemes in Folio
+              </Badge>
+            </div>
           </div>
         )}
 
@@ -617,13 +592,12 @@ export const InvestorDashboard = memo(
                   totalMfCurrentValue={currentValue}
                   totalMfInvested={totalInvested}
                   advancedDetails={advancedDetails}
-                  totalPortfolioValue={displayPortfolioValue}
                   onViewCategory={(cat) => {
                     if (cat === "equity") navigate("/stock-reports");
                     else if (cat === "mutual_fund") navigate("/mutual-funds");
-                    else if (cat === "gold") navigate("/admin/gold");
-                    else if (cat === "real_estate") navigate("/admin/real-estate");
-                    else if (cat === "rent_property") navigate("/admin/rental-properties");
+                    else if (cat === "gold") navigate("/gold");
+                    else if (cat === "real_estate") navigate("/real-estate");
+                    else if (cat === "rent_property") navigate("/rental-properties");
                     else navigate("/portfolio");
                   }}
                 />
@@ -773,7 +747,7 @@ export const InvestorDashboard = memo(
                 </CardContent>
               </Card>
 
-              {/* 3. Financial Goals */}
+              {/* 3. Top Portfolio Holdings / Scheme Allocation */}
               <Card className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
                 <CardHeader className="p-3.5 sm:p-4 pb-2 border-b border-border/50">
                   <div className="flex items-center justify-between">
@@ -782,14 +756,14 @@ export const InvestorDashboard = memo(
                         <Target className="h-3.5 w-3.5" />
                       </div>
                       <CardTitle className="text-xs sm:text-sm font-bold text-foreground">
-                        Financial Goals
+                        Top Scheme Holdings
                       </CardTitle>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-6 text-xs font-semibold text-blue-600 dark:text-blue-400 p-0 px-2 gap-1"
-                      onClick={() => navigate("/portfolio-analysis")}
+                      onClick={() => navigate("/mutual-funds")}
                     >
                       <span>View All</span>
                       <ArrowUpRight className="h-3 w-3" />
@@ -797,40 +771,53 @@ export const InvestorDashboard = memo(
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-2.5 space-y-3 flex-1 flex flex-col justify-around">
-                  {DEMO_GOALS.map((goal) => {
-                    const Icon = goal.icon;
-                    const pct = Math.round((goal.currentAmount / goal.targetAmount) * 100);
-                    const currentLakh = (goal.currentAmount / 100000).toFixed(0);
-                    const targetLakh = (goal.targetAmount / 100000).toFixed(0);
-
-                    return (
-                      <div key={goal.id} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className={cn("h-6 w-6 rounded-md flex items-center justify-center shrink-0", goal.iconBg, goal.iconColor)}>
-                              <Icon className="h-3 w-3" />
+                  {schemeData.length > 0 ? (
+                    schemeData.slice(0, 4).map((scheme, idx) => {
+                      const pct = currentValue > 0 ? Math.round((scheme.currentValue / currentValue) * 100) : 0;
+                      return (
+                        <div key={scheme.schemeName} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="h-6 w-6 rounded-md bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                #{idx + 1}
+                              </div>
+                              <div className="truncate">
+                                <p className="text-xs font-bold text-foreground truncate">{scheme.schemeName}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {scheme.totalUnits.toFixed(2)} units · NAV ₹{scheme.latestNav.toFixed(2)}
+                                </p>
+                              </div>
                             </div>
-                            <div className="truncate">
-                              <p className="text-xs font-bold text-foreground truncate">{goal.name}</p>
-                              <p className="text-[10px] text-muted-foreground">{goal.category}</p>
+
+                            <div className="text-right shrink-0">
+                              <div className="text-[11px] font-bold text-foreground">
+                                {formatIndianUnits(scheme.currentValue)}
+                                <span className={cn(
+                                  "ml-1.5 text-[10px] font-bold",
+                                  scheme.returnPercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                                )}>
+                                  {scheme.returnPercent >= 0 ? "+" : ""}{scheme.returnPercent.toFixed(1)}%
+                                </span>
+                              </div>
+                              <p className="text-[9px] text-muted-foreground">{pct}% of portfolio</p>
                             </div>
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <div className="text-[11px] font-bold text-foreground">
-                              ₹{currentLakh}L / ₹{targetLakh}L
-                              <span className="text-blue-600 dark:text-blue-400 ml-1.5">{pct}%</span>
-                            </div>
-                            <p className="text-[9px] text-muted-foreground">{goal.targetDate}</p>
+                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                              style={{ width: `${Math.min(pct, 100)}%` }}
+                            />
                           </div>
                         </div>
-
-                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                          <div className={cn("h-full rounded-full transition-all duration-500", goal.barColor)} style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+                      <Wallet className="h-6 w-6 mb-1 opacity-40" />
+                      <p className="text-xs">No mutual fund holdings found</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -965,13 +952,15 @@ export const InvestorDashboard = memo(
           onOpenChange={setAiAuditOpen}
           investorName={selectedInvestor !== "all" ? selectedInvestor : "Valued Investor"}
           totalCurrentValue={displayPortfolioValue}
-          totalInvested={totalInvested > 0 ? totalInvested : 1894000}
-          holdings={schemeData.map((s) => ({ name: s.schemeName, currentValue: s.currentValue }))}
+          totalInvested={totalInvested}
+          holdings={schemeData.map((s) => ({
+            name: s.schemeName,
+            currentValue: s.currentValue,
+            type: "mutual_fund",
+          }))}
         />
       </div>
     );
-  }
-);
+});
 
 InvestorDashboard.displayName = "InvestorDashboard";
-

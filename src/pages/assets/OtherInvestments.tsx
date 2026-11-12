@@ -1,13 +1,57 @@
 import { memo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DataManager, DataManagerRow } from "@/components/shared/DataManager";
 import { ColumnConfig } from "@/components/shared/CommonTable";
-import { Bitcoin, LandPlot, MonitorUp, PiggyBank } from "lucide-react";
+import { Bitcoin, LandPlot, MonitorUp, PiggyBank, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency } from "@/utils/format";
+import { useAuth } from "@/contexts/AuthContext";
+import api from "@/services/api";
+import { getErrorMessage } from "@/lib/errors";
+import { getAdvancedQueryKey } from "@/hooks/useAdvancedPortfolio";
+import { propertyQueryConfig } from "@/hooks/useQueryConfig";
+
+const useInvestmentLoadError = (entity: string) => {
+  const { token } = useAuth();
+  const { isError, error, refetch } = useQuery({
+    queryKey: getAdvancedQueryKey(entity),
+    queryFn: async () => {
+      const response = await api.get(`/advanced/${entity}`);
+      return Array.isArray(response.data) ? response.data : response.data.data || [];
+    },
+    enabled: !!token,
+    ...propertyQueryConfig,
+  });
+
+  return {
+    message: isError
+      ? getErrorMessage(error, `Unable to load ${entity.replace(/_/g, " ")}.`)
+      : "",
+    retry: refetch,
+  };
+};
+
+const InvestmentLoadError = ({
+  message,
+  retry,
+}: {
+  message: string;
+  retry: () => Promise<unknown>;
+}) =>
+  message ? (
+    <div role="alert" className="mb-4 flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-destructive">{message}</p>
+      <Button variant="outline" size="sm" onClick={() => void retry()}>
+        <RefreshCw className="mr-2 h-4 w-4" />
+        Try again
+      </Button>
+    </div>
+  ) : null;
 
 /* ── Crypto Config ───────────────────────────────────────────────── */
 const CRYPTO_DEFAULT_FORM = {
@@ -33,13 +77,14 @@ const CRYPTO_COLUMNS: ColumnConfig<DataManagerRow>[] = [
 ];
 
 const CryptoManager = memo(() => {
+  const loadError = useInvestmentLoadError("crypto_investments");
   const renderForm = useCallback(
     (
       formData: typeof CRYPTO_DEFAULT_FORM,
       set: React.Dispatch<React.SetStateAction<typeof CRYPTO_DEFAULT_FORM>>
     ) => (
       <div className="grid gap-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Asset Name</Label>
             <Input
@@ -57,7 +102,7 @@ const CryptoManager = memo(() => {
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Quantity</Label>
             <Input
@@ -65,7 +110,7 @@ const CryptoManager = memo(() => {
               step="0.0001"
               value={formData.quantity}
               onChange={(e) => set((prev) => ({ ...prev, quantity: e.target.value }))}
-              placeholder="0.25"
+              placeholder="Enter quantity held"
             />
           </div>
           <div className="grid gap-2">
@@ -75,7 +120,7 @@ const CryptoManager = memo(() => {
               step="0.01"
               value={formData.average_price}
               onChange={(e) => set((prev) => ({ ...prev, average_price: e.target.value }))}
-              placeholder="4800000"
+              placeholder="Enter average purchase price"
             />
           </div>
         </div>
@@ -102,6 +147,8 @@ const CryptoManager = memo(() => {
   );
 
   return (
+    <>
+    <InvestmentLoadError {...loadError} />
     <DataManager
       entity="crypto_investments"
       title="Cryptocurrency"
@@ -115,6 +162,7 @@ const CryptoManager = memo(() => {
       dashboardStyle
       renderForm={renderForm}
     />
+    </>
   );
 });
 CryptoManager.displayName = "CryptoManager";
@@ -137,7 +185,7 @@ const BOND_COLUMNS: ColumnConfig<DataManagerRow>[] = [
     key: "coupon_rate",
     label: "Coupon Rate",
     sortable: true,
-    render: (i) => <span className="font-bold text-emerald-600 dark:text-emerald-400">{i.coupon_rate}%</span>,
+    render: (i) => <span className="font-bold text-emerald-600 dark:text-emerald-400">{String(i.coupon_rate)}%</span>,
   },
   {
     key: "maturity_date",
@@ -152,13 +200,14 @@ const BOND_COLUMNS: ColumnConfig<DataManagerRow>[] = [
 ];
 
 const BondManager = memo(() => {
+  const loadError = useInvestmentLoadError("bonds");
   const renderForm = useCallback(
     (
       formData: typeof BOND_DEFAULT_FORM,
       set: React.Dispatch<React.SetStateAction<typeof BOND_DEFAULT_FORM>>
     ) => (
       <div className="grid gap-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Bond Name</Label>
             <Input
@@ -176,14 +225,14 @@ const BondManager = memo(() => {
             />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="grid gap-2">
             <Label>Face Value (₹)</Label>
             <Input
               type="number"
               value={formData.face_value}
               onChange={(e) => set((prev) => ({ ...prev, face_value: e.target.value }))}
-              placeholder="1000"
+              placeholder="Enter face value"
             />
           </div>
           <div className="grid gap-2">
@@ -192,7 +241,7 @@ const BondManager = memo(() => {
               type="number"
               value={formData.quantity}
               onChange={(e) => set((prev) => ({ ...prev, quantity: e.target.value }))}
-              placeholder="100"
+              placeholder="Enter quantity"
             />
           </div>
           <div className="grid gap-2">
@@ -202,11 +251,11 @@ const BondManager = memo(() => {
               step="0.1"
               value={formData.coupon_rate}
               onChange={(e) => set((prev) => ({ ...prev, coupon_rate: e.target.value }))}
-              placeholder="8.2"
+              placeholder="Enter coupon rate"
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Purchase Date</Label>
             <Input
@@ -230,6 +279,8 @@ const BondManager = memo(() => {
   );
 
   return (
+    <>
+    <InvestmentLoadError {...loadError} />
     <DataManager
       entity="bonds"
       title="Bonds"
@@ -243,6 +294,7 @@ const BondManager = memo(() => {
       dashboardStyle
       renderForm={renderForm}
     />
+    </>
   );
 });
 BondManager.displayName = "BondManager";
@@ -270,13 +322,14 @@ const ETF_COLUMNS: ColumnConfig<DataManagerRow>[] = [
 ];
 
 const EtfManager = memo(() => {
+  const loadError = useInvestmentLoadError("etfs");
   const renderForm = useCallback(
     (
       formData: typeof ETF_DEFAULT_FORM,
       set: React.Dispatch<React.SetStateAction<typeof ETF_DEFAULT_FORM>>
     ) => (
       <div className="grid gap-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>ETF Name</Label>
             <Input
@@ -294,14 +347,14 @@ const EtfManager = memo(() => {
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Quantity</Label>
             <Input
               type="number"
               value={formData.quantity}
               onChange={(e) => set((prev) => ({ ...prev, quantity: e.target.value }))}
-              placeholder="50"
+              placeholder="Enter quantity"
             />
           </div>
           <div className="grid gap-2">
@@ -310,7 +363,7 @@ const EtfManager = memo(() => {
               type="number"
               value={formData.purchase_price}
               onChange={(e) => set((prev) => ({ ...prev, purchase_price: e.target.value }))}
-              placeholder="250"
+              placeholder="Enter price per unit"
             />
           </div>
         </div>
@@ -328,6 +381,8 @@ const EtfManager = memo(() => {
   );
 
   return (
+    <>
+    <InvestmentLoadError {...loadError} />
     <DataManager
       entity="etfs"
       title="Exchange Traded Funds"
@@ -341,6 +396,7 @@ const EtfManager = memo(() => {
       dashboardStyle
       renderForm={renderForm}
     />
+    </>
   );
 });
 EtfManager.displayName = "EtfManager";
@@ -361,6 +417,7 @@ const NPS_COLUMNS: ColumnConfig<DataManagerRow>[] = [
 ];
 
 const NpsManager = memo(() => {
+  const loadError = useInvestmentLoadError("nps_investments");
   const renderForm = useCallback(
     (
       formData: typeof NPS_DEFAULT_FORM,
@@ -381,7 +438,7 @@ const NpsManager = memo(() => {
             type="number"
             value={formData.amount_invested}
             onChange={(e) => set((prev) => ({ ...prev, amount_invested: e.target.value }))}
-            placeholder="250000"
+            placeholder="Enter total invested amount"
           />
         </div>
         <div className="grid gap-2">
@@ -398,6 +455,8 @@ const NpsManager = memo(() => {
   );
 
   return (
+    <>
+    <InvestmentLoadError {...loadError} />
     <DataManager
       entity="nps_investments"
       title="National Pension System"
@@ -411,6 +470,7 @@ const NpsManager = memo(() => {
       dashboardStyle
       renderForm={renderForm}
     />
+    </>
   );
 });
 NpsManager.displayName = "NpsManager";
@@ -418,14 +478,14 @@ NpsManager.displayName = "NpsManager";
 /* ── Main Component ──────────────────────────────────────────────── */
 export default function OtherInvestments() {
   return (
-    <div className="space-y-6 animate-in">
+    <div className="min-w-0 space-y-6 animate-in">
       <PageHeader
         title="Other Investments"
         description="Consolidated tracking of Cryptocurrency, Bonds, ETFs, and National Pension Scheme (NPS)"
       />
       <div className="space-y-6">
-        <Tabs defaultValue="crypto" className="w-full">
-          <TabsList className="grid w-full sm:max-w-xl grid-cols-2 sm:grid-cols-4 bg-muted p-1 rounded-lg">
+        <Tabs className="w-full" defaultValue="crypto">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl bg-muted/70 p-1 sm:grid-cols-4 lg:max-w-2xl">
             <TabsTrigger value="crypto" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Cryptocurrency</TabsTrigger>
             <TabsTrigger value="bonds" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Bonds</TabsTrigger>
             <TabsTrigger value="etfs" className="rounded-md text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">ETFs</TabsTrigger>

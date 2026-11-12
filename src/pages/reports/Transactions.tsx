@@ -7,9 +7,11 @@ import { CommonSelect } from "@/components/shared/CommonSelect";
 import { Search, ArrowUpRight, ArrowDownLeft, X, Filter } from "lucide-react";
 import { useInvestor } from "@/contexts/InvestorContext";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useUserInvestments } from "@/hooks/useUserInvestments";
 import { TransactionData } from "@/utils/parseTransactions";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ── Pure helper — defined outside component so it is never recreated ──────────
 const getTransactionType = (type: string) => {
@@ -124,6 +126,8 @@ const TYPE_OPTIONS = [
 
 const Transactions = () => {
   const { filteredTransactions } = useInvestor();
+  const { isLoading, error } = useUserInvestments();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [typeFilter, setTypeFilter] = useState("all");
@@ -139,6 +143,8 @@ const Transactions = () => {
   const handleTypeFilterChange = useCallback((val: string) => {
     setTypeFilter(val);
   }, []);
+  const purchaseCount = useMemo(() => filteredTransactions.filter((transaction) => !transaction.isSell).length, [filteredTransactions]);
+  const redemptionCount = useMemo(() => filteredTransactions.filter((transaction) => transaction.isSell).length, [filteredTransactions]);
 
   // Filter and sort transactions — memoized
   const displayedTransactions = useMemo(() => {
@@ -163,13 +169,39 @@ const Transactions = () => {
   }, [filteredTransactions, debouncedSearch, typeFilter]);
 
   return (
-    <div className="space-y-6 animate-in">
+    <div className="space-y-5 animate-in">
       <PageHeader
-        title="Daily Sauda Report"
-        description="Comprehensive real-time transaction history across all accounts"
+        title="Transaction History"
+        description="Search and review purchases and redemptions from the selected transaction dataset."
       />
 
-      <div className="space-y-6">
+      {isLoading && <div role="status" className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">Loading transaction data…</div>}
+      {error && (
+        <div role="alert" className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span>Transaction data could not be loaded.</span>
+          <button type="button" onClick={() => void queryClient.invalidateQueries({ queryKey: ["user-investments"] })} className="w-fit font-semibold text-primary hover:underline">Retry</button>
+        </div>
+      )}
+
+      <section aria-label="Transaction summary" className="grid gap-3 sm:grid-cols-3">
+        <CommonCard noHeader className="rounded-2xl border-border/70">
+          <p className="text-xs font-medium text-muted-foreground">Transactions in view</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight">{filteredTransactions.length}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Before search and type filters</p>
+        </CommonCard>
+        <CommonCard noHeader className="rounded-2xl border-border/70">
+          <p className="text-xs font-medium text-muted-foreground">Purchases</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">{purchaseCount}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Recorded buy and systematic entries</p>
+        </CommonCard>
+        <CommonCard noHeader className="rounded-2xl border-border/70">
+          <p className="text-xs font-medium text-muted-foreground">Redemptions</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-rose-600 dark:text-rose-400">{redemptionCount}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Recorded exits and switch-outs</p>
+        </CommonCard>
+      </section>
+
+      <div className="space-y-4">
         {/* Search and Filter Bar */}
         <CommonCard noHeader className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl">
           <div className="flex flex-col gap-4">
@@ -184,6 +216,8 @@ const Transactions = () => {
                 />
                 {searchQuery && (
                   <button
+                    type="button"
+                    aria-label="Clear transaction search"
                     onClick={handleClearSearch}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full"
                   >
@@ -202,7 +236,7 @@ const Transactions = () => {
             <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border/40 pt-3">
               <p>
                 Showing{" "}
-                <span className="font-bold text-foreground">{displayedTransactions.length}</span> matching records
+                <span className="font-bold text-foreground">{displayedTransactions.length}</span> of {filteredTransactions.length} transactions
               </p>
               {searchQuery && (
                 <button onClick={handleClearSearch} className="text-primary hover:underline font-semibold">
@@ -215,11 +249,19 @@ const Transactions = () => {
 
         {/* Transactions Virtualized List */}
         <CommonCard title="Transaction History">
-          {displayedTransactions.length === 0 ? (
+          {isLoading || error ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">{isLoading ? "Loading transactions…" : "Transaction records are unavailable"}</p>
+            </div>
+          ) : displayedTransactions.length === 0 ? (
             <div className="text-center py-16 space-y-2">
               <Filter className="h-10 w-10 text-muted-foreground/30 mx-auto" />
-              <p className="text-base font-bold text-foreground">No matching transactions found</p>
-              <p className="text-xs text-muted-foreground">Try adjusting your search terms or filter criteria.</p>
+              <p className="text-base font-bold text-foreground">
+                {error ? "Transactions are unavailable" : filteredTransactions.length === 0 ? "No transactions recorded yet" : "No matching transactions found"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {error ? "Use retry above to reload the transaction data." : filteredTransactions.length === 0 ? "Transactions will appear here when available." : "Try adjusting your search terms or filter criteria."}
+              </p>
             </div>
           ) : (
             <div className="h-[640px] overflow-auto pr-2">

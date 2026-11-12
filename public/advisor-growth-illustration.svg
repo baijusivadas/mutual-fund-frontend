@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="160" viewBox="0 0 520 160" fill="none">
+  <defs>
+    <linearGradient id="coin" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FDE68A" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#F59E0B" stop-opacity=".3"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#BEF264"/>
+      <stop offset="1" stop-color="#34D399"/>
+    </linearGradient>
+  </defs>
+  <g opacity=".8" stroke="#FDE68A" stroke-opacity=".48">
+    <path d="M56 147h75v-18a8 8 0 0 0-8-8H64a8 8 0 0 0-8 8v18Z" fill="url(#coin)"/>
+    <path d="M68 121v-8a8 8 0 0 1 8-8h35a8 8 0 0 1 8 8v8" fill="url(#coin)"/>
+    <path d="M145 147h88v-37a9 9 0 0 0-9-9h-70a9 9 0 0 0-9 9v37Z" fill="url(#coin)"/>
+    <path d="M158 101V88a9 9 0 0 1 9-9h44a9 9 0 0 1 9 9v13" fill="url(#coin)"/>
+    <path d="M170 79V66a9 9 0 0 1 9-9h21a9 9 0 0 1 9 9v13" fill="url(#coin)"/>
+    <path d="M251 147h86v-52a9 9 0 0 0-9-9h-68a9 9 0 0 0-9 9v52Z" fill="url(#coin)"/>
+    <path d="M265 86V73a9 9 0 0 1 9-9h40a9 9 0 0 1 9 9v13" fill="url(#coin)"/>
+    <path d="M351 147h68v-30a9 9 0 0 0-9-9h-50a9 9 0 0 0-9 9v30Z" fill="url(#coin)"/>
+  </g>
+  <g stroke="url(#leaf)" stroke-linecap="round" stroke-linejoin="round" stroke-width="4">
+    <path d="M273 61c-3-15-1-28 4-40"/>
+    <path d="M277 39c-16 1-24-8-24-20 14-1 24 6 24 20Z" fill="#84CC16" fill-opacity=".26"/>
+    <path d="M279 31c2-15 12-23 26-21 0 14-9 22-26 21Z" fill="#34D399" fill-opacity=".22"/>
+  </g>
+  <path d="M379 79c28-2 48-10 66-26 14-12 26-25 43-40" stroke="#FCD34D" stroke-linecap="round" stroke-width="5"/>
+  <path d="m469 14 20-5-3 21" stroke="#FCD34D" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+  <path d="M35 147h425" stroke="#D1FAE5" stroke-opacity=".28" stroke-width="2"/>
+</svg>

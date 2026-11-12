@@ -8,7 +8,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
 import { formatIndianUnits, formatPercent } from "@/utils/format";
 import { useInvestor } from "@/contexts/InvestorContext";
+import { useUserInvestments } from "@/hooks/useUserInvestments";
 import { usePortfolioData, SchemeData } from "@/hooks/usePortfolioData";
+import { useQueryClient } from "@tanstack/react-query";
 import { isSellTransaction } from "@/utils/parseTransactions";
 import {
   TrendingUp,
@@ -39,11 +41,8 @@ import {
   PieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
 } from "recharts";
 
-const SPARKLINE_HEIGHT = 44;
 const CHART_PIE_COLORS = [
   "#2563eb",
   "#10b981",
@@ -54,31 +53,6 @@ const CHART_PIE_COLORS = [
   "#8b5cf6",
 ];
 
-/* ── Smooth Sparkline ────────────────────────────────────────── */
-const Sparkline = memo(({ data, color = "#2563eb" }: { data: number[]; color?: string }) => {
-  const chartData = useMemo(() => {
-    const safe = data && data.length > 0 ? data : [10, 15, 20, 25, 30];
-    return safe.map((v, i) => ({ i, v }));
-  }, [data]);
-
-  const gradId = `pnl-spk-${color.replace("#", "")}`;
-
-  return (
-    <ResponsiveContainer width="100%" height={SPARKLINE_HEIGHT}>
-      <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2.2} fill={`url(#${gradId})`} dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-});
-Sparkline.displayName = "Sparkline";
-
 /* ── Modern Elevated KPI Card ───────────────────────────────── */
 interface ModernPnlKpiCardProps {
   title: string;
@@ -86,14 +60,12 @@ interface ModernPnlKpiCardProps {
   subValue?: string;
   tag?: string;
   isPositive?: boolean;
-  sparkData: number[];
-  sparkColor: string;
   icon: React.ReactNode;
   footerNote?: string;
 }
 
 const ModernPnlKpiCard = memo(
-  ({ title, value, subValue, tag, isPositive = true, sparkData, sparkColor, icon, footerNote }: ModernPnlKpiCardProps) => (
+  ({ title, value, subValue, tag, isPositive = true, icon, footerNote }: ModernPnlKpiCardProps) => (
     <Card className="relative overflow-hidden bg-card border border-border/80 rounded-2xl shadow-xs hover:shadow-md hover:border-primary/30 transition-all duration-200 group flex flex-col justify-between">
       <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full">
         <div>
@@ -113,14 +85,11 @@ const ModernPnlKpiCard = memo(
                 </p>
               )}
             </div>
-            <div className="w-[95px] shrink-0">
-              <Sparkline data={sparkData} color={sparkColor} />
-            </div>
           </div>
         </div>
 
         <div className="mt-3 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>{footerNote || "Real-time verified"}</span>
+          <span>{footerNote || "Recorded portfolio data"}</span>
           {tag && (
             <Badge
               variant="outline"
@@ -196,6 +165,8 @@ ModernSchemeCard.displayName = "ModernSchemeCard";
 /* ── Main PnL Component ──────────────────────────────────────── */
 export const PnL = () => {
   const { filteredTransactions, isNewUser, selectedInvestor } = useInvestor();
+  const { isLoading: isTransactionsLoading, error: transactionsError } = useUserInvestments();
+  const queryClient = useQueryClient();
   const {
     schemeData,
     totalInvested,
@@ -208,7 +179,7 @@ export const PnL = () => {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | "profit" | "loss">("all");
 
-  // Dynamic calculations from live transactions
+  // Derive amounts and trends from the recorded transaction history.
   const { totalRealized, monthlyTrend, schemeDistribution, bestPerformer, worstPerformer } = useMemo(() => {
     let realizedSum = 0;
     const redemptions = filteredTransactions.filter(isSellTransaction);
@@ -255,10 +226,21 @@ export const PnL = () => {
     });
   }, [schemeData, search, filterType]);
 
-  const sparkRealized = [totalRealized * 0.7, totalRealized * 0.8, totalRealized * 0.9, totalRealized];
-  const sparkUnrealized = [totalReturns * 0.6, totalReturns * 0.75, totalReturns * 0.9, totalReturns];
-  const sparkInvested = [totalInvested * 0.85, totalInvested * 0.9, totalInvested * 0.95, totalInvested];
-  const sparkValuation = [currentValue * 0.8, currentValue * 0.88, currentValue * 0.95, currentValue];
+  if (isTransactionsLoading || transactionsError) {
+    return (
+      <div className="space-y-5 animate-in">
+        <PageHeader title="Profit & Loss Analytics" description="Redemption proceeds and unrealized returns calculated from recorded transactions and their latest NAVs." />
+        {isTransactionsLoading ? (
+          <div role="status" className="rounded-xl border border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">Loading transaction data…</div>
+        ) : (
+          <div role="alert" className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <span>Profit and loss data could not be loaded.</span>
+            <Button variant="outline" onClick={() => void queryClient.invalidateQueries({ queryKey: ["user-investments"] })}>Retry</Button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 animate-in">
@@ -274,7 +256,7 @@ export const PnL = () => {
             </h1>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Realized trade proceeds, live mark-to-market unrealized valuation, and fund-level return attribution.
+            Redemption proceeds and unrealized returns calculated from recorded transactions and their latest NAVs.
           </p>
         </div>
 
@@ -288,11 +270,9 @@ export const PnL = () => {
       {/* ── Top 4 Modern KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <ModernPnlKpiCard
-          title="Total Realized Exits"
+          title="Redemption Proceeds"
           value={formatIndianUnits(totalRealized)}
           subValue="Cumulative Redemptions"
-          sparkData={sparkRealized}
-          sparkColor="#2563eb"
           icon={<DollarSign className="h-4 w-4" />}
           footerNote="Historical Liquidity"
           tag="Realized"
@@ -303,8 +283,6 @@ export const PnL = () => {
           value={`${isOverallPositive ? "+" : ""}${formatIndianUnits(totalReturns)}`}
           subValue={`${isOverallPositive ? "+" : ""}${Number(roi).toFixed(2)}% Overall ROI`}
           isPositive={isOverallPositive}
-          sparkData={sparkUnrealized}
-          sparkColor={isOverallPositive ? "#10b981" : "#f43f5e"}
           icon={<Activity className="h-4 w-4" />}
           footerNote="Mark to Market"
           tag={isOverallPositive ? "Profitable" : "Drawdown"}
@@ -314,21 +292,17 @@ export const PnL = () => {
           title="Total Invested Cost"
           value={formatIndianUnits(totalInvested)}
           subValue={`${schemeData.length} Active Funds`}
-          sparkData={sparkInvested}
-          sparkColor="#6366f1"
           icon={<Wallet className="h-4 w-4" />}
           footerNote="Net Capital Outlay"
           tag="Principal"
         />
 
         <ModernPnlKpiCard
-          title="Current Valuation"
+          title="Latest Recorded Value"
           value={formatIndianUnits(currentValue)}
-          subValue={`+${formatIndianUnits(totalReturns)} Growth`}
-          sparkData={sparkValuation}
-          sparkColor="#10b981"
+          subValue={`${totalReturns >= 0 ? "+" : ""}${formatIndianUnits(totalReturns)} net return`}
           icon={<Layers className="h-4 w-4" />}
-          footerNote="Live NAV Pricing"
+          footerNote="Latest recorded NAV"
           tag="Net Asset Value"
         />
       </div>
@@ -385,8 +359,8 @@ export const PnL = () => {
           </TabsList>
 
           {/* Search & Filter Controls */}
-          <div className="flex items-center gap-2">
-            <div className="relative w-48 sm:w-60">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-60">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search scheme name..."
@@ -448,6 +422,7 @@ export const PnL = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="h-[240px]">
+                  {schemeDistribution.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -469,6 +444,7 @@ export const PnL = () => {
                       />
                     </PieChart>
                   </ResponsiveContainer>
+                  ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No fund allocation data available.</div>}
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 pt-2 text-[11px]">
                   {schemeDistribution.map((item) => (
@@ -491,6 +467,7 @@ export const PnL = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="h-[260px]">
+                  {monthlyTrend.some((month) => month.inflow > 0 || month.outflow > 0) ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" vertical={false} />
@@ -504,6 +481,7 @@ export const PnL = () => {
                       <Bar dataKey="outflow" name="Redemptions" fill="#f43f5e" radius={[3, 3, 0, 0]} barSize={12} />
                     </BarChart>
                   </ResponsiveContainer>
+                  ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No transaction activity recorded for this period.</div>}
                 </div>
               </CardContent>
             </Card>

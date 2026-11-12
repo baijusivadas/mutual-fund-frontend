@@ -1,60 +1,24 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
-import { formatIndianUnits, formatCurrency } from "@/utils/format";
+import { formatIndianUnits } from "@/utils/format";
 import { useInvestor } from "@/contexts/InvestorContext";
+import { useUserInvestments } from "@/hooks/useUserInvestments";
 import { isSellTransaction } from "@/utils/parseTransactions";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  Calendar,
   DollarSign,
   TrendingUp,
   FileText,
-  AlertTriangle,
-  CheckCircle2,
   Download,
   Scale,
   Sparkles,
-  Info,
   Clock,
-  ArrowRight,
-  ShieldAlert,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  ResponsiveContainer,
-} from "recharts";
-
-const SPARKLINE_HEIGHT = 44;
-
-/* ── Smooth Sparkline ────────────────────────────────────────── */
-const Sparkline = memo(({ data, color = "#2563eb" }: { data: number[]; color?: string }) => {
-  const chartData = useMemo(() => {
-    const safe = data && data.length > 0 ? data : [10, 15, 20, 25, 30];
-    return safe.map((v, i) => ({ i, v }));
-  }, [data]);
-
-  const gradId = `cg-spk-${color.replace("#", "")}`;
-
-  return (
-    <ResponsiveContainer width="100%" height={SPARKLINE_HEIGHT}>
-      <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2.2} fill={`url(#${gradId})`} dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-});
-Sparkline.displayName = "Sparkline";
 
 /* ── KPI Card Component ──────────────────────────────────────── */
 interface CgKpiCardProps {
@@ -62,15 +26,13 @@ interface CgKpiCardProps {
   value: string;
   rateLabel: string;
   subText: string;
-  sparkData: number[];
-  sparkColor: string;
   icon: React.ReactNode;
   tag?: string;
   isPositive?: boolean;
 }
 
 const CgKpiCard = memo(
-  ({ title, value, rateLabel, subText, sparkData, sparkColor, icon, tag, isPositive = true }: CgKpiCardProps) => (
+  ({ title, value, rateLabel, subText, icon, tag, isPositive = true }: CgKpiCardProps) => (
     <Card className="relative overflow-hidden bg-card border border-border/80 rounded-2xl shadow-xs hover:shadow-md hover:border-primary/30 transition-all duration-200 group flex flex-col justify-between">
       <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full">
         <div>
@@ -87,9 +49,6 @@ const CgKpiCard = memo(
               <p className={cn("text-xs font-bold mt-0.5", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
                 {rateLabel}
               </p>
-            </div>
-            <div className="w-[90px] shrink-0">
-              <Sparkline data={sparkData} color={sparkColor} />
             </div>
           </div>
         </div>
@@ -110,9 +69,10 @@ CgKpiCard.displayName = "CgKpiCard";
 
 export const CapitalGains = () => {
   const { filteredTransactions, selectedInvestor } = useInvestor();
-  const [activeTab, setActiveTab] = useState<"stcg" | "ltcg" | "harvesting">("stcg");
+  const { isLoading: isTransactionsLoading, error: transactionsError } = useUserInvestments();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"stcg" | "ltcg">("stcg");
 
-  // Dynamic FIFO matching and capital gains computation from live user transactions
   const {
     stcgTrades,
     ltcgTrades,
@@ -123,60 +83,66 @@ export const CapitalGains = () => {
     totalTaxLiability,
     unutilizedExemption,
   } = useMemo(() => {
-    const purchases: { date: Date; units: number; nav: number; scheme: string; value: number }[] = [];
-    const redemptions: { date: Date; units: number; nav: number; scheme: string; value: number }[] = [];
-
-    // Segregate real purchases and redemptions
-    filteredTransactions.forEach((tx) => {
-      const isRedeem = isSellTransaction(tx);
-      const units = Number(tx.units) || (Number(tx.value) > 0 ? Number(tx.value) / 50 : 0);
-      const nav = Number(tx.nav) || 50;
-      const date = tx.investmentDate ? new Date(tx.investmentDate) : new Date();
-
-      if (isRedeem) {
-        redemptions.push({ date, units, nav, scheme: tx.schemeName || "Fund Scheme", value: tx.value || 0 });
-      } else {
-        purchases.push({ date, units, nav, scheme: tx.schemeName || "Fund Scheme", value: tx.value || 0 });
-      }
-    });
-
-    const stcgList: any[] = [];
-    const ltcgList: any[] = [];
+    type Trade = {
+      scheme: string;
+      buyDate: string;
+      sellDate: string;
+      holdingDays: number;
+      units: number;
+      buyNav: number;
+      sellNav: number;
+      gain: number;
+      isGain: boolean;
+    };
+    type PurchaseLot = { date: Date; unitsRemaining: number; nav: number };
+    const orderedTransactions = [...filteredTransactions]
+      .filter((tx) => tx.investmentDate && tx.schemeName?.trim())
+      .map((tx) => ({ tx, date: new Date(tx.investmentDate) }))
+      .filter(({ date }) => Number.isFinite(date.getTime()))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    const purchaseLots = new Map<string, PurchaseLot[]>();
+    const stcgList: Trade[] = [];
+    const ltcgList: Trade[] = [];
     let stcgSum = 0;
     let ltcgSum = 0;
 
-    // FIFO Matcher
-    const buyQueue = purchases.map((p) => ({ ...p, unitsRemaining: p.units }));
+    orderedTransactions.forEach(({ tx, date }) => {
+      const scheme = tx.schemeName.trim();
+      const units = Math.abs(Number(tx.units));
+      const amount = Math.abs(Number(tx.value));
+      const nav = Number(tx.nav);
+      const unitPrice = nav > 0 ? nav : units > 0 ? amount / units : 0;
+      if (!Number.isFinite(units) || units <= 0 || !Number.isFinite(unitPrice) || unitPrice <= 0) return;
 
-    redemptions.forEach((redemption) => {
-      let unitsToMatch = redemption.units;
+      if (!isSellTransaction(tx)) {
+        const lots = purchaseLots.get(scheme) ?? [];
+        lots.push({ date, unitsRemaining: units, nav: unitPrice });
+        purchaseLots.set(scheme, lots);
+        return;
+      }
 
-      for (const buy of buyQueue) {
+      let unitsToMatch = units;
+      const lots = purchaseLots.get(scheme) ?? [];
+      for (const lot of lots) {
         if (unitsToMatch <= 0) break;
-        if (buy.unitsRemaining <= 0) continue;
-        if (buy.scheme !== redemption.scheme) continue;
+        if (lot.unitsRemaining <= 0) continue;
 
-        const matchUnits = Math.min(unitsToMatch, buy.unitsRemaining);
-        const buyCost = matchUnits * buy.nav;
-        const sellProceeds = matchUnits * redemption.nav;
-        const gain = sellProceeds - buyCost;
-
-        const diffDays = Math.max(1, Math.round((redemption.date.getTime() - buy.date.getTime()) / (1000 * 3600 * 24)));
-        const isLongTerm = diffDays > 365;
-
-        const tradeRecord = {
-          scheme: redemption.scheme,
-          buyDate: buy.date.toISOString().slice(0, 10),
-          sellDate: redemption.date.toISOString().slice(0, 10),
-          holdingDays: diffDays,
-          units: matchUnits,
-          buyNav: buy.nav,
-          sellNav: redemption.nav,
+        const matchedUnits = Math.min(unitsToMatch, lot.unitsRemaining);
+        const gain = matchedUnits * (unitPrice - lot.nav);
+        const holdingDays = Math.max(0, Math.floor((date.getTime() - lot.date.getTime()) / 86_400_000));
+        const tradeRecord: Trade = {
+          scheme,
+          buyDate: lot.date.toISOString().slice(0, 10),
+          sellDate: date.toISOString().slice(0, 10),
+          holdingDays,
+          units: matchedUnits,
+          buyNav: lot.nav,
+          sellNav: unitPrice,
           gain: Math.round(gain),
           isGain: gain >= 0,
         };
 
-        if (isLongTerm) {
+        if (holdingDays > 365) {
           ltcgList.push(tradeRecord);
           ltcgSum += gain;
         } else {
@@ -184,36 +150,24 @@ export const CapitalGains = () => {
           stcgSum += gain;
         }
 
-        buy.unitsRemaining -= matchUnits;
-        unitsToMatch -= matchUnits;
+        lot.unitsRemaining -= matchedUnits;
+        unitsToMatch -= matchedUnits;
       }
     });
 
-    // Realistic baseline if user hasn't made historical redemptions yet
-    const finalStcg = Math.max(0, Math.round(stcgSum > 0 ? stcgSum : 45200));
-    const finalLtcg = Math.max(0, Math.round(ltcgSum > 0 ? ltcgSum : 185400));
-
-    // Statutory Indian Finance Act 2024 Tax Rules:
-    // STCG: 20%
-    // LTCG: 12.5% on gains exceeding ₹1.25 Lakh exemption limit
+    const totalStcgValue = Math.round(stcgSum);
+    const totalLtcgValue = Math.round(ltcgSum);
     const ltcgExemptionLimit = 125000;
-    const taxableLtcg = Math.max(0, finalLtcg - ltcgExemptionLimit);
-
-    const stTax = Math.round(finalStcg * 0.20);
+    const taxableLtcg = Math.max(0, totalLtcgValue - ltcgExemptionLimit);
+    const stTax = Math.round(Math.max(0, totalStcgValue) * 0.20);
     const ltTax = Math.round(taxableLtcg * 0.125);
-    const unutilized = Math.max(0, ltcgExemptionLimit - finalLtcg);
+    const unutilized = Math.max(0, ltcgExemptionLimit - Math.max(0, totalLtcgValue));
 
     return {
-      stcgTrades: stcgList.length > 0 ? stcgList : [
-        { scheme: "HDFC Flexi Cap Fund", buyDate: "2024-11-10", sellDate: "2025-05-15", holdingDays: 186, units: 142.5, buyNav: 110.2, sellNav: 125.4, gain: 2166, isGain: true },
-        { scheme: "SBI Bluechip Fund", buyDate: "2025-01-20", sellDate: "2025-07-12", holdingDays: 173, units: 210.0, buyNav: 82.5, sellNav: 94.1, gain: 2436, isGain: true },
-      ],
-      ltcgTrades: ltcgList.length > 0 ? ltcgList : [
-        { scheme: "ICICI Prudential Value Discovery", buyDate: "2023-04-12", sellDate: "2025-08-10", holdingDays: 850, units: 480.0, buyNav: 245.0, sellNav: 330.5, gain: 41040, isGain: true },
-        { scheme: "Parag Parikh Flexi Cap Fund", buyDate: "2022-09-01", sellDate: "2025-06-20", holdingDays: 1022, units: 350.0, buyNav: 48.2, sellNav: 72.8, gain: 8610, isGain: true },
-      ],
-      totalStcg: finalStcg,
-      totalLtcg: finalLtcg,
+      stcgTrades: stcgList,
+      ltcgTrades: ltcgList,
+      totalStcg: totalStcgValue,
+      totalLtcg: totalLtcgValue,
       stcgTax: stTax,
       ltcgTax: ltTax,
       totalTaxLiability: stTax + ltTax,
@@ -221,10 +175,35 @@ export const CapitalGains = () => {
     };
   }, [filteredTransactions]);
 
-  const sparkStcg = [totalStcg * 0.7, totalStcg * 0.85, totalStcg * 0.95, totalStcg];
-  const sparkLtcg = [totalLtcg * 0.6, totalLtcg * 0.78, totalLtcg * 0.9, totalLtcg];
-  const sparkStTax = [stcgTax * 0.75, stcgTax * 0.85, stcgTax * 0.92, stcgTax];
-  const sparkLtTax = [ltcgTax * 0.65, ltcgTax * 0.8, ltcgTax * 0.95, ltcgTax];
+  const exportSchedule = useCallback(() => {
+    const headers = ["Term", "Scheme", "Buy date", "Sell date", "Holding days", "Units", "Buy NAV", "Sell NAV", "Realized gain"];
+    const rows = [...stcgTrades.map((trade) => ({ ...trade, term: "STCG" })), ...ltcgTrades.map((trade) => ({ ...trade, term: "LTCG" }))]
+      .map((trade) => [trade.term, trade.scheme, trade.buyDate, trade.sellDate, trade.holdingDays, trade.units, trade.buyNav, trade.sellNav, trade.gain]
+        .map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","));
+    const blob = new Blob([[headers.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `capital-gains-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [stcgTrades, ltcgTrades]);
+
+  if (isTransactionsLoading || transactionsError) {
+    return (
+      <div className="space-y-5 animate-in">
+        <PageHeader title="Capital Gains & Tax Estimate" description="FIFO-matched realized gains from recorded transactions. Tax figures are estimates and may depend on fund classification and your tax circumstances." />
+        {isTransactionsLoading ? (
+          <div role="status" className="rounded-xl border border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">Loading transaction data…</div>
+        ) : (
+          <div role="alert" className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <span>Capital gains data could not be loaded.</span>
+            <Button variant="outline" onClick={() => void queryClient.invalidateQueries({ queryKey: ["user-investments"] })}>Retry</Button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 animate-in">
@@ -236,11 +215,11 @@ export const CapitalGains = () => {
               <Scale className="h-4 w-4" />
             </div>
             <h1 className="text-lg sm:text-xl font-heading font-extrabold text-foreground">
-              Capital Gains & Tax Advisory
+              Capital Gains & Tax Estimate
             </h1>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Realized capital gains computation under Indian Finance Act 2024 rules (STCG: 20%, LTCG: 12.5% above ₹1.25L).
+            FIFO-matched gains from available transaction history. Tax amounts are illustrative estimates, not a fiscal-year tax calculation.
           </p>
         </div>
 
@@ -249,7 +228,7 @@ export const CapitalGains = () => {
             Client: {selectedInvestor === "all" ? "All Portfolios" : selectedInvestor}
           </Badge>
           <Badge className="bg-emerald-600 text-white text-xs font-bold px-2 py-0.5 rounded-lg">
-            FY 2025-26
+            Matched history
           </Badge>
         </div>
       </div>
@@ -261,8 +240,6 @@ export const CapitalGains = () => {
           value={formatIndianUnits(totalStcg)}
           rateLabel="Holding ≤ 12 Months"
           subText="Realized within 1 Year"
-          sparkData={sparkStcg}
-          sparkColor="#f59e0b"
           icon={<Clock className="h-4 w-4" />}
           tag="STCG"
         />
@@ -271,39 +248,33 @@ export const CapitalGains = () => {
           title="Long-Term Gains (LTCG)"
           value={formatIndianUnits(totalLtcg)}
           rateLabel="Holding > 12 Months"
-          subText="₹1.25L Exemption Active"
-          sparkData={sparkLtcg}
-          sparkColor="#10b981"
+          subText="Illustrative annual exemption assumption"
           icon={<TrendingUp className="h-4 w-4" />}
           tag="LTCG"
         />
 
         <CgKpiCard
-          title="STCG Tax Liability"
+          title="Estimated STCG Tax"
           value={formatIndianUnits(stcgTax)}
           rateLabel="20.0% Flat Rate"
           subText="No Exemption Available"
-          sparkData={sparkStTax}
-          sparkColor="#f43f5e"
           icon={<DollarSign className="h-4 w-4" />}
-          tag="Payable"
+          tag="Estimate"
           isPositive={false}
         />
 
         <CgKpiCard
-          title="LTCG Tax Liability"
+          title="Estimated LTCG Tax"
           value={formatIndianUnits(ltcgTax)}
           rateLabel="12.5% on Excess"
-          subText={`Total Tax: ${formatIndianUnits(totalTaxLiability)}`}
-          sparkData={sparkLtTax}
-          sparkColor="#6366f1"
+          subText={`Combined estimate: ${formatIndianUnits(totalTaxLiability)}`}
           icon={<FileText className="h-4 w-4" />}
-          tag="Net Liability"
+          tag="Estimate"
           isPositive={false}
         />
       </div>
 
-      {/* ── Tax Optimization & Harvesting Strategy Banner ── */}
+      {/* ── Estimated exemption context ── */}
       <div className="p-4 rounded-2xl border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-start gap-3">
           <div className="h-8 w-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
@@ -311,29 +282,32 @@ export const CapitalGains = () => {
           </div>
           <div>
             <p className="font-bold text-foreground">
-              Tax-Loss / Gain Harvesting Strategy:{" "}
+              Illustrative LTCG exemption headroom:{" "}
               <span className="text-blue-600 font-extrabold">
                 {unutilizedExemption > 0 ? `${formatIndianUnits(unutilizedExemption)} Unused LTCG Exemption` : "Exemption Exhausted"}
               </span>
             </p>
             <p className="text-muted-foreground text-[11px] mt-0.5 leading-relaxed">
-              Under Indian Income Tax Section 112A, the first ₹1,25,000 of LTCG per financial year is 100% tax-free.
-              {unutilizedExemption > 0
-                ? " You can sell and immediately reinvest units with accumulated long-term profit up to this limit to reset your acquisition cost higher without paying any tax."
-                : " Your long-term gains have crossed the exemption ceiling. Consider booking lagging positions to offset STCG liability."}
+              This estimate applies assumed annual rates and exemption limits to the matched history shown; it does not aggregate gains by financial year or account for all holdings, fund rules, costs, or individual tax circumstances. Verify with a tax professional before acting.
             </p>
           </div>
         </div>
 
-        <Button size="sm" variant="outline" className="h-8 text-xs font-bold rounded-xl gap-1.5 shrink-0 bg-background hover:bg-muted">
-          <span>Apply Strategy</span>
-          <ArrowRight className="h-3 w-3" />
-        </Button>
+        <span className="shrink-0 rounded-lg border border-border bg-background px-3 py-2 text-[11px] font-semibold text-muted-foreground">
+          Estimate only · consult a tax professional
+        </span>
       </div>
 
       {/* ── Tabs for Trades Ledger ── */}
-      <Tabs defaultValue="stcg" value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
+      <Tabs
+        defaultValue="stcg"
+        value={activeTab}
+        onValueChange={(value) => {
+          if (value === "stcg" || value === "ltcg") setActiveTab(value);
+        }}
+        className="w-full space-y-4"
+      >
+        <div className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between">
           <TabsList className="bg-muted/60 p-1 rounded-xl">
             <TabsTrigger value="stcg" className="text-xs font-semibold rounded-lg">
               Short-Term Tranches ({stcgTrades.length})
@@ -343,7 +317,7 @@ export const CapitalGains = () => {
             </TabsTrigger>
           </TabsList>
 
-          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-xl border-border/70 hover:bg-muted">
+          <Button variant="outline" size="sm" onClick={exportSchedule} disabled={stcgTrades.length + ltcgTrades.length === 0} className="h-8 text-xs gap-1.5 rounded-xl border-border/70 hover:bg-muted">
             <Download className="h-3.5 w-3.5" />
             <span>Export Tax Schedule</span>
           </Button>
@@ -367,7 +341,7 @@ export const CapitalGains = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
-                  {stcgTrades.map((t, idx) => (
+                  {stcgTrades.length > 0 ? stcgTrades.map((t, idx) => (
                     <tr key={idx} className="hover:bg-muted/30 transition-colors">
                       <td className="py-3 px-4 font-bold text-foreground">{t.scheme}</td>
                       <td className="py-3 px-4 text-muted-foreground">{t.buyDate}</td>
@@ -380,11 +354,11 @@ export const CapitalGains = () => {
                       <td className="py-3 px-4 text-right font-medium">{t.units.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right text-muted-foreground">₹{t.buyNav.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right font-semibold">₹{t.sellNav.toFixed(2)}</td>
-                      <td className="py-3 px-4 text-right font-extrabold text-emerald-600 dark:text-emerald-400">
-                        +{formatIndianUnits(t.gain)}
+                      <td className={cn("py-3 px-4 text-right font-extrabold", t.isGain ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                        {t.isGain ? "+" : ""}{formatIndianUnits(t.gain)}
                       </td>
                     </tr>
-                  ))}
+                  )) : <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">No short-term gains can be matched from the available transaction records.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -409,7 +383,7 @@ export const CapitalGains = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
-                  {ltcgTrades.map((t, idx) => (
+                  {ltcgTrades.length > 0 ? ltcgTrades.map((t, idx) => (
                     <tr key={idx} className="hover:bg-muted/30 transition-colors">
                       <td className="py-3 px-4 font-bold text-foreground">{t.scheme}</td>
                       <td className="py-3 px-4 text-muted-foreground">{t.buyDate}</td>
@@ -422,11 +396,11 @@ export const CapitalGains = () => {
                       <td className="py-3 px-4 text-right font-medium">{t.units.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right text-muted-foreground">₹{t.buyNav.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right font-semibold">₹{t.sellNav.toFixed(2)}</td>
-                      <td className="py-3 px-4 text-right font-extrabold text-emerald-600 dark:text-emerald-400">
-                        +{formatIndianUnits(t.gain)}
+                      <td className={cn("py-3 px-4 text-right font-extrabold", t.isGain ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                        {t.isGain ? "+" : ""}{formatIndianUnits(t.gain)}
                       </td>
                     </tr>
-                  ))}
+                  )) : <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">No long-term gains can be matched from the available transaction records.</td></tr>}
                 </tbody>
               </table>
             </div>

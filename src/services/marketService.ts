@@ -4,6 +4,8 @@
  * and verified live market news announcements for NSE, BSE, and financial media.
  */
 
+import { isRecord } from "@/lib/utils";
+
 export interface MarketIndex {
   name: string;
   code: string;
@@ -41,252 +43,37 @@ export interface MarketNewsResponse {
   source: string;
 }
 
-// Fallback reference data (clearly marked as offline/stale)
-export const DEFAULT_INDICES: MarketIndex[] = [
-  {
-    name: "NIFTY 50",
-    code: "NIFTY",
-    symbol: "NIFTY 50",
-    value: 25404.10,
-    pointChange: 281.45,
-    percentChange: 1.12,
-    isPositive: true,
-    marketStatus: "CLOSED",
-    source: "Sample Reference (Offline)",
-    timestamp: new Date().toISOString(),
-    isStale: true,
-  },
-  {
-    name: "BSE SENSEX",
-    code: "SENSEX",
-    symbol: "BSE SENSEX",
-    value: 83512.20,
-    pointChange: 732.10,
-    percentChange: 0.88,
-    isPositive: true,
-    marketStatus: "CLOSED",
-    source: "Sample Reference (Offline)",
-    timestamp: new Date().toISOString(),
-    isStale: true,
-  },
-  {
-    name: "NIFTY BANK",
-    code: "BANKNIFTY",
-    symbol: "NIFTY BANK",
-    value: 54273.05,
-    pointChange: -14.30,
-    percentChange: -0.03,
-    isPositive: false,
-    marketStatus: "CLOSED",
-    source: "Sample Reference (Offline)",
-    timestamp: new Date().toISOString(),
-    isStale: true,
-  },
-];
+function isMarketIndex(value: unknown): value is MarketIndex {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.code === "string" &&
+    typeof value.symbol === "string" &&
+    typeof value.value === "number" &&
+    typeof value.pointChange === "number" &&
+    typeof value.percentChange === "number" &&
+    typeof value.isPositive === "boolean" &&
+    (value.marketStatus === "OPEN" || value.marketStatus === "CLOSED") &&
+    typeof value.source === "string" &&
+    typeof value.timestamp === "string"
+  );
+}
 
-export const DEFAULT_NEWS_BY_CATEGORY: Record<"nse" | "bse" | "market", MarketNewsItem[]> = {
-  nse: [
-    {
-      id: "nse-1",
-      title: "Nifty 50 ends higher at 25,404, up 1.12%",
-      link: "https://www.nseindia.com",
-      source: "NSE Official",
-      pubDate: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-      timeAgo: "2h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Market Indices",
-      ticker: "NIFTY",
-      isLive: false,
-    },
-    {
-      id: "nse-2",
-      title: "Sensex gains 732 points, closes at 83,512",
-      link: "https://www.nseindia.com",
-      source: "NSE Corporate",
-      pubDate: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-      timeAgo: "2h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Market Indices",
-      ticker: "SENSEX",
-      isLive: false,
-    },
-    {
-      id: "nse-3",
-      title: "RBI keeps repo rate unchanged at 6.50%",
-      link: "https://www.rbi.org.in",
-      source: "RBI Bulletin",
-      pubDate: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-      timeAgo: "4h ago",
-      sentiment: "neutral",
-      direction: "flat",
-      category: "Economy",
-      ticker: null,
-      isLive: false,
-    },
-    {
-      id: "nse-4",
-      title: "Infosys shares rise 2.8% on strong Q2 results",
-      link: "https://www.nseindia.com/companies-listing/corporate-filings-announcements",
-      source: "NSE Announcements",
-      pubDate: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-      timeAgo: "5h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Corporate Results",
-      ticker: "INFY",
-      isLive: false,
-    },
-    {
-      id: "nse-5",
-      title: "TCS announces buyback of ₹16,000 crore",
-      link: "https://www.nseindia.com/companies-listing/corporate-filings-announcements",
-      source: "NSE Announcements",
-      pubDate: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-      timeAgo: "6h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Company Announcements",
-      ticker: "TCS",
-      isLive: false,
-    },
-  ],
-  bse: [
-    {
-      id: "bse-1",
-      title: "BSE SENSEX rallies over 730 points led by banking and IT heavyweights",
-      link: "https://www.bseindia.com",
-      source: "BSE India",
-      pubDate: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
-      timeAgo: "1h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Market Indices",
-      ticker: "SENSEX",
-      isLive: false,
-    },
-    {
-      id: "bse-2",
-      title: "BSE announces enhancement in transaction charge framework for equity derivatives",
-      link: "https://www.bseindia.com/corporates/ann.html",
-      source: "BSE Circular",
-      pubDate: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-      timeAgo: "3h ago",
-      sentiment: "neutral",
-      direction: "flat",
-      category: "Regulatory",
-      ticker: null,
-      isLive: false,
-    },
-    {
-      id: "bse-3",
-      title: "Reliance Industries board approves 1:1 bonus issue resolution",
-      link: "https://www.bseindia.com/corporates/ann.html",
-      source: "BSE Corporate Filings",
-      pubDate: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-      timeAgo: "4h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Company Announcements",
-      ticker: "RELIANCE",
-      isLive: false,
-    },
-    {
-      id: "bse-4",
-      title: "HDFC Bank posts 16.8% YoY net profit growth for second quarter",
-      link: "https://www.bseindia.com/corporates/ann.html",
-      source: "BSE Filings",
-      pubDate: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-      timeAgo: "5h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Corporate Results",
-      ticker: "HDFCBANK",
-      isLive: false,
-    },
-    {
-      id: "bse-5",
-      title: "Tata Motors completes passenger vehicle demerger milestones",
-      link: "https://www.bseindia.com/corporates/ann.html",
-      source: "BSE Announcements",
-      pubDate: new Date(Date.now() - 7 * 3600 * 1000).toISOString(),
-      timeAgo: "7h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Company Announcements",
-      ticker: "TATAMOTORS",
-      isLive: false,
-    },
-  ],
-  market: [
-    {
-      id: "mkt-1",
-      title: "India Inc reports healthy Q2 earnings momentum across core sectors",
-      link: "https://www.livemint.com/market",
-      source: "Livemint",
-      pubDate: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-      timeAgo: "2h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Corporate Results",
-      ticker: null,
-      isLive: false,
-    },
-    {
-      id: "mkt-2",
-      title: "FII inflows turn positive with ₹3,450 crore net purchase in Indian equities",
-      link: "https://economictimes.indiatimes.com/markets",
-      source: "Economic Times",
-      pubDate: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-      timeAgo: "3h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Economy",
-      ticker: null,
-      isLive: false,
-    },
-    {
-      id: "mkt-3",
-      title: "Gold prices consolidate near ₹78,500/10g amid festive demand",
-      link: "https://www.moneycontrol.com/commodity",
-      source: "Moneycontrol",
-      pubDate: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-      timeAgo: "4h ago",
-      sentiment: "neutral",
-      direction: "flat",
-      category: "Commodities",
-      ticker: "GOLD",
-      isLive: false,
-    },
-    {
-      id: "mkt-4",
-      title: "Mutual Fund monthly SIP contributions surge to record ₹23,500 crore",
-      link: "https://www.amfiindia.com",
-      source: "AMFI India",
-      pubDate: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-      timeAgo: "6h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Mutual Funds",
-      ticker: null,
-      isLive: false,
-    },
-    {
-      id: "mkt-5",
-      title: "Brent crude moderates to $74/bbl, easing imported inflation concerns",
-      link: "https://www.financialexpress.com/market",
-      source: "Financial Express",
-      pubDate: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
-      timeAgo: "8h ago",
-      sentiment: "positive",
-      direction: "up",
-      category: "Economy",
-      ticker: null,
-      isLive: false,
-    },
-  ],
-};
+function isMarketNewsItem(value: unknown): value is MarketNewsItem {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.link === "string" &&
+    typeof value.source === "string" &&
+    typeof value.pubDate === "string" &&
+    typeof value.timeAgo === "string" &&
+    (value.sentiment === "positive" || value.sentiment === "negative" || value.sentiment === "neutral") &&
+    (value.direction === "up" || value.direction === "down" || value.direction === "flat") &&
+    typeof value.category === "string" &&
+    typeof value.isLive === "boolean"
+  );
+}
 
 // In-memory cache in client session
 const clientCache: {
@@ -307,20 +94,29 @@ export const fetchLiveIndices = async (): Promise<MarketIndex[]> => {
     const res = await fetch("/api/market/indices", {
       headers: { Accept: "application/json" },
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.indices) && data.indices.length > 0) {
-        clientCache.indices = { data: data.indices, ts: now };
-        return data.indices;
-      }
-    }
-  } catch (err) {
-    console.debug("Backend indices endpoint unavailable, using live exchange reference data:", err);
-  }
+    if (!res.ok) throw new Error(`Market indices request failed (${res.status}).`);
 
-  // Fallback to verified reference data
-  clientCache.indices = { data: DEFAULT_INDICES, ts: now };
-  return DEFAULT_INDICES;
+    const data: unknown = await res.json();
+    if (!isRecord(data) || !Array.isArray(data.indices)) {
+      throw new Error("Market indices service returned an invalid response.");
+    }
+    const indices = data.indices.filter(isMarketIndex);
+    if (indices.length === 0) {
+      throw new Error("Market indices service returned no valid index data.");
+    }
+
+    const result = data.isStale === true
+      ? indices.map((index) => ({ ...index, isStale: true }))
+      : indices;
+    clientCache.indices = { data: result, ts: now };
+    return result;
+  } catch (error: unknown) {
+    console.warn("Unable to load market indices:", error);
+    if (clientCache.indices) {
+      return clientCache.indices.data.map((index) => ({ ...index, isStale: true }));
+    }
+    throw error instanceof Error ? error : new Error("Market indices are temporarily unavailable.");
+  }
 };
 
 export const fetchMarketNews = async (
@@ -344,33 +140,37 @@ export const fetchMarketNews = async (
       headers: { Accept: "application/json" },
       cache: "no-store",
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.news) && data.news.length > 0) {
-        clientCache.news[category] = { data: data.news, ts: now };
-        return {
-          news: data.news,
-          category,
-          cached: false,
-          lastUpdated: new Date(now).toISOString(),
-          source: data.source || "Live Market News Feed",
-        };
-      }
+    if (!res.ok) throw new Error(`Market news request failed (${res.status}).`);
+
+    const data: unknown = await res.json();
+    if (!isRecord(data) || !Array.isArray(data.news)) {
+      throw new Error("Market news service returned an invalid response.");
     }
-  } catch (err) {
-    console.debug(`Backend news endpoint unavailable for ${category}, using exchange feed:`, err);
+    const news = data.news.filter(isMarketNewsItem);
+    if (news.length === 0) {
+      throw new Error("Market news service returned no valid headlines.");
+    }
+    clientCache.news[category] = { data: news, ts: now };
+    return {
+      news,
+      category,
+      cached: data.cached === true,
+      isStale: data.isStale === true,
+      lastUpdated: typeof data.lastUpdated === "string" ? data.lastUpdated : new Date(now).toISOString(),
+      source: typeof data.source === "string" ? data.source : "Market News Feed",
+    };
+  } catch (error: unknown) {
+    console.warn(`Unable to load market news for ${category}:`, error);
+    if (cached) {
+      return {
+        news: cached.data,
+        category,
+        cached: true,
+        isStale: true,
+        lastUpdated: new Date(cached.ts).toISOString(),
+        source: "Cached Market News Feed",
+      };
+    }
+    throw error instanceof Error ? error : new Error("Market news is temporarily unavailable.");
   }
-
-  const items = DEFAULT_NEWS_BY_CATEGORY[category] || DEFAULT_NEWS_BY_CATEGORY.nse;
-  clientCache.news[category] = { data: items, ts: now };
-
-  return {
-    news: items,
-    category,
-    cached: true,
-    isStale: true,
-    lastUpdated: new Date(now).toISOString(),
-    source: "Sample Reference Data (Offline)",
-  };
 };
-

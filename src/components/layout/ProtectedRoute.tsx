@@ -6,10 +6,15 @@ import { Loader2 } from "lucide-react";
 interface ProtectedRouteProps {
   children: ReactNode;
   requireSuperAdmin?: boolean;
+  requireAdvisor?: boolean;
 }
 
-export const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteProps) => {
-  const { user, loading, isSuperAdmin } = useAuth();
+export const ProtectedRoute = ({
+  children,
+  requireSuperAdmin = false,
+  requireAdvisor = false,
+}: ProtectedRouteProps) => {
+  const { user, loading, isSuperAdmin, isAdvisor } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,9 +23,11 @@ export const ProtectedRoute = ({ children, requireSuperAdmin = false }: Protecte
         navigate("/login");
       } else if (requireSuperAdmin && !isSuperAdmin) {
         navigate("/");
+      } else if (requireAdvisor && !isAdvisor && !isSuperAdmin) {
+        navigate("/");
       }
     }
-  }, [user, loading, isSuperAdmin, requireSuperAdmin, navigate]);
+  }, [user, loading, isSuperAdmin, isAdvisor, requireSuperAdmin, requireAdvisor, navigate]);
 
   if (loading) {
     return (
@@ -30,7 +37,7 @@ export const ProtectedRoute = ({ children, requireSuperAdmin = false }: Protecte
     );
   }
 
-  if (!user || (requireSuperAdmin && !isSuperAdmin)) {
+  if (!user || (requireSuperAdmin && !isSuperAdmin) || (requireAdvisor && !isAdvisor && !isSuperAdmin)) {
     return null;
   }
 

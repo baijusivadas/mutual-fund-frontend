@@ -150,13 +150,13 @@ const MutualFunds = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in">
+    <div className="min-w-0 space-y-6 animate-in">
       <PageHeader
         title="Mutual Funds"
         description="Comprehensive portfolio analytics with XIRR performance metrics"
       />
 
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <DashboardMetricCard
           title="Total Investment"
           value={formatCurrency(totalInvested)}
@@ -194,8 +194,14 @@ const MutualFunds = () => {
         />
       </div>
 
-      <CommonCard title="Portfolio Valuation Trend" className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200" titleClassName="text-base">
-        <div className="h-[280px] w-full pt-2">
+      <CommonCard
+        title="Portfolio valuation trend"
+        description="Portfolio value compared with net invested over the available transaction history."
+        className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
+        titleClassName="text-base"
+        contentClassName="min-w-0 p-4 sm:p-5"
+      >
+        <div className="h-[260px] w-full min-w-0 pt-2 sm:h-[300px]">
           {performanceData.length > 0 ? <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={performanceData} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
               <defs>
@@ -259,14 +265,22 @@ const MutualFunds = () => {
         <ChartInsight>{portfolioInsight}</ChartInsight>
       </CommonCard>
 
-      <CommonCard title="Scheme Holdings" className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200" titleClassName="text-base">
-        <CommonTable<SchemeHolding>
-          data={schemeData}
-          columns={columns}
-          searchPlaceholder="Search schemes..."
-          searchKeys={["schemeName"]}
-          emptyMessage="No scheme holdings found"
-        />
+      <CommonCard
+        title="Scheme holdings"
+        description="Search and sort the schemes represented in your transaction history."
+        className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
+        titleClassName="text-base"
+        contentClassName="min-w-0 p-4 sm:p-5"
+      >
+        <div className="min-w-0">
+          <CommonTable<SchemeHolding>
+            data={schemeData}
+            columns={columns}
+            searchPlaceholder="Search schemes..."
+            searchKeys={["schemeName"]}
+            emptyMessage="No scheme holdings found"
+          />
+        </div>
       </CommonCard>
     </div>
   );

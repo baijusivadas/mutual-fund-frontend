@@ -1,9 +1,23 @@
-import type { IncomingMessage, ServerResponse } from "http";
+import { isRecord } from "@/lib/utils";
+
 import https from "https";
 
 interface CachedEntry<T> {
   data: T;
   ts: number;
+}
+
+interface MarketNewsItem {
+  id: string;
+  title: string;
+  link: string;
+  source: string;
+  pubDate: string;
+  timeAgo: string;
+  sentiment: "positive" | "negative" | "neutral";
+  direction: "up" | "down" | "flat";
+  category: string;
+  isLive: boolean;
 }
 
 const memoryCache: {
@@ -13,6 +27,21 @@ const memoryCache: {
   indices: null,
   news: {},
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sendUnavailable(res: ServerResponse, cachedData: unknown, message: string): void {
+  res.setHeader("Content-Type", "application/json");
+  if (isRecord(cachedData)) {
+    res.end(JSON.stringify({ ...cachedData, cached: true, isStale: true }));
+    return;
+  }
+
+  res.statusCode = 502;
+  res.end(JSON.stringify({ error: message }));
+}
 
 function fetchHttps(url: string, headers: Record<string, string> = {}): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -148,20 +177,13 @@ export async function handleMarketApi(
       memoryCache.indices = { data: payload, ts: now };
       res.end(JSON.stringify(payload));
       return;
-    } catch (e) {
-      // Fallback
-      const payload = {
-        indices: [
-          { name: "NIFTY 50", code: "NIFTY", symbol: "NIFTY 50", value: 25404.10, pointChange: 281.45, percentChange: 1.12, isPositive: true, marketStatus: "OPEN", source: "NSE India", timestamp: new Date().toISOString() },
-          { name: "BSE SENSEX", code: "SENSEX", symbol: "BSE SENSEX", value: 83512.20, pointChange: 732.10, percentChange: 0.88, isPositive: true, marketStatus: "OPEN", source: "BSE India", timestamp: new Date().toISOString() },
-          { name: "NIFTY BANK", code: "BANKNIFTY", symbol: "NIFTY BANK", value: 54273.05, pointChange: -14.30, percentChange: -0.03, isPositive: false, marketStatus: "OPEN", source: "NSE India", timestamp: new Date().toISOString() },
-        ],
-        cached: true,
-        isStale: true,
-        lastUpdated: new Date().toISOString(),
-        source: "Exchange Snapshot Feeds",
-      };
-      res.end(JSON.stringify(payload));
+    } catch (error: unknown) {
+      console.error("Unable to refresh market indices:", error);
+      sendUnavailable(
+        res,
+        memoryCache.indices?.data,
+        "Market indices are temporarily unavailable."
+      );
       return;
     }
   }
@@ -185,7 +207,7 @@ export async function handleMarketApi(
       const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-IN&gl=IN&ceid=IN:en`;
       const xml = await fetchHttps(rssUrl);
 
-      const items: any[] = [];
+      const items: MarketNewsItem[] = [];
       const itemRegex = /<item>[\s\S]*?<\/item>/g;
       let m;
       let count = 1;
@@ -273,23 +295,13 @@ export async function handleMarketApi(
       memoryCache.news[cat] = { data: payload, ts: now };
       res.end(JSON.stringify(payload));
       return;
-    } catch {
-      // Fallback response
-      const fallbackNews = [
-        { id: "1", title: "Nifty 50 ends higher at 25,404, up 1.12%", link: "https://www.nseindia.com", source: "NSE India", pubDate: new Date().toISOString(), timeAgo: "2h ago", sentiment: "positive", direction: "up", category: "Market Indices", isLive: true },
-        { id: "2", title: "Sensex gains 732 points, closes at 83,512", link: "https://www.bseindia.com", source: "BSE India", pubDate: new Date().toISOString(), timeAgo: "2h ago", sentiment: "positive", direction: "up", category: "Market Indices", isLive: true },
-        { id: "3", title: "RBI keeps repo rate unchanged at 6.50%", link: "https://rbi.org.in", source: "RBI Press", pubDate: new Date().toISOString(), timeAgo: "4h ago", sentiment: "neutral", direction: "flat", category: "Economy", isLive: true },
-        { id: "4", title: "Infosys shares rise 2.8% on strong Q2 results", link: "https://www.nseindia.com", source: "NSE Corporate", pubDate: new Date().toISOString(), timeAgo: "5h ago", sentiment: "positive", direction: "up", category: "Corporate Results", isLive: true },
-        { id: "5", title: "TCS announces buyback of ₹16,000 crore", link: "https://www.bseindia.com", source: "BSE Announcements", pubDate: new Date().toISOString(), timeAgo: "6h ago", sentiment: "positive", direction: "up", category: "Company Announcements", isLive: true },
-      ];
-      const payload = {
-        news: fallbackNews,
-        category: cat,
-        cached: true,
-        lastUpdated: new Date().toISOString(),
-        source: "Market News Feeds",
-      };
-      res.end(JSON.stringify(payload));
+    } catch (error: unknown) {
+      console.error("Unable to refresh market news:", error);
+      sendUnavailable(
+        res,
+        memoryCache.news[cat]?.data,
+        "Market news is temporarily unavailable."
+      );
       return;
     }
   }

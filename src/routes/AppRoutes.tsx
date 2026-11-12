@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, Outlet } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { InvestorProvider } from "@/contexts/InvestorContext";
@@ -7,6 +7,16 @@ import { Loader2 } from "lucide-react";
 
 // Lazy-loaded pages
 const Index = lazy(() => import("@/pages/dashboard/Index"));
+const AdvisorDashboard = lazy(() =>
+  import("@/pages/dashboard/AdvisorDashboard").then(({ AdvisorDashboard }) => ({
+    default: AdvisorDashboard,
+  }))
+);
+const InvestorDashboard = lazy(() =>
+  import("@/pages/dashboard/InvestorDashboard").then(({ InvestorDashboard }) => ({
+    default: InvestorDashboard,
+  }))
+);
 const Login = lazy(() => import("@/pages/auth/Login"));
 const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/auth/ResetPassword"));
@@ -61,8 +71,14 @@ const PageContentLoader = () => (
 );
 
 // Persistent Protected App Layout wrapper
-const ProtectedAppLayout = ({ requireSuperAdmin }: { requireSuperAdmin?: boolean }) => (
-  <ProtectedRoute requireSuperAdmin={requireSuperAdmin}>
+const ProtectedAppLayout = ({
+  requireSuperAdmin,
+  requireAdvisor,
+}: {
+  requireSuperAdmin?: boolean;
+  requireAdvisor?: boolean;
+}) => (
+  <ProtectedRoute requireSuperAdmin={requireSuperAdmin} requireAdvisor={requireAdvisor}>
     <InvestorProvider>
       <DashboardLayout>
         <Suspense fallback={<PageContentLoader />}>
@@ -112,6 +128,7 @@ export const AppRoutes = () => (
     {/* Protected User Routes (Persistent Sidebar & Header Layout) */}
     <Route element={<ProtectedAppLayout />}>
       <Route path="/" element={<Index />} />
+      <Route path="/client-view" element={<InvestorDashboard />} />
       <Route path="/portfolio" element={<Portfolio />} />
       <Route path="/mutual-funds" element={<MutualFunds />} />
       <Route path="/derivatives" element={<Derivatives />} />
@@ -128,21 +145,40 @@ export const AppRoutes = () => (
       <Route path="/stock-reports" element={<StockReports />} />
     </Route>
 
-    {/* Protected Admin Routes (Persistent Sidebar & Header Layout) */}
+    <Route element={<ProtectedAppLayout requireAdvisor={true} />}>
+      <Route path="/advisor" element={<AdvisorDashboard />} />
+    </Route>
+
+    {/* Protected management routes use short URLs but remain SuperAdmin-only. */}
     <Route element={<ProtectedAppLayout requireSuperAdmin={true} />}>
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/users" element={<UserManagement />} />
-      <Route path="/admin/roles" element={<RolesManagement />} />
-      <Route path="/admin/real-estate" element={<RealEstate />} />
-      <Route path="/admin/gold" element={<Gold />} />
-      <Route path="/admin/flats" element={<Flats />} />
-      <Route path="/admin/rental-properties" element={<RentalProperties />} />
-      <Route path="/admin/analytics" element={<Analytics />} />
-      <Route path="/admin/notifications" element={<NotificationHistory />} />
-      <Route path="/admin/data-upload" element={<DataUpload />} />
-      <Route path="/admin/user-investment-mapping" element={<UserInvestmentMapping />} />
-      <Route path="/admin/master-data" element={<MasterData />} />
-      <Route path="/admin/investors" element={<Investors />} />
+      <Route path="/admin-dashboard" element={<AdminDashboard />} />
+      <Route path="/users" element={<UserManagement />} />
+      <Route path="/roles" element={<RolesManagement />} />
+      <Route path="/real-estate" element={<RealEstate />} />
+      <Route path="/gold" element={<Gold />} />
+      <Route path="/flats" element={<Flats />} />
+      <Route path="/rental-properties" element={<RentalProperties />} />
+      <Route path="/analytics" element={<Analytics />} />
+      <Route path="/notifications" element={<NotificationHistory />} />
+      <Route path="/data-upload" element={<DataUpload />} />
+      <Route path="/user-investment-mapping" element={<UserInvestmentMapping />} />
+      <Route path="/master-data" element={<MasterData />} />
+      <Route path="/investors" element={<Investors />} />
+
+      {/* Keep old bookmarks working while sending users to the new URLs. */}
+      <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
+      <Route path="/admin/users" element={<Navigate to="/users" replace />} />
+      <Route path="/admin/roles" element={<Navigate to="/roles" replace />} />
+      <Route path="/admin/real-estate" element={<Navigate to="/real-estate" replace />} />
+      <Route path="/admin/gold" element={<Navigate to="/gold" replace />} />
+      <Route path="/admin/flats" element={<Navigate to="/flats" replace />} />
+      <Route path="/admin/rental-properties" element={<Navigate to="/rental-properties" replace />} />
+      <Route path="/admin/analytics" element={<Navigate to="/analytics" replace />} />
+      <Route path="/admin/notifications" element={<Navigate to="/notifications" replace />} />
+      <Route path="/admin/data-upload" element={<Navigate to="/data-upload" replace />} />
+      <Route path="/admin/user-investment-mapping" element={<Navigate to="/user-investment-mapping" replace />} />
+      <Route path="/admin/master-data" element={<Navigate to="/master-data" replace />} />
+      <Route path="/admin/investors" element={<Navigate to="/investors" replace />} />
     </Route>
 
     <Route

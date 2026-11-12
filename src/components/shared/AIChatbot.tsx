@@ -699,8 +699,8 @@ export const AIChatbot = memo(() => {
               portfolioContext: {
                 investorName:
                   selectedInvestor !== "all" ? selectedInvestor : user?.name || "Client",
-                currentValue: currentValue > 0 ? currentValue : 2187000,
-                totalInvested: totalInvested > 0 ? totalInvested : 1894000,
+                currentValue,
+                totalInvested,
                 gainPercentage: `${roi}%`,
                 xirr: typeof xirr === "number" ? `${xirr.toFixed(2)}%` : "N/A",
                 topHoldings: schemeData.slice(0, 5).map((s) => ({
@@ -776,7 +776,7 @@ export const AIChatbot = memo(() => {
         setIsTyping(false);
       }
     },
-    [isOpen]
+    [currentValue, isOpen, roi, schemeData, selectedInvestor, totalInvested, user?.name, xirr]
   );
 
   /* ----------------------------------------------------------

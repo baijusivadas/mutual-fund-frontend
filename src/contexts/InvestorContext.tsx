@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useMemo } from "react";
+import { createContext, useContext, ReactNode, useMemo, useCallback, useState } from "react";
 import { TransactionData } from "@/utils/parseTransactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserInvestments } from "@/hooks/useUserInvestments";
@@ -10,6 +10,8 @@ interface InvestorContextType {
   transactions: TransactionData[];
   filteredTransactions: TransactionData[];
   isNewUser: boolean;
+  isLoading: boolean;
+  investmentsError: unknown;
 }
 
 const defaultInvestorContext: InvestorContextType = {
@@ -19,6 +21,8 @@ const defaultInvestorContext: InvestorContextType = {
   transactions: [],
   filteredTransactions: [],
   isNewUser: false,
+  isLoading: false,
+  investmentsError: null,
 };
 
 const InvestorContext = createContext<InvestorContextType>(defaultInvestorContext);
@@ -49,11 +53,26 @@ const mapDbTransaction = (dbTx: DbTransaction, isSell: boolean): TransactionData
 };
 
 export const InvestorProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedInvestor, setSelectedInvestor] = useState<string>("all");
-  const { isSuperAdmin, user } = useAuth();
+  const [selectedInvestor, setSelectedInvestorState] = useState(
+    () => sessionStorage.getItem("selectedInvestor") || "all"
+  );
+  const setSelectedInvestor = useCallback(
+    (investor: string) => {
+      sessionStorage.setItem("selectedInvestor", investor);
+      setSelectedInvestorState(investor);
+    },
+    []
+  );
+  const { isSuperAdmin, isAdvisor, user } = useAuth();
 
   // Fetch real-time database transactions mapped to the user
-  const { purchases = [], redemptions = [], mappedInvestorNames = [] } = useUserInvestments();
+  const {
+    purchases = [],
+    redemptions = [],
+    mappedInvestorNames = [],
+    isLoading,
+    error: investmentsError,
+  } = useUserInvestments();
 
   // Transaction data must come from the authenticated API, never a public bundled workbook.
   const transactions = useMemo(() => {
@@ -71,12 +90,12 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions]);
 
   // Regular users without mapped investments should see an empty portfolio, not shared sample data.
-  const isNewUser = !isSuperAdmin && !!user && mappedInvestorNames.length === 0;
+  const isNewUser = !isSuperAdmin && !isAdvisor && !!user && mappedInvestorNames.length === 0;
 
   // Filter transactions by investor - memoized for performance
   const filteredTransactions = useMemo(() => {
     if (selectedInvestor === "all") return transactions;
-    return transactions.filter((t) => t.investorName === selectedInvestor);
+    return transactions.filter((t) => t.investorName?.trim() === selectedInvestor.trim());
   }, [selectedInvestor, transactions]);
 
   const contextValue = useMemo(
@@ -87,8 +106,10 @@ export const InvestorProvider = ({ children }: { children: ReactNode }) => {
       transactions,
       filteredTransactions,
       isNewUser,
+      isLoading,
+      investmentsError,
     }),
-    [selectedInvestor, investors, transactions, filteredTransactions, isNewUser]
+    [selectedInvestor, setSelectedInvestor, investors, transactions, filteredTransactions, isNewUser, isLoading, investmentsError]
   );
 
   return <InvestorContext.Provider value={contextValue}>{children}</InvestorContext.Provider>;

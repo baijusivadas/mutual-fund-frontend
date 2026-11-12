@@ -14,7 +14,7 @@ export const useUserInvestments = () => {
   const { user, isSuperAdmin } = useAuth();
 
   // Fetch user's investment mappings, purchases, and redemptions in one API call
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["user-investments", user?.id],
     queryFn: async () => {
       if (!user) return { mappings: [], purchases: [], redemptions: [], mappedInvestorNames: [] };
@@ -45,6 +45,7 @@ export const useUserInvestments = () => {
     mappedInvestorNames,
     hasAssetTypeAccess,
     isLoading,
+    error,
     hasInvestments: mappings.length > 0 || isSuperAdmin,
   };
 };

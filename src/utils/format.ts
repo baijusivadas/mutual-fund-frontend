@@ -54,8 +54,10 @@ export const formatDate = (
  * Format a numeric percentage with a leading sign.
  * e.g., `formatPercent(3.5)` → `"+3.50%"`, `formatPercent(-1.2)` → `"-1.20%"`
  */
-export const formatPercent = (value: number | string): string => {
+export const formatPercent = (value: number | string | null | undefined): string => {
+  if (value === null || value === undefined) return "N/A";
   const val = typeof value === "string" ? parseFloat(value) : value;
+  if (!Number.isFinite(val)) return "N/A";
   return `${val >= 0 ? "+" : ""}${val.toFixed(2)}%`;
 };
 
@@ -65,3 +67,24 @@ export const formatPercent = (value: number | string): string => {
  */
 export const formatAmount = (value: number, fractionDigits = 0): string =>
   value.toLocaleString("en-IN", { maximumFractionDigits: fractionDigits });
+
+/**
+ * Format a date as human-friendly relative time (e.g. "Today", "Yesterday", "3d ago", "2w ago").
+ */
+export const formatRelativeDate = (date: string | null): string => {
+  if (!date) return "—";
+  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  if (diff < 7) return `${diff}d ago`;
+  if (diff < 30) return `${Math.floor(diff / 7)}w ago`;
+  if (diff < 365) return `${Math.floor(diff / 30)}mo ago`;
+  return `${Math.floor(diff / 365)}y ago`;
+};
+
+/**
+ * Format an ISO date or timestamp into a standard activity date string (e.g. "12 Oct 2026").
+ */
+export const formatActivityDate = (d: string | null): string => {
+  return d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+};

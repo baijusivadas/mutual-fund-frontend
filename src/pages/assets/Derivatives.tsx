@@ -1,8 +1,9 @@
 import { formatCurrency, formatIndianUnits } from "@/utils/format";
 import { memo, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Activity, AlertCircle, BarChart3, DollarSign, Layers, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity, AlertCircle, BarChart3, DollarSign, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { DataManager } from "@/components/shared/DataManager";
@@ -19,6 +20,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ColumnConfig } from "@/components/shared/CommonTable";
 import api from "@/services/api";
 import { ChartInsight } from "@/components/charts/ChartInsight";
+import { getErrorMessage } from "@/lib/errors";
+import { getAdvancedQueryKey } from "@/hooks/useAdvancedPortfolio";
+import { propertyQueryConfig } from "@/hooks/useQueryConfig";
 import {
   Bar,
   BarChart,
@@ -29,88 +33,37 @@ import {
   XAxis,
   YAxis,
   ReferenceLine,
-  AreaChart,
-  Area,
 } from "recharts";
 import { cn } from "@/lib/utils";
 
-const SPARKLINE_HEIGHT = 44;
-
-/* ── Smooth Sparkline ────────────────────────────────────────── */
-const Sparkline = memo(({ data, color = "#2563eb" }: { data: number[]; color?: string }) => {
-  const chartData = useMemo(() => {
-    const safe = data && data.length > 0 ? data : [10, 15, 20, 25, 30];
-    return safe.map((v, i) => ({ i, v }));
-  }, [data]);
-
-  const gradId = `deriv-spk-${color.replace("#", "")}`;
-
-  return (
-    <ResponsiveContainer width="100%" height={SPARKLINE_HEIGHT}>
-      <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2.2} fill={`url(#${gradId})`} dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-});
-Sparkline.displayName = "Sparkline";
-
-/* ── KPI Metric Card ─────────────────────────────────────────── */
 interface ModernDerivKpiCardProps {
   title: string;
   value: string;
   subValue?: string;
-  tag?: string;
   isPositive?: boolean;
-  sparkData: number[];
-  sparkColor: string;
   icon: React.ReactNode;
 }
 
 const ModernDerivKpiCard = memo(
-  ({ title, value, subValue, tag, isPositive = true, sparkData, sparkColor, icon }: ModernDerivKpiCardProps) => (
-    <Card className="relative overflow-hidden bg-card border border-border/80 rounded-2xl shadow-xs hover:shadow-md hover:border-primary/30 transition-all duration-200 group flex flex-col justify-between">
-      <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full">
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">{title}</span>
-            <div className="h-7 w-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-              {icon}
-            </div>
+  ({ title, value, subValue, isPositive = true, icon }: ModernDerivKpiCardProps) => (
+    <Card className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-colors hover:border-primary/30">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-muted-foreground">{title}</p>
+            <p className="mt-2 break-words text-xl font-heading font-bold tracking-tight text-foreground sm:text-2xl">
+              {value}
+            </p>
           </div>
-
-          <div className="flex items-baseline justify-between mt-2.5 gap-2">
-            <div>
-              <p className="text-2xl font-heading font-extrabold text-foreground tracking-tight">{value}</p>
-              {subValue && (
-                <p className={cn("text-xs font-bold mt-0.5", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                  {subValue}
-                </p>
-              )}
-            </div>
-            <div className="w-[95px] shrink-0">
-              <Sparkline data={sparkData} color={sparkColor} />
-            </div>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            {icon}
           </div>
         </div>
-
-        <div className="mt-3 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>Live Contract Position</span>
-          {tag && (
-            <Badge
-              variant="outline"
-              className={cn("text-[9px] font-bold px-1.5 py-0 rounded border-none", isPositive ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}
-            >
-              {tag}
-            </Badge>
-          )}
-        </div>
+        {subValue && (
+          <p className={cn("mt-2 text-xs font-medium", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+            {subValue}
+          </p>
+        )}
       </CardContent>
     </Card>
   )
@@ -228,7 +181,7 @@ const COLUMNS: ColumnConfig<DerivativePosition>[] = [
 const Derivatives = () => {
   const { token } = useAuth();
 
-  const { data: positions = [], isLoading } = useQuery({
+  const { data: positions = [], isLoading, isError, error } = useQuery({
     queryKey: ["derivatives"],
     queryFn: async (): Promise<DerivativePosition[]> => {
       const response = await api.get("/derivatives");
@@ -236,6 +189,25 @@ const Derivatives = () => {
     },
     enabled: !!token,
   });
+  const {
+    isError: isLedgerError,
+    error: ledgerError,
+    refetch: retryLedger,
+  } = useQuery({
+    queryKey: getAdvancedQueryKey("derivatives"),
+    queryFn: async () => {
+      const response = await api.get("/advanced/derivatives");
+      return Array.isArray(response.data) ? response.data : response.data.data || [];
+    },
+    enabled: !!token,
+    ...propertyQueryConfig,
+  });
+  const errorMessage = isError
+    ? getErrorMessage(error, "Unable to load derivative positions. Please try again.")
+    : "";
+  const ledgerErrorMessage = isLedgerError
+    ? getErrorMessage(ledgerError, "Unable to load derivative records.")
+    : "";
 
   const {
     totalFuturesPnL,
@@ -297,7 +269,7 @@ const Derivatives = () => {
       setFormData: React.Dispatch<React.SetStateAction<typeof DEFAULT_FORM_DATA>>
     ) => (
       <div className="grid gap-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label>Contract Name *</Label>
             <Input
@@ -322,7 +294,7 @@ const Derivatives = () => {
             </Select>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="grid gap-2">
             <Label>Quantity (Lots)</Label>
             <Input
@@ -340,7 +312,7 @@ const Derivatives = () => {
             />
           </div>
           <div className="grid gap-2">
-            <Label>LTP (Live Price)</Label>
+            <Label>Latest Price (LTP)</Label>
             <Input
               type="number"
               value={formData.ltp}
@@ -359,7 +331,7 @@ const Derivatives = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Option Type</Label>
                 <Select
@@ -400,83 +372,65 @@ const Derivatives = () => {
   );
 
   return (
-    <div className="space-y-5 animate-in">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25">
-              <Activity className="h-4 w-4" />
-            </div>
-            <h1 className="text-lg sm:text-xl font-heading font-extrabold text-foreground">
-              Derivatives & F&O Portfolio
-            </h1>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Futures & Options positions monitoring, strike valuation, and margin utilization.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-muted/40">
-            {positions.length} Active Positions
+    <div className="space-y-6 animate-in">
+      <PageHeader
+        title="Derivatives"
+        description="Review futures and options exposure, mark-to-market performance, and contract details."
+        actions={
+          <Badge variant="outline" className="w-fit rounded-lg bg-muted/40 px-3 py-1.5 text-xs font-semibold">
+            {isLoading ? "Loading positions" : isError ? "Positions unavailable" : `${positions.length} positions`}
           </Badge>
+        }
+      />
+
+      {isError && (
+        <div role="alert" className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-semibold">Derivative positions could not be loaded</p>
+            <p className="mt-1 text-destructive/90">{errorMessage}</p>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── Top 4 Modern KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <ModernDerivKpiCard
-          title="Total Notional Value"
-          value={isLoading ? "..." : formatIndianUnits(totalPositionValue)}
-          subValue="Combined F&O Exposure"
-          sparkData={[totalPositionValue * 0.9, totalPositionValue * 0.95, totalPositionValue]}
-          sparkColor="#2563eb"
+          title="Position value"
+          value={isLoading ? "Loading…" : isError ? "Unavailable" : formatIndianUnits(totalPositionValue)}
+          subValue="Combined futures and options"
           icon={<DollarSign className="h-4 w-4" />}
-          tag="Notional"
         />
 
         <ModernDerivKpiCard
-          title="Futures MTM P&L"
-          value={isLoading ? "..." : formatCurrency(totalFuturesPnL)}
-          subValue={
-            totalFuturesMargin > 0
-              ? `${((totalFuturesPnL / totalFuturesMargin) * 100).toFixed(2)}% Margin Return`
-              : "No Margin Data"
-          }
+          title="Futures P&L"
+          value={isLoading ? "Loading…" : isError ? "Unavailable" : formatCurrency(totalFuturesPnL)}
+          subValue={isLoading ? "Loading margin data" : isError ? "Margin return unavailable" : totalFuturesMargin > 0
+            ? `${((totalFuturesPnL / totalFuturesMargin) * 100).toFixed(2)}% of margin recorded`
+            : "No margin recorded"}
           isPositive={totalFuturesPnL >= 0}
-          sparkData={[totalFuturesPnL * 0.8, totalFuturesPnL * 0.9, totalFuturesPnL]}
-          sparkColor={totalFuturesPnL >= 0 ? "#10b981" : "#ef4444"}
           icon={totalFuturesPnL >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          tag="Futures"
         />
 
         <ModernDerivKpiCard
-          title="Options MTM P&L"
-          value={isLoading ? "..." : formatCurrency(totalOptionsPnL)}
-          subValue={`Premium Paid: ${formatCurrency(totalPremiumPaid)}`}
+          title="Options P&L"
+          value={isLoading ? "Loading…" : isError ? "Unavailable" : formatCurrency(totalOptionsPnL)}
+          subValue={isLoading ? "Loading premium data" : isError ? "Premium data unavailable" : `Premium paid: ${formatCurrency(totalPremiumPaid)}`}
           isPositive={totalOptionsPnL >= 0}
-          sparkData={[totalOptionsPnL * 0.8, totalOptionsPnL * 0.9, totalOptionsPnL]}
-          sparkColor={totalOptionsPnL >= 0 ? "#10b981" : "#ef4444"}
           icon={totalOptionsPnL >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          tag="Options"
         />
 
         <ModernDerivKpiCard
-          title="Margin Utilization"
-          value={isLoading ? "..." : formatIndianUnits(totalFuturesMargin)}
-          subValue="SPAN + Exposure Margin"
-          sparkData={[totalFuturesMargin * 0.95, totalFuturesMargin]}
-          sparkColor="#8b5cf6"
+          title="Futures margin"
+          value={isLoading ? "Loading…" : isError ? "Unavailable" : formatIndianUnits(totalFuturesMargin)}
+          subValue="Margin recorded for futures positions"
           icon={<AlertCircle className="h-4 w-4" />}
-          tag="Capital Locked"
         />
       </div>
 
       {/* ── Position P&L Chart ── */}
       <Card className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-2 border-b border-border/50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <div className="h-6 w-6 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                 <BarChart3 className="h-3.5 w-3.5" />
@@ -487,7 +441,7 @@ const Derivatives = () => {
               </div>
             </div>
             <Badge variant="outline" className="text-[10px] font-bold">
-              {winningPositions} / {positions.length} Profitable
+              {isLoading ? "Loading…" : isError ? "Unavailable" : `${winningPositions} of ${positions.length} profitable`}
             </Badge>
           </div>
         </CardHeader>
@@ -495,6 +449,10 @@ const Derivatives = () => {
           {isLoading ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
               Loading positions...
+            </div>
+          ) : isError ? (
+            <div className="flex h-[180px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
+              Position performance is unavailable until the data can be loaded.
             </div>
           ) : positionChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -547,7 +505,9 @@ const Derivatives = () => {
             </div>
           )}
           <ChartInsight>
-            {bestPosition
+            {isError
+              ? "Performance insights are unavailable because positions could not be loaded."
+              : bestPosition
               ? `Net position P&L is ${formatCurrency(totalPnL)}. ${winningPositions} of ${positions.length} positions are profitable; ${bestPosition.contract} leads performance.`
               : "Add derivative positions to see contract-level P&L and performance insights."}
           </ChartInsight>
@@ -555,12 +515,21 @@ const Derivatives = () => {
       </Card>
 
       {/* ── Position Ledger Table ── */}
+      {ledgerErrorMessage && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-destructive">{ledgerErrorMessage}</p>
+          <Button variant="outline" size="sm" onClick={() => void retryLedger()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Try again
+          </Button>
+        </div>
+      )}
       <DataManager<DerivativePosition, typeof DEFAULT_FORM_DATA>
         entity="derivatives"
         title="Derivatives Positions"
         description="Manage your futures and options contracts"
         icon={<Activity className="h-8 w-8 text-primary" />}
-        hideHeader={true}
+        hideHeader
         dashboardStyle
         columns={COLUMNS}
         searchKeys={SEARCH_KEYS}

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemo } from "react";
+import { numericValue } from "@/lib/utils";
 import api from "@/services/api";
 
 type PortfolioRecord = Record<string, string | number | null | undefined>;
@@ -29,10 +30,19 @@ export interface AdvancedPortfolioData {
   };
 }
 
-function numericValue(value: string | number | null | undefined): number {
-  const parsedValue = Number(value);
-  return Number.isFinite(parsedValue) ? parsedValue : 0;
-}
+const EMPTY_DETAILS: AdvancedPortfolioData["details"] = {
+  realEstate: [],
+  flats: [],
+  rentalProperties: [],
+  bankAccounts: [],
+  liabilities: [],
+  customAssets: [],
+  crypto: [],
+  bonds: [],
+  etfs: [],
+  nps: [],
+  mutualFunds: [],
+};
 
 export const useAdvancedPortfolio = () => {
   const { token } = useAuth();
@@ -90,7 +100,7 @@ export const useAdvancedPortfolio = () => {
   }, [data]);
 
   return {
-    raw: data?.details || {},
+    raw: data?.details || EMPTY_DETAILS,
     ...calculatedMetrics,
     isLoading,
     error,
